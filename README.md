@@ -1,21 +1,44 @@
+# Football Copilot
 # ⚽ Football Copilot
 
-Football Copilot is an end-to-end conversational football analytics and prediction application built around Premier League data.
+Football Copilot is a personal AI and analytics experiment I built to deepen my practical understanding of how modern agentic AI applications work end-to-end.
 
-The project was developed from first principles to understand how an agentic analytics application works under the hood, deliberately avoiding orchestration frameworks such as LangChain and LangGraph.
+Rather than using an orchestration framework such as LangChain or LangGraph, I built the core components from first principles to understand what is happening underneath the abstraction layer.
 
-It combines:
+The project combines:
 
-- Premier League historical match data
-- DuckDB analytics
-- Python analytical tools
-- Local LLM inference with Ollama
-- Deterministic tool routing
+- local LLM inference with Qwen and Ollama
+- deterministic tool routing
+- conversational football analytics
+- DuckDB
 - Streamlit
-- Statistical football prediction
-- Walk-forward model validation
-- Historical bookmaker market comparison
+- predictive modelling
+- walk-forward validation
+- model challenger testing
+- historical bookmaker market benchmarking
 
+I chose Premier League football as the domain because it provides a practical environment for experimenting with both conversational analytics and probabilistic prediction.
+
+The objective was not simply to build a chatbot.  It was to understand where an LLM adds value, where deterministic analytics should remain in control, and how statistical models can be exposed through a conversational interface.
+
+## What it demonstrates
+
+Football Copilot demonstrates an end-to-end AI and analytics workflow:
+
+```text
+Natural-language question
+        ↓
+Intent detection
+        ↓
+Deterministic router / LLM tool calling
+        ↓
+Trusted analytical or prediction tool
+        ↓
+Structured result
+        ↓
+LLM explanation
+        ↓
+Streamlit visualisation
 
 ## Project Objective
 
@@ -51,3 +74,14 @@ Arsenal win probability
 
 Expected goals
 Most likely scorelines
+
+## Football Copilot in Action
+
+### Conversational analytics
+
+![Football Copilot team comparison](docs/images/team-comparison.png)
+
+### Statistical match prediction
+
+![Football Copilot match prediction](docs/images/match-prediction.png)
+

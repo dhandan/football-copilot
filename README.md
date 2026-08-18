@@ -1,5 +1,7 @@
 # Football Copilot
 
+![Football Copilot](docs/images/football-copilot-social-preview.jpg)
+
 Football Copilot is a personal AI and analytics experiment I built to deepen my practical understanding of how modern agentic AI applications work end-to-end.
 
 Rather than using an orchestration framework such as LangChain or LangGraph, I built the core components from first principles to understand what is happening underneath the abstraction layer.

@@ -38,3 +38,5 @@ models/*.pkl
 data/processed/*.csv
 data/processed/*.duckdb
 data/processed/*.db
+
+.env

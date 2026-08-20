@@ -3,6 +3,11 @@ import pickle
 import pandas as pd
 from scipy.stats import poisson
 
+from prediction.promoted_team_adapter import (
+    is_promoted_cold_start_team,
+    get_promoted_model_stats,
+)
+
 
 # --------------------------------------------------
 # Files
@@ -303,6 +308,52 @@ def calculate_team_stats(
             points / games,
     }
 
+# ==================================================
+# TEAM FEATURE STAT PROVIDER
+# ==================================================
+
+def get_feature_stats(
+    team,
+    n=None,
+    venue=None,
+    season=None,
+    context="generic",
+):
+
+    """
+    Return the team statistics required by frozen
+    Model 2.
+
+    Established Premier League teams use the existing
+    historical feature pipeline.
+
+    Newly promoted cold-start teams use the validated
+    promoted-team prior until sufficient Premier
+    League observations become available.
+    """
+
+    if is_promoted_cold_start_team(
+        team
+    ):
+
+        return get_promoted_model_stats(
+            team,
+            context=context,
+        )
+
+
+    previous_matches = get_previous_matches(
+        team,
+        n=n,
+        venue=venue,
+        season=season,
+    )
+
+
+    return calculate_team_stats(
+        previous_matches,
+        team,
+    )
 
 # --------------------------------------------------
 # Build production features
@@ -313,14 +364,37 @@ def build_fixture_features(
     away_team,
 ):
 
-    validate_team(
+    # ==================================================
+    # VALIDATION
+    # ==================================================
+
+    # Established teams must exist in historical
+    # Premier League data.
+    #
+    # Promoted cold-start teams are validated against
+    # the promoted-team prior layer instead.
+
+    if not is_promoted_cold_start_team(
         home_team
-    )
+    ):
 
-    validate_team(
+        validate_team(
+            home_team
+        )
+
+
+    if not is_promoted_cold_start_team(
         away_team
-    )
+    ):
 
+        validate_team(
+            away_team
+        )
+
+
+    # ==================================================
+    # LATEST HISTORICAL FEATURE SEASON
+    # ==================================================
 
     latest_season = (
         matches[
@@ -331,101 +405,93 @@ def build_fixture_features(
     )
 
 
-    # ----------------------------------------------
-    # Last 5
-    # ----------------------------------------------
+    # ==================================================
+    # LAST 5
+    # ==================================================
 
-    home_5 = calculate_team_stats(
-        get_previous_matches(
-            home_team,
-            n=5,
-        ),
+    home_5 = get_feature_stats(
         home_team,
+        n=5,
+        context="recent_5",
     )
 
 
-    away_5 = calculate_team_stats(
-        get_previous_matches(
-            away_team,
-            n=5,
-        ),
+    away_5 = get_feature_stats(
         away_team,
+        n=5,
+        context="recent_5",
     )
 
 
-    # ----------------------------------------------
-    # Last 10
-    # ----------------------------------------------
+    # ==================================================
+    # LAST 10
+    # ==================================================
 
-    home_10 = calculate_team_stats(
-        get_previous_matches(
-            home_team,
-            n=10,
-        ),
+    home_10 = get_feature_stats(
         home_team,
+        n=10,
+        context="recent_10",
     )
 
 
-    away_10 = calculate_team_stats(
-        get_previous_matches(
-            away_team,
-            n=10,
-        ),
+    away_10 = get_feature_stats(
         away_team,
+        n=10,
+        context="recent_10",
     )
 
 
-    # ----------------------------------------------
-    # Venue-specific
-    # ----------------------------------------------
+    # ==================================================
+    # VENUE-SPECIFIC
+    # ==================================================
 
-    home_venue = calculate_team_stats(
-        get_previous_matches(
-            home_team,
-            n=5,
-            venue="Home",
-        ),
+    home_venue = get_feature_stats(
         home_team,
+        n=5,
+        venue="Home",
+        context="home_venue",
     )
 
 
-    away_venue = calculate_team_stats(
-        get_previous_matches(
-            away_team,
-            n=5,
-            venue="Away",
-        ),
+    away_venue = get_feature_stats(
         away_team,
+        n=5,
+        venue="Away",
+        context="away_venue",
     )
 
 
-    # ----------------------------------------------
-    # Season-to-date
-    # ----------------------------------------------
+    # ==================================================
+    # SEASON-TO-DATE
+    # ==================================================
 
-    home_season = calculate_team_stats(
-        get_previous_matches(
-            home_team,
-            season=latest_season,
-        ),
+    home_season = get_feature_stats(
         home_team,
+        season=latest_season,
+        context="season",
     )
 
 
-    away_season = calculate_team_stats(
-        get_previous_matches(
-            away_team,
-            season=latest_season,
-        ),
+    away_season = get_feature_stats(
         away_team,
+        season=latest_season,
+        context="season",
     )
 
 
-    # ----------------------------------------------
-    # Frozen Model 2 feature vector
-    # ----------------------------------------------
+    # ==================================================
+    # FROZEN MODEL 2 FEATURE VECTOR
+    #
+    # IMPORTANT:
+    # Feature names and ordering remain unchanged from
+    # the production Model 2 specification.
+    # ==================================================
 
     features = {
+
+        # --------------------------------------------------
+        # Recent 5-match form
+        # --------------------------------------------------
 
         "HomeRecentGoalsFor":
             home_5[
@@ -458,6 +524,10 @@ def build_fixture_features(
             ],
 
 
+        # --------------------------------------------------
+        # 10-match form
+        # --------------------------------------------------
+
         "Home10GoalsFor":
             home_10[
                 "goals_for_pg"
@@ -489,6 +559,10 @@ def build_fixture_features(
             ],
 
 
+        # --------------------------------------------------
+        # Venue-specific form
+        # --------------------------------------------------
+
         "HomeVenuePPG":
             home_venue[
                 "ppg"
@@ -510,6 +584,10 @@ def build_fixture_features(
             ],
 
 
+        # --------------------------------------------------
+        # Season strength
+        # --------------------------------------------------
+
         "HomeSeasonPPG":
             home_season[
                 "ppg"
@@ -530,6 +608,10 @@ def build_fixture_features(
                 "goal_difference_pg"
             ],
 
+
+        # --------------------------------------------------
+        # Relative strength
+        # --------------------------------------------------
 
         "RecentPPGDifference":
             (
@@ -588,11 +670,59 @@ def build_fixture_features(
     }
 
 
+    # ==================================================
+    # FEATURE SOURCE METADATA
+    # ==================================================
+
+    cold_start_teams = []
+
+
+    if is_promoted_cold_start_team(
+        home_team
+    ):
+
+        cold_start_teams.append(
+            home_team
+        )
+
+
+    if is_promoted_cold_start_team(
+        away_team
+    ):
+
+        cold_start_teams.append(
+            away_team
+        )
+
+
+    feature_metadata = {
+
+        "feature_season":
+            latest_season,
+
+        "cold_start_used":
+            bool(
+                cold_start_teams
+            ),
+
+        "cold_start_teams":
+            cold_start_teams,
+
+        "cold_start_method":
+            (
+                "75% translated Championship prior "
+                "+ 25% historical Premier League baseline"
+                if cold_start_teams
+                else None
+            ),
+    }
+
+
     return (
         features,
         latest_season,
+        feature_metadata,
     )
-
 
 # --------------------------------------------------
 # Poisson score matrix
@@ -736,6 +866,7 @@ def predict_fixture(
     (
         features,
         feature_season,
+        feature_metadata,
     ) = build_fixture_features(
         home_team,
         away_team,
@@ -811,6 +942,8 @@ def predict_fixture(
 
         "feature_season":
             feature_season,
+        "feature_metadata":
+            feature_metadata,
 
         "expected_home_goals":
             round(

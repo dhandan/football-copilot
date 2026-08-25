@@ -1,0 +1,5 @@
+Gameweek,Baseline,Accuracy,AccuracyPct,LogLoss,Brier
+1,Model 2,0.5,50.0,1.0212039496384189,0.6109046
+1,Always Home,0.7,70.0,,
+1,Historical Majority Class,0.7,70.0,,
+1,Historical Outcome Frequency,0.7,70.0,0.9435461926114531,0.5603617728531856

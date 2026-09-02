@@ -6,9 +6,9 @@ Football Copilot is an AI-powered football analytics and prediction project buil
 
 For the 2026/27 Premier League season, Football Copilot is being run as a **prospective live modelling experiment**.
 
-Predictions are generated and frozen before each Gameweek. Once the matches have been completed, the predictions are evaluated against the actual results and the model's performance is tracked throughout the season.
+Predictions are generated and frozen before each Gameweek. Once the matches have been completed, the predictions are evaluated against the actual results and performance is tracked throughout the season.
 
-The purpose of the experiment is not simply to publish predictions. It is to understand where the model performs well, where it fails, and how the modelling approach can be improved using evidence from genuinely unseen matches.
+The purpose is not simply to publish predictions. It is to understand where the model performs well, where it fails, and how the modelling approach can be improved using evidence from genuinely unseen matches.
 
 ---
 
@@ -16,22 +16,38 @@ The purpose of the experiment is not simply to publish predictions. It is to und
 
 ### Gameweek 2
 
-**Status: Predictions frozen**
+**Status: Complete**
 
-Football Copilot's second prospective test of the 2026/27 Premier League season.
+The second prospective test of Football Copilot Model 2 produced the same 1X2 accuracy as GW1.
 
-The same Model 2 used for Gameweek 1 remains unchanged, allowing GW2 to provide another genuinely unseen test of the existing model.
+**GW2 performance**
 
-**GW2 snapshot**
+| Metric | Result |
+|---|---:|
+| Matches | 10 |
+| Correct 1X2 outcomes | 5 |
+| 1X2 accuracy | 50.0% |
+| Exact scores | 2 |
+| Log Loss | 1.0615 |
+| Brier Score | 0.6378 |
+| Home goals MAE | 1.213 |
+| Away goals MAE | 0.817 |
+| Total goals MAE | 1.876 |
 
-- 10 Premier League fixtures
-- Predictions generated before the Gameweek
-- Model 2 unchanged following GW1
-- 2 fixtures use promoted-team cold-start handling
-- 8 of 10 fixtures have 1-1 as the most likely individual scoreline
-- The recurring 1-1 scoreline pattern remains under observation
+Model 2 outperformed all three simple baselines during GW2.
 
-**[View Gameweek 2 predictions](gameweeks/GW02.md)**
+| Approach | Accuracy | Log Loss | Brier Score |
+|---|---:|---:|---:|
+| Model 2 | **50.0%** | **1.0615** | **0.6378** |
+| Always Home | 30.0% | — | — |
+| Historical Majority Class | 30.0% | — | — |
+| Historical Outcome Frequency | 30.0% | 1.1311 | 0.6903 |
+
+The scoreline diagnostic remained notable. Eight of the ten fixtures again had 1-1 as their most likely individual scoreline. Two actually finished 1-1.
+
+Model 2 made no 1X2 draw predictions, while three GW2 matches finished as draws.
+
+**[View the completed Gameweek 2 analysis](gameweeks/GW02.md)**
 
 ---
 
@@ -39,27 +55,18 @@ The same Model 2 used for Gameweek 1 remains unchanged, allowing GW2 to provide 
 
 **Status: Complete**
 
-Gameweek 1 was the first live prospective test of Football Copilot Model 2.
+Gameweek 1 was the first prospective test of Football Copilot Model 2.
 
-The model correctly predicted the 1X2 outcome in 5 of the 10 fixtures.
-
-**GW1 Model 2 performance**
-
-| Metric | GW1 |
+| Metric | Result |
 |---|---:|
 | Matches | 10 |
 | Correct 1X2 outcomes | 5 |
 | 1X2 accuracy | 50.0% |
-| Exact scores | 0/10 |
+| Exact scores | 0 |
 | Log Loss | 1.0212 |
 | Brier Score | 0.6109 |
-| Home goals MAE | 0.913 |
-| Away goals MAE | 1.001 |
-| Total goals MAE | 0.892 |
 
-### GW1 baseline comparison
-
-An important part of the live experiment is determining whether Model 2 actually adds predictive value over simple prediction strategies.
+GW1 contained seven home victories, resulting in the simple home-based baselines outperforming Model 2 during that Gameweek.
 
 | Approach | Accuracy | Log Loss | Brier Score |
 |---|---:|---:|---:|
@@ -68,217 +75,189 @@ An important part of the live experiment is determining whether Model 2 actually
 | Historical Majority Class | 70.0% | — | — |
 | Historical Outcome Frequency | 70.0% | 0.9435 | 0.5604 |
 
-The historical Premier League dataset used for the baseline contains 1,900 matches, with the following outcome distribution:
-
-- Home win: 44.16%
-- Draw: 23.89%
-- Away win: 31.95%
-
-GW1 was unusually home-win heavy, with 7 of the 10 matches won by the home team. This helped the simple home-based baselines outperform Model 2 during the Gameweek.
-
-Ten matches are far too small a sample from which to conclude that the simple baseline is a better predictor. The comparison will therefore continue prospectively across subsequent Gameweeks.
-
 **[View the completed Gameweek 1 analysis](gameweeks/GW01.md)**
-
----
-
-## What the live experiment is monitoring
-
-The first five Gameweeks are being treated as a live monitoring period rather than an opportunity to repeatedly tune the model after individual results.
-
-Five key hypotheses are being tracked.
-
-### 1. xG compression
-
-The model may be producing expected-goal estimates that are too tightly concentrated around similar values.
-
-This could prevent it from adequately representing the difference between closely matched fixtures and games where one team should have a substantial advantage.
-
-### 2. 1-1 scoreline concentration
-
-In GW1, 8 of the 10 fixtures had 1-1 as the model's most likely individual scoreline.
-
-The same pattern appeared again in the GW2 predictions, with another 8 of 10 fixtures producing a 1-1 modal scoreline.
-
-This does **not** mean the model predicts these matches to finish as draws.
-
-The predicted 1X2 outcome is calculated from the combined probability of all possible home-win, draw and away-win scorelines. A 1-1 result can therefore be the single most likely individual score while the combined probability of a home or away victory is greater.
-
-The persistence of the 1-1 modal score is nevertheless an important diagnostic being monitored.
-
-### 3. Promoted-team cold starts
-
-Newly promoted clubs have limited recent Premier League history.
-
-Football Copilot therefore uses promoted-team priors to provide an initial estimate of their strength while sufficient Premier League evidence accumulates.
-
-GW1 contained three fixtures involving cold-start handling.
-
-Cold-start accuracy in GW1 was:
-
-**33.3%**
-
-This will continue to be monitored as the season develops.
-
-### 4. Upset calibration
-
-The experiment will monitor whether Model 2 assigns appropriate probabilities to unexpected results.
-
-GW1's biggest model surprise was:
-
-**Hull City 2-0 Manchester United**
-
-The model assigned Hull City only a 17.5% probability of winning.
-
-Tracking these misses will help determine whether the model is systematically too confident about favourites or whether they simply represent normal football uncertainty.
-
-### 5. Incremental predictive value
-
-The most important long-term question is whether Model 2's fixture-specific information actually improves predictions over simple historical benchmarks.
-
-Model 2 will therefore be continuously compared with:
-
-- Always Home
-- Historical Majority Class
-- Historical Premier League Outcome Frequency
-
-Accuracy alone will not determine model quality.
-
-Log Loss and Brier Score will also be tracked because they measure the quality and calibration of the probabilities generated by the model.
 
 ---
 
 ## Season performance
 
-The season tracker will accumulate results as each Gameweek is completed.
+After two completed Gameweeks, Football Copilot has now been tested prospectively against 20 previously unseen Premier League fixtures.
 
-Current position after GW1:
+| Metric | GW1 | GW2 | Cumulative |
+|---|---:|---:|---:|
+| Matches | 10 | 10 | **20** |
+| Correct outcomes | 5 | 5 | **10** |
+| 1X2 accuracy | 50.0% | 50.0% | **50.0%** |
+| Log Loss | 1.0212 | 1.0615 | **1.0414** |
+| Brier Score | 0.6109 | 0.6378 | **0.6243** |
+| Exact scores | 0 | 2 | **2** |
+| Predicted draws | 0 | 0 | **0** |
+| Actual draws | 1 | 3 | **4** |
+| Modal 1-1 predictions | 8 | 8 | **16** |
+| Actual 1-1 results | 0 | 2 | **2** |
 
-| Measure | Model 2 | Historical Outcome Frequency |
-|---|---:|---:|
-| Matches evaluated | 10 | 10 |
-| 1X2 accuracy | 50.0% | 70.0% |
-| Log Loss | 1.0212 | 0.9435 |
-| Brier Score | 0.6109 | 0.5604 |
+Twenty matches remain a small sample, so these results should not be treated as a definitive assessment of the model.
 
-These numbers should not be interpreted as a meaningful model ranking after only ten matches.
+The purpose of the live experiment is to build this evidence base progressively across the season.
 
-The objective is to build a growing out-of-sample evidence base throughout the 2026/27 season.
+---
+
+## What the live experiment is monitoring
+
+Five hypotheses are currently being tracked.
+
+### 1. xG compression
+
+The model may be producing expected-goal estimates that are too tightly concentrated around similar values.
+
+This could reduce its ability to represent the difference between closely matched fixtures and games where one team should have a substantial advantage.
+
+### 2. 1-1 scoreline concentration
+
+This is currently the strongest live diagnostic.
+
+Across GW1 and GW2:
+
+- **16 of 20 predictions (80%)** had 1-1 as the most likely individual scoreline.
+- **2 of 20 actual matches (10%)** finished 1-1.
+
+Importantly, the most likely individual scoreline and the predicted 1X2 outcome are different calculations.
+
+The 1X2 probabilities aggregate all possible home-win, draw and away-win scorelines. Therefore, 1-1 can be the highest-probability individual score while a home or away victory has the greatest combined probability.
+
+Nevertheless, the concentration is sufficiently pronounced to warrant specific investigation.
+
+### 3. Draw behaviour
+
+Across the first 20 fixtures:
+
+- Model 2 predicted **0 draws** as the most likely 1X2 outcome.
+- **4 matches** actually finished as draws.
+
+This creates an interesting modelling diagnostic alongside the 1-1 concentration.
+
+The model frequently identifies 1-1 as the most probable individual score but has not yet made Draw its highest aggregate 1X2 probability.
+
+### 4. Promoted-team cold starts
+
+Five fixtures across GW1 and GW2 have involved promoted-team cold-start handling.
+
+Model 2 has correctly predicted two of those five outcomes, giving an early cold-start accuracy of **40%**.
+
+The sample remains too small for conclusions, but performance will continue to be tracked as Premier League evidence accumulates for the promoted teams.
+
+### 5. Incremental predictive value
+
+Model 2 is being compared prospectively with:
+
+- Always Home
+- Historical Majority Class
+- Historical Premier League Outcome Frequency
+
+GW1 favoured the simple historical baselines.
+
+GW2 favoured Model 2.
+
+This illustrates why multiple Gameweeks are required before determining whether Model 2 consistently adds predictive value.
+
+Accuracy alone will not determine model quality. Log Loss and Brier Score are also tracked to evaluate the quality and calibration of the probabilities.
+
+---
+
+## Model development approach
+
+The official Model 2 will remain frozen during the initial live monitoring period.
+
+However, model development does not need to stop.
+
+New approaches can be developed as **shadow challengers** while Model 2 continues generating the official predictions.
+
+This preserves the integrity of the prospective experiment while allowing model improvements to be investigated immediately.
+
+The first planned challenger will investigate the unusual low-score and draw behaviour observed during GW1 and GW2.
+
+A Dixon-Coles style model is a natural candidate because it provides a framework for modelling football scores while specifically addressing dependencies around low-scoring results.
+
+Any challenger will first be evaluated through historical walk-forward testing and then run prospectively in shadow mode alongside Model 2.
 
 ---
 
 ## Experimental methodology
 
-Each live Gameweek follows the same process:
+Each Gameweek follows the same process:
 
-1. Retrieve the upcoming Premier League fixtures.
+1. Retrieve upcoming Premier League fixtures.
 2. Validate teams against the Football Copilot data model.
-3. Run the prediction pipeline.
+3. Generate Model 2 predictions.
 4. Freeze the official prediction snapshot before matches are played.
-5. Publish the predictions to the Football Copilot journal.
-6. Wait for the Gameweek to finish.
-7. Retrieve the actual results.
-8. Evaluate Model 2 against the actual outcomes.
-9. Calculate Log Loss, Brier Score and goal prediction errors.
-10. Compare Model 2 with simple historical baselines.
-11. Update cumulative season performance.
-12. Document findings and diagnostics.
+5. Publish the predictions.
+6. Retrieve actual results after the Gameweek.
+7. Evaluate the frozen predictions.
+8. Calculate Accuracy, Log Loss, Brier Score and goal prediction errors.
+9. Compare Model 2 against simple baselines.
+10. Update cumulative season performance.
+11. Record diagnostics and modelling hypotheses.
 
-This creates an auditable separation between **prediction** and **evaluation**.
+This maintains an auditable separation between **prediction** and **evaluation**.
 
 ---
 
-## Model development roadmap
+## Roadmap
 
-The live 2026/27 experiment forms part of a wider Football Copilot development roadmap.
+### V1 — Football Copilot
 
-### V1: Football Copilot
+Build the football analytics copilot from first principles, including historical analytics, conversational queries, match prediction, probabilistic score modelling, validation and prospective live monitoring.
 
-Build the analytics copilot from first principles, including:
+### V1.5 — Model improvement
 
-- Premier League historical analytics
-- conversational football queries
-- match prediction
-- probabilistic score modelling
-- model validation
-- live Gameweek prediction pipeline
-- prospective model monitoring
+Develop challenger models based on evidence from historical backtesting and the live experiment.
 
-### V1.5: Model improvement
+Initial areas of investigation include:
 
-After sufficient live evidence has accumulated, use the findings from the prospective experiment to improve prediction performance.
-
-Potential areas include:
-
+- Dixon-Coles score modelling
+- dynamic team strength
+- recency weighting
 - probability calibration
-- xG modelling
-- scoreline modelling
 - promoted-team adaptation
-- recent form
-- team-strength dynamics
+- improved xG modelling
 - additional predictive features
-- comparison with market probabilities
+- market benchmark comparison
 
-Changes will be evidence-led rather than made in response to individual Gameweeks.
+### V2 — Agent orchestration
 
-### V2: Agent orchestration
+Refactor Football Copilot using LangChain and LangGraph to explore stateful workflows, tool orchestration, persistent analytical state and specialised football analytics agents.
 
-Refactor Football Copilot using LangChain and LangGraph to explore:
+### V3 — Cloud deployment
 
-- stateful agent workflows
-- tool orchestration
-- structured reasoning flows
-- persistent analytical state
-- specialised football analytics tools
+Containerise Football Copilot and deploy the application and supporting services to a cloud platform while keeping the LLM inference layer replaceable.
 
-### V3: Cloud deployment
+### Future — Fantasy Football Copilot
 
-Containerise Football Copilot and deploy the application and non-LLM services to a cloud platform.
-
-The LLM will be treated as a replaceable inference layer so that different local or hosted models can be evaluated without redesigning the application.
-
-### Future: Fantasy Football Copilot
-
-Extend the platform into Fantasy Premier League analysis.
-
-This will require a player-level dataset and could support:
-
-- player performance analysis
-- expected points
-- transfer recommendations
-- captain selection
-- fixture difficulty
-- squad optimisation
-- differential identification
-- risk and uncertainty analysis
+Extend the platform using player-level data to support expected points, transfer recommendations, captain selection, fixture difficulty, squad optimisation and differential identification.
 
 ---
 
 ## Why this project exists
 
-Football Copilot is both a working football analytics application and a learning project.
+Football Copilot is both a working football analytics application and a practical AI/ML learning project.
 
-The aim is to explore the complete lifecycle of an AI and analytics product:
+The aim is to explore the complete lifecycle:
 
-**data → modelling → validation → application → live monitoring → agent orchestration → cloud deployment**
-
-Publishing the live experiment also makes model performance transparent.
+**data → modelling → validation → application → prospective monitoring → model improvement → agent orchestration → cloud deployment**
 
 Successful predictions are recorded.
 
 Failed predictions are recorded.
 
-The model is judged against simple baselines rather than accuracy being viewed in isolation.
+Predictions are frozen before results are known.
 
-Most importantly, predictions are frozen before results are known.
+And the model is evaluated against simple benchmarks rather than accuracy being viewed in isolation.
 
 ---
 
 ## Follow the experiment
 
-The journal will be updated throughout the 2026/27 Premier League season as each Gameweek is predicted and evaluated.
-
-**[Gameweek 2: Frozen predictions](gameweeks/GW02.md)**
+**[Gameweek 2: Completed analysis](gameweeks/GW02.md)**
 
 **[Gameweek 1: Completed analysis](gameweeks/GW01.md)**
 
@@ -286,6 +265,6 @@ The journal will be updated throughout the 2026/27 Premier League season as each
 
 ## Football Copilot repository
 
-The full Football Copilot source code, modelling pipeline and development history are available in the GitHub repository.
+The full source code, modelling pipeline and development history are available in the GitHub repository.
 
 **[View the Football Copilot repository](https://github.com/dhandan/football-copilot)**

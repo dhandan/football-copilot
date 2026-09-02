@@ -769,10 +769,11 @@ def render_completed_gameweek(
 
 
     st.caption(
-        "GW1 contains only 10 matches, so differences "
-        "from historical performance should not be "
-        "treated as statistically meaningful yet."
-    )
+    f"GW{gameweek} contains {matches_evaluated} matches, "
+    "so Gameweek-level differences from historical "
+    "performance should not be treated as statistically "
+    "meaningful in isolation."
+    )         
 
 
     # ==================================================
@@ -792,8 +793,8 @@ def render_completed_gameweek(
                 "PredictedResult",
                 "MostLikelyScore",
                 "ActualScore",
-                "ActualResult",
                 "OutcomeCorrect",
+                "ExactScoreCorrect",
             ]
         ]
         .copy()
@@ -801,43 +802,57 @@ def render_completed_gameweek(
 
 
     summary_table[
-        "Result"
+        "Fixture"
+    ] = (
+        summary_table["HomeTeam"]
+        + " v "
+        + summary_table["AwayTeam"]
+    )
+
+
+    summary_table[
+        "Outcome correct"
     ] = summary_table[
         "OutcomeCorrect"
     ].apply(
         lambda value:
             "✅"
-            if to_bool(
-                value
-            )
-            else
-            "❌"
+            if to_bool(value)
+            else "❌"
     )
 
 
-    summary_table = (
-        summary_table[
-            [
-                "HomeTeam",
-                "AwayTeam",
-                "PredictedResult",
-                "MostLikelyScore",
-                "ActualScore",
-                "ActualResult",
-                "Result",
-            ]
+    summary_table[
+        "Exact score"
+    ] = summary_table[
+        "ExactScoreCorrect"
+    ].apply(
+        lambda value:
+            "✅"
+            if to_bool(value)
+            else "❌"
+    )
+
+
+    summary_table = summary_table[
+        [
+            "Fixture",
+            "PredictedResult",
+            "MostLikelyScore",
+            "ActualScore",
+            "Outcome correct",
+            "Exact score",
         ]
-    )
+    ]
 
 
     summary_table.columns = [
-        "Home",
-        "Away",
+        "Fixture",
         "Predicted outcome",
         "Predicted score",
         "Actual score",
-        "Actual outcome",
-        "Correct",
+        "Outcome correct?",
+        "Exact score?",
     ]
 
 
@@ -1183,22 +1198,25 @@ def render_completed_gameweek(
    Model 2 may be pulling team-strength estimates too strongly towards league-average scoring levels.
 
 2. **1-1 modal concentration**  
-   Eight GW1 fixtures had 1-1 as the most likely individual scoreline, while none actually finished 1-1.
+   f"Across GW1 to GW{gameweek}, "
+   f"{modal_one_one_total} of {matches_evaluated} predictions "
+   "had 1-1 as the most likely individual scoreline, while "
+   f"{actual_one_one_total} of {matches_evaluated} actual matches "
+   "finished 1-1." 
 
 3. **Promoted-team pessimism**  
    Coventry, Hull and Ipswich are being tracked separately to determine whether the cold-start priors are too conservative.
 
 4. **Upset calibration**  
-   Lower-probability outcomes will be monitored to determine whether surprising GW1 results were normal football variance or evidence of systematic bias.
+   Lower-probability outcomes will be monitored to determine whether surprising results represent normal football variance or evidence of systematic bias.
 """
     )
 
-
     st.info(
-        "Model 2 remains frozen through the initial "
-        "five-Gameweek monitoring period. "
-        "These are hypotheses to monitor, not reasons "
-        "to change the model after one Gameweek."
+        "Model 2 remains frozen as the official live benchmark "
+        "through the initial five-Gameweek monitoring period. "
+        "Challenger models may be developed and tested in parallel "
+        "without retrospectively changing the official predictions."
     )
 
 

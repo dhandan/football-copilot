@@ -426,7 +426,7 @@ if evaluation_exists:
 
         lines.append(
             "To understand whether Model 2 added value "
-            "beyond simple football heuristics, GW1 was "
+            f"beyond simple football heuristics, GW{gameweek} was "
             "also compared with several naive baselines."
         )
 
@@ -496,35 +496,146 @@ if evaluation_exists:
 
         lines.append("")
 
-        lines.append(
-            "In GW1, Model 2 did not outperform the "
-            "simple historical baselines."
+        model_row = baselines[
+            baselines["Baseline"] == "Model 2"
+        ].iloc[0]
+
+        historical_frequency_row = baselines[
+            baselines["Baseline"]
+            == "Historical Outcome Frequency"
+        ].iloc[0]
+
+        always_home_row = baselines[
+            baselines["Baseline"] == "Always Home"
+        ].iloc[0]
+
+        historical_majority_row = baselines[
+            baselines["Baseline"]
+            == "Historical Majority Class"
+        ].iloc[0]
+
+
+        model_accuracy = float(
+            model_row["AccuracyPct"]
         )
+
+        historical_frequency_accuracy = float(
+            historical_frequency_row["AccuracyPct"]
+        )
+
+        always_home_accuracy = float(
+            always_home_row["AccuracyPct"]
+        )
+
+        historical_majority_accuracy = float(
+            historical_majority_row["AccuracyPct"]
+        )
+
+
+        if (
+            model_accuracy
+            > historical_frequency_accuracy
+            and model_accuracy
+            > always_home_accuracy
+            and model_accuracy
+            > historical_majority_accuracy
+        ):
+
+            lines.append(
+                f"In GW{gameweek}, Model 2 outperformed "
+                "all three simple baselines on 1X2 accuracy."
+            )
+
+        elif (
+            model_accuracy
+            < historical_frequency_accuracy
+        ):
+
+            lines.append(
+                f"In GW{gameweek}, Model 2 did not "
+                "outperform the Historical Outcome "
+                "Frequency baseline on 1X2 accuracy."
+            )
+
+        else:
+
+            lines.append(
+                f"In GW{gameweek}, Model 2 produced "
+                "mixed performance relative to the "
+                "simple baselines."
+            )
+
 
         lines.append("")
 
         lines.append(
             "The Always Home and Historical Majority "
-            "baselines achieved 70.0% accuracy because "
-            "seven of the ten GW1 fixtures were won by "
-            "the home team."
+            f"baselines achieved {always_home_accuracy:.1f}% "
+            f"and {historical_majority_accuracy:.1f}% "
+            "accuracy respectively."
         )
 
         lines.append("")
 
-        lines.append(
-            "The Historical Outcome Frequency baseline "
-            "also produced a lower Log Loss and Brier "
-            "Score than Model 2 in GW1."
+
+        model_log_loss = float(
+            model_row["LogLoss"]
         )
+
+        historical_frequency_log_loss = float(
+            historical_frequency_row["LogLoss"]
+        )
+
+        model_brier = float(
+            model_row["Brier"]
+        )
+
+        historical_frequency_brier = float(
+            historical_frequency_row["Brier"]
+        )
+
+
+        if (
+            model_log_loss
+            < historical_frequency_log_loss
+            and model_brier
+            < historical_frequency_brier
+        ):
+
+            lines.append(
+                "Model 2 also produced a lower Log Loss "
+                "and Brier Score than the Historical "
+                "Outcome Frequency baseline."
+            )
+
+        elif (
+            model_log_loss
+            > historical_frequency_log_loss
+            and model_brier
+            > historical_frequency_brier
+        ):
+
+            lines.append(
+                "The Historical Outcome Frequency baseline "
+                "produced a lower Log Loss and Brier Score "
+                "than Model 2."
+            )
+
+        else:
+
+            lines.append(
+                "The probability-quality comparison was "
+                "mixed between Model 2 and the Historical "
+                "Outcome Frequency baseline."
+            )
 
         lines.append("")
 
         lines.append(
-            "This should not be interpreted as evidence "
-            "that the naive baseline is a better model "
-            "after only ten matches.  The comparison will "
-            "be tracked cumulatively through the season."
+            "A single Gameweek is too small a sample to draw "
+            "firm conclusions about relative model performance.  "
+            "The comparison will be tracked cumulatively through "
+            "the season."
         )
 
         lines.append("")
@@ -688,7 +799,7 @@ if evaluation_exists:
             lines.append("")
 
 
-    # ==================================================
+     # ==================================================
     # WHAT WE LEARNED
     # ==================================================
 
@@ -698,19 +809,46 @@ if evaluation_exists:
 
     lines.append("")
 
+    # --------------------------------------------------
+    # Core Gameweek diagnostics
+    # --------------------------------------------------
+
+    correct_outcomes = (
+        evaluation["OutcomeCorrect"]
+        .astype(bool)
+        .sum()
+    )
+
+    matches_evaluated = len(evaluation)
+
+    modal_one_one_count = (
+        evaluation["MostLikelyScore"]
+        .astype(str)
+        .eq("1-1")
+        .sum()
+    )
+
+    actual_one_one_count = (
+        evaluation["ActualScore"]
+        .astype(str)
+        .eq("1-1")
+        .sum()
+    )
+
     lines.append(
-        "GW1 produced five correct 1X2 outcomes from "
-        "ten matches.  This is broadly close to the "
-        "historical Model 2 accuracy of 52.69%, but "
-        "ten matches are far too few to draw firm "
-        "conclusions about model performance."
+        f"GW{gameweek} produced {correct_outcomes} correct "
+        f"1X2 outcomes from {matches_evaluated} matches.  "
+        "This is broadly close to the historical Model 2 "
+        "accuracy of 52.69%, but a single Gameweek is too "
+        "small a sample to draw firm conclusions about "
+        "model performance."
     )
 
     lines.append("")
 
     lines.append(
-        "Four areas are now being monitored through "
-        "GW5:"
+        "Five areas are being monitored through the "
+        "initial live evaluation period:"
     )
 
     lines.append("")
@@ -723,27 +861,27 @@ if evaluation_exists:
 
     lines.append(
         "2. **1-1 modal scoreline concentration** — "
-        "eight of ten fixtures had 1-1 as the single "
-        "most likely scoreline, while none actually "
-        "finished 1-1."
+        f"{modal_one_one_count} of {matches_evaluated} fixtures "
+        "had 1-1 as the single most likely scoreline, while "
+        f"{actual_one_one_count} actually finished 1-1."
     )
 
     lines.append(
-        "3. **Promoted-team pessimism** — the cold-start "
-        "framework underestimated Hull and Ipswich in GW1."
+        "3. **Promoted-team pessimism** — cold-start "
+        "performance will continue to be monitored as "
+        "the live sample grows."
     )
 
     lines.append(
         "4. **Upset calibration** — lower-probability "
-        "results will be tracked to determine whether GW1 "
-        "was normal football variance or a systematic bias."
+        "results will be tracked to determine whether "
+        "early surprises represent normal football "
+        "variance or a systematic model bias."
     )
 
-    lines.append("")
-
     lines.append(
-        "5. **Incremental predictive value** — "
-        "Model 2 will be compared with simple historical "
+        "5. **Incremental predictive value** — Model 2 "
+        "will continue to be compared with simple historical "
         "benchmarks to determine whether its fixture-specific "
         "features consistently improve prediction quality."
     )
@@ -751,11 +889,12 @@ if evaluation_exists:
     lines.append("")
 
     lines.append(
-        "No changes will be made to Model 2 during "
-        "the initial five-Gameweek live monitoring period."
+        "Model 2 remains frozen as the official live benchmark "
+        "through the initial five-Gameweek monitoring period.  "
+        "Challenger models may be developed and tested in "
+        "parallel during this period, but they will not "
+        "retrospectively alter the official Model 2 predictions."
     )
-
-    lines.append("")
 
 
 # ==================================================

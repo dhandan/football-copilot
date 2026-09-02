@@ -263,6 +263,24 @@ And the model is evaluated against simple benchmarks rather than accuracy being 
 
 ---
 
+## Model Development
+
+The live 2026/27 experiment is also being used to identify modelling questions that can be tested rigorously against historical data.
+
+### Model 3A: Dixon-Coles Challenger
+
+After GW2, Model 2 had produced 1-1 as the modal scoreline in 16 of 20 live predictions while selecting Draw as the most likely 1X2 outcome in none of them.
+
+This led to a controlled Dixon-Coles experiment across 1,100 historical walk-forward predictions.
+
+Dixon-Coles reduced the historical modal 1-1 rate from 71.18% to 64.55%, but did not improve the zero-draw behaviour. Accuracy remained 52.18%, while Log Loss and Brier Score deteriorated marginally.
+
+**Decision: Model 3A rejected for shadow promotion.**
+
+The result has redirected the next investigation towards xG separation and draw probability calibration.
+
+[Read the Model 3A experiment](model3-dixon-coles.md)
+
 ## Football Copilot repository
 
 The full source code, modelling pipeline and development history are available in the GitHub repository.

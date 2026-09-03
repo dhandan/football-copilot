@@ -166,19 +166,25 @@ Accuracy alone will not determine model quality. Log Loss and Brier Score are al
 
 ## Model development approach
 
-The official Model 2 will remain frozen during the initial live monitoring period.
+The official Model 2 remains frozen during the initial live monitoring period.
 
-However, model development does not need to stop.
+This preserves the integrity of the prospective 2026/27 experiment: official predictions are generated using the same model rather than retrospectively benefiting from information learned after the season began.
 
-New approaches can be developed as **shadow challengers** while Model 2 continues generating the official predictions.
+Model development continues separately through controlled historical experiments.
 
-This preserves the integrity of the prospective experiment while allowing model improvements to be investigated immediately.
+Following the draw and scoreline behaviour observed during GW1 and GW2, three challenger experiments have now been completed:
 
-The first planned challenger will investigate the unusual low-score and draw behaviour observed during GW1 and GW2.
+- **Model 3A — Dixon-Coles:** tested low-score dependence.
+- **Model 3B — Draw calibration:** tested whether Model 2's draw probabilities required systematic adjustment.
+- **Model 4 — Direct 1X2 Gradient Boosting:** tested a structurally different direct outcome model incorporating Elo and additional relative-strength features.
 
-A Dixon-Coles style model is a natural candidate because it provides a framework for modelling football scores while specifically addressing dependencies around low-scoring results.
+None produced sufficient improvement to replace Model 2.
 
-Any challenger will first be evaluated through historical walk-forward testing and then run prospectively in shadow mode alongside Model 2.
+The evidence now suggests that further algorithm changes using essentially the same underlying match-history information are unlikely to deliver the material improvement being sought.
+
+The next model-development phase will therefore focus on **data enrichment**, beginning with genuine expected-goals and related chance-quality information.
+
+Model 2 will continue generating the official live predictions while this research is conducted independently.
 
 ---
 
@@ -208,20 +214,36 @@ This maintains an auditable separation between **prediction** and **evaluation**
 
 Build the football analytics copilot from first principles, including historical analytics, conversational queries, match prediction, probabilistic score modelling, validation and prospective live monitoring.
 
-### V1.5 — Model improvement
+### V1.5 — Model improvement and data enrichment
 
-Develop challenger models based on evidence from historical backtesting and the live experiment.
+Use evidence from historical walk-forward testing and the prospective live experiment to improve the prediction capability without changing the frozen live baseline retrospectively.
 
-Initial areas of investigation include:
+Completed challenger experiments:
 
-- Dixon-Coles score modelling
-- dynamic team strength
-- recency weighting
-- probability calibration
-- promoted-team adaptation
-- improved xG modelling
-- additional predictive features
-- market benchmark comparison
+- Model 3A — Dixon-Coles low-score correction: **rejected**
+- Model 3B — training-fitted draw calibration: **rejected**
+- Model 4 — direct 1X2 gradient boosting with Elo: **rejected**
+
+These experiments tested increasingly substantial changes to the modelling architecture but did not materially improve on Model 2.
+
+The next phase therefore moves from **algorithm iteration to data enrichment**.
+
+Priority areas include:
+
+- genuine expected-goals data
+- rolling xG for and against
+- xG difference and trend
+- home and away xG strength
+- shots and shots on target
+- chance-quality information
+- player availability and line-ups where practical
+- richer team-strength signals
+
+A new challenger will only be built once genuinely new predictive information has been introduced.
+
+It will then be evaluated against the frozen Model 2 benchmark using the same leakage-safe walk-forward methodology and pre-agreed promotion thresholds.
+
+If richer data still fails to generate material uplift, the project will shift emphasis from continued historical model optimisation toward calibration, prospective monitoring and product capability.
 
 ### V2 — Agent orchestration
 
@@ -280,6 +302,89 @@ Dixon-Coles reduced the historical modal 1-1 rate from 71.18% to 64.55%, but did
 The result has redirected the next investigation towards xG separation and draw probability calibration.
 
 [Read the Model 3A experiment](model3-dixon-coles.md)
+
+### Model 3B: Draw Calibration
+
+The Model 3A results suggested that low-score dependence alone did not explain Model 2's draw behaviour.
+
+A second controlled experiment therefore tested whether Model 2 contained useful information about draw likelihood but systematically positioned Draw too low relative to Home and Away.
+
+Model 3B applied a training-fitted multiplier to Model 2's draw probability before renormalising the Home / Draw / Away probabilities.
+
+The multiplier was learned only from historical training data within the walk-forward process.
+
+Across the three historical test periods, the fitted multipliers were:
+
+- 2023/24: 0.9824
+- 2024/25: 0.9820
+- 2025/26: 1.0117
+
+The mean multiplier was approximately **0.992**, effectively indicating that the optimiser did not support materially increasing Model 2's draw probabilities.
+
+Across 1,100 historical test fixtures:
+
+| Metric | Model 2 | Model 3B |
+| --- | ---: | ---: |
+| Accuracy | 52.18% | 52.18% |
+| Log Loss | 1.0037 | 1.0037 |
+| Brier Score | 0.5999 | 0.5999 |
+| Predicted draws | 0 | 0 |
+
+**Decision: Model 3B rejected.**
+
+The experiment provided useful evidence that simply increasing Draw probability globally would not solve the underlying problem.
+
+This led to Model 4, which tested a much larger structural change by predicting Home / Draw / Away directly.
+
+## Model 4: Direct 1X2 Gradient Boosting
+
+Following the results from Model 3A and Model 3B, Model 4 deliberately tested a much larger structural change.
+
+Instead of estimating home and away goals and deriving match probabilities through a Poisson score matrix, Model 4 predicted **Home / Draw / Away directly** using gradient boosting.
+
+The challenger retained the existing Model 2 feature base and added:
+
+- leakage-safe pre-match Elo
+- relative-strength features
+- form-acceleration features
+- attack and defence trend features
+- nonlinear interactions through gradient boosting
+
+### Pre-agreed success threshold
+
+The performance hurdle was defined before running the experiment.
+
+| Metric | Model 2 reference | Model 4 target |
+| --- | ---: | ---: |
+| Accuracy | 52.18% | >= 54.00% |
+| Log Loss | 1.0037 | <= 0.980 |
+| Brier Score | 0.5999 | <= 0.585 |
+
+### Result
+
+The controlled walk-forward backtest covered 1,100 test fixtures.
+
+| Metric | Model 2 | Model 4 | Change |
+| --- | ---: | ---: | ---: |
+| Accuracy | 52.18% | 51.27% | -0.91pp |
+| Log Loss | 1.0037 | 1.0319 | worse by 0.0281 |
+| Brier Score | 0.5999 | 0.6158 | worse by 0.0159 |
+| Predicted draws | 0 | 24 | behavioural change |
+| Draw recall | 0.00% | 2.61% | |
+
+Model 4 failed all three pre-agreed success thresholds and was worse than Model 2 on Accuracy, Log Loss and Brier Score in every historical test season.
+
+Although the direct classifier began predicting some draws, this did not translate into improved overall performance.
+
+**Decision: REJECT Model 4.**
+
+Model 2 remains the frozen production baseline.
+
+The combined evidence from Models 3A, 3B and 4 suggests that the next meaningful improvement is more likely to come from **genuinely new predictive information** than another algorithm operating on the existing match-history feature set.
+
+The next modelling phase will therefore focus on **data enrichment**, beginning with expected-goals and related chance-quality data.
+
+[Read the full Model 4 experiment](model4-direct-1x2.md)
 
 ## Football Copilot repository
 

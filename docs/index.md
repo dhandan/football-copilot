@@ -170,21 +170,34 @@ The official Model 2 remains frozen during the initial live monitoring period.
 
 This preserves the integrity of the prospective 2026/27 experiment: official predictions are generated using the same model rather than retrospectively benefiting from information learned after the season began.
 
-Model development continues separately through controlled historical experiments.
+Model development continues separately through controlled historical experiments and out-of-time validation.
 
-Following the draw and scoreline behaviour observed during GW1 and GW2, three challenger experiments have now been completed:
+Following the draw and scoreline behaviour observed during GW1 and GW2, four challenger experiments have now been completed:
 
 - **Model 3A — Dixon-Coles:** tested low-score dependence.
 - **Model 3B — Draw calibration:** tested whether Model 2's draw probabilities required systematic adjustment.
 - **Model 4 — Direct 1X2 Gradient Boosting:** tested a structurally different direct outcome model incorporating Elo and additional relative-strength features.
+- **Model 5 — Observed xG Enrichment:** tested whether genuinely new chance-quality information improved the existing Model 2 Poisson architecture.
 
-None produced sufficient improvement to replace Model 2.
+Models 3A, 3B and 4 were rejected during historical testing.
 
-The evidence now suggests that further algorithm changes using essentially the same underlying match-history information are unlikely to deliver the material improvement being sought.
+Model 5 was different.
 
-The next model-development phase will therefore focus on **data enrichment**, beginning with genuine expected-goals and related chance-quality information.
+It passed its pre-registered historical promotion hurdle, improving Accuracy, Log Loss and Brier Score across the controlled 730-fixture historical test.
 
-Model 2 will continue generating the official live predictions while this research is conducted independently.
+It was therefore promoted to a stronger out-of-time validation against the untouched 2025/26 Premier League season.
+
+On those 370 common evaluation fixtures, Model 5 again improved Log Loss and Brier Score, providing evidence that observed xG contained incremental predictive information.
+
+However, its Accuracy deteriorated by 1.62 percentage points relative to Model 2, exceeding the pre-agreed one percentage point tolerance.
+
+Model 5 therefore failed its out-of-time promotion gate and was not promoted over Model 2.
+
+This result is an important part of the development process. Historical improvement alone was not treated as sufficient evidence for model replacement, and the failed future-season result will not be used to retrospectively tune Model 5.
+
+The 2025/26 season has now been consumed as a holdout for this experiment.
+
+Model 2 will continue generating the official live 2026/27 predictions through the initial five-Gameweek monitoring period.
 
 ---
 
@@ -216,34 +229,56 @@ Build the football analytics copilot from first principles, including historical
 
 ### V1.5 — Model improvement and data enrichment
 
-Use evidence from historical walk-forward testing and the prospective live experiment to improve the prediction capability without changing the frozen live baseline retrospectively.
+Use evidence from historical testing, out-of-time validation and the prospective live experiment to improve the prediction capability without retrospectively changing the frozen live baseline.
 
 Completed challenger experiments:
 
 - Model 3A — Dixon-Coles low-score correction: **rejected**
 - Model 3B — training-fitted draw calibration: **rejected**
 - Model 4 — direct 1X2 gradient boosting with Elo: **rejected**
+- Model 5 — observed xG enrichment: **passed historical promotion hurdle, failed out-of-time promotion gate**
 
-These experiments tested increasingly substantial changes to the modelling architecture but did not materially improve on Model 2.
+Models 3A, 3B and 4 tested whether changes to the modelling architecture could extract materially better predictions from essentially the same underlying match-history information.
 
-The next phase therefore moves from **algorithm iteration to data enrichment**.
+None produced sufficient improvement.
 
-Priority areas include:
+Model 5 therefore moved the project into **data enrichment** by introducing genuinely new observed expected-goals information while retaining the Model 2 Poisson architecture.
 
-- genuine expected-goals data
-- rolling xG for and against
-- xG difference and trend
-- home and away xG strength
+Historically, Model 5 improved all three primary metrics:
+
+| Metric | Model 2 | Model 5 |
+| --- | ---: | ---: |
+| Accuracy | 53.5616% | **54.5205%** |
+| Log Loss | 0.9867 | **0.9731** |
+| Brier Score | 0.5881 | **0.5786** |
+
+This passed the pre-registered historical promotion hurdle and advanced Model 5 to an untouched 2025/26 out-of-time test.
+
+On the 370-fixture future-season cohort, Model 5 again improved probability quality but failed to reproduce the historical accuracy uplift:
+
+| Metric | Model 2 | Model 5 |
+| --- | ---: | ---: |
+| Accuracy | **49.4595%** | 47.8378% |
+| Log Loss | 1.0375 | **1.0323** |
+| Brier Score | 0.6233 | **0.6196** |
+
+The result provides evidence that observed xG adds useful information to the probability estimates, but not enough evidence to promote Model 5 as the new 1X2 prediction model.
+
+The 2025/26 holdout will not now be used to tune Model 5 and then reused as untouched validation.
+
+The immediate V1.5 priority returns to the **prospective 2026/27 experiment**.
+
+Model 2 remains frozen as the official model through Gameweek 5. The live evidence accumulated across those five Gameweeks will then be reviewed alongside the completed challenger experiments before deciding the next modelling direction.
+
+Potential future enrichment remains available, including:
+
 - shots and shots on target
-- chance-quality information
-- player availability and line-ups where practical
-- richer team-strength signals
+- richer chance-quality information
+- player availability and line-ups
+- player-level data
+- additional team-strength signals
 
-A new challenger will only be built once genuinely new predictive information has been introduced.
-
-It will then be evaluated against the frozen Model 2 benchmark using the same leakage-safe walk-forward methodology and pre-agreed promotion thresholds.
-
-If richer data still fails to generate material uplift, the project will shift emphasis from continued historical model optimisation toward calibration, prospective monitoring and product capability.
+These are research directions rather than committed Model 6 features. A further challenger should only be created where there is a clear hypothesis and genuinely new predictive information rather than continuing model iteration for its own sake.
 
 ### V2 — Agent orchestration
 
@@ -380,11 +415,148 @@ Although the direct classifier began predicting some draws, this did not transla
 
 Model 2 remains the frozen production baseline.
 
-The combined evidence from Models 3A, 3B and 4 suggests that the next meaningful improvement is more likely to come from **genuinely new predictive information** than another algorithm operating on the existing match-history feature set.
+The combined evidence from Models 3A, 3B and 4 suggested that the next meaningful improvement was more likely to come from **genuinely new predictive information** than another algorithm operating on the existing match-history feature set.
 
-The next modelling phase will therefore focus on **data enrichment**, beginning with expected-goals and related chance-quality data.
+This directly led to Model 5, which moved the project from algorithm iteration into **data enrichment** by introducing observed expected-goals information.
 
 [Read the full Model 4 experiment](model4-direct-1x2.md)
+
+## Model 5: Observed xG Enrichment
+
+The results from Models 3A, 3B and 4 suggested that further changes to modelling architecture using essentially the same match-history information were unlikely to produce the material improvement being sought.
+
+Model 5 therefore moved the research from **algorithm iteration to data enrichment**.
+
+Rather than replacing Model 2's Poisson architecture, Model 5 retained the existing 25 Model 2 features and added 14 leakage-safe observed expected-goals features covering:
+
+- rolling xG for and against
+- five and ten-match xG form
+- xG difference
+- attacking xG trend
+- defensive xG trend
+
+This created a controlled test of whether genuinely new information about chance quality could improve the existing model.
+
+### Historical validation
+
+Model 5 was initially evaluated across a common 730-fixture historical cohort covering 2023/24 and 2024/25.
+
+Promotion thresholds were defined before viewing the results:
+
+| Metric | Promotion requirement |
+| --- | ---: |
+| Accuracy | >= 54.5% |
+| Log Loss | <= 0.975 |
+| Brier Score | <= 0.580 |
+| Probability quality | Improve both Log Loss and Brier vs Model 2 |
+
+Model 5 passed every threshold.
+
+| Metric | Model 2 | Model 5 | Change |
+| --- | ---: | ---: | ---: |
+| Accuracy | 53.5616% | **54.5205%** | **+0.9589pp** |
+| Log Loss | 0.9867 | **0.9731** | **+0.0136 improvement** |
+| Brier Score | 0.5881 | **0.5786** | **+0.0095 improvement** |
+| Predicted draws | 0 | 0 | No change |
+
+**Historical decision: PROMOTE Model 5 to out-of-time validation.**
+
+Importantly, this did not replace the frozen Model 2 used for the live 2026/27 experiment.
+
+### Untouched 2025/26 validation
+
+The historical result was then tested against the completely untouched 2025/26 Premier League season.
+
+Because the historical xG source did not contain 2025/26, Understat fixture-level xG was acquired and transformed onto the historical FBref-derived xG scale using a provider bridge fitted exclusively on 2024/25 data.
+
+The bridge and Model 5 feature set were frozen before performance was revealed.
+
+After applying the existing Model 2 history requirements, the final common evaluation cohort contained:
+
+**370 fixtures**
+
+with zero missing values across the locked Model 5 features.
+
+The out-of-time promotion criterion was also defined before viewing performance:
+
+- Model 5 must improve Log Loss
+- Model 5 must improve Brier Score
+- Accuracy must not deteriorate by more than one percentage point
+
+### Out-of-time result
+
+| Metric | Model 2 | Model 5 | Change |
+| --- | ---: | ---: | ---: |
+| Accuracy | **49.4595%** | 47.8378% | **-1.6216pp** |
+| Log Loss | 1.0375 | **1.0323** | **+0.0051 improvement** |
+| Brier Score | 0.6233 | **0.6196** | **+0.0037 improvement** |
+| Predicted draws | 0 | 0 | No change |
+
+Model 5 reproduced its improvement in probability quality on genuinely future data.
+
+However, the historical accuracy uplift did not generalise.
+
+Accuracy deteriorated by **1.62 percentage points**, exceeding the pre-agreed one percentage point tolerance.
+
+**Out-of-time decision: FAIL. Model 5 is not promoted over Model 2.**
+
+### Why the result changed
+
+Diagnostics showed that Model 5 changed Model 2's predicted 1X2 outcome on only:
+
+**38 / 370 fixtures (10.27%)**
+
+Those switches produced:
+
+- 13 improved predictions
+- 19 worsened predictions
+- 6 predictions that changed but remained incorrect
+
+The net effect was exactly:
+
+**-6 correct fixtures**
+
+All 38 classification switches occurred where Model 2 confidence was below 50%, and 34 occurred below 45%.
+
+Observed xG therefore did not destabilise high-confidence predictions. Its classification impact was concentrated around uncertain fixtures.
+
+Every classification change was also between Home and Away:
+
+- Home → Away: 20
+- Away → Home: 18
+- switches into Draw: 0
+
+### Probability quality still improved
+
+Despite the lower classification accuracy, Model 5 produced better match-level:
+
+- Log Loss on **196 / 370 fixtures (52.97%)**
+- Brier Score on **194 / 370 fixtures (52.43%)**
+
+The improvement was strongest for actual draws.
+
+Across the 101 drawn fixtures, mean improvement was:
+
+- Log Loss: **+0.012584**
+- Brier Score: **+0.010503**
+
+Yet Model 5 still selected Draw as the highest-probability outcome zero times.
+
+This reinforces an important distinction between improving the probability assigned to an outcome and changing the final argmax classification.
+
+### Model 5 conclusion
+
+Model 5 demonstrated that observed xG contains incremental predictive information.
+
+Its probability improvements replicated from historical testing into an untouched future season.
+
+Its classification accuracy improvement did not.
+
+The pre-registered promotion criterion was therefore correctly failed, and the 2025/26 holdout will not now be used to tune Model 5 and subsequently presented as untouched validation.
+
+**Model 2 remains the frozen official model for the initial 2026/27 live experiment.**
+
+[Read the full Model 5 experiment](model5-observed-xg.md)
 
 ## Football Copilot repository
 

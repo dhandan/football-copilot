@@ -199,6 +199,53 @@ The 2025/26 season has now been consumed as a holdout for this experiment.
 
 Model 2 will continue generating the official live 2026/27 predictions through the initial five-Gameweek monitoring period.
 
+### GW3 prospective milestone
+
+Following completion of the challenger experiments, the project returned to the prospective 2026/27 experiment with Model 2 remaining unchanged.
+
+The official Gameweek 3 predictions were generated and frozen on **3 September 2026**, before the first GW3 fixture.
+
+The process identified and corrected a stale GW2 fixture snapshot before any official GW3 predictions were saved. The correct GW3 fixture window was then retrieved, validated and passed through a dry run before the official prediction snapshot was created.
+
+The frozen GW3 snapshot contains:
+
+- 10 fixtures
+- 10 successful predictions
+- 0 prediction failures
+- 3 fixtures using promoted-team cold-start priors
+- 0 Draw selections as the highest-probability 1X2 outcome
+- 6 fixtures with 1-1 as the individual modal scoreline
+
+The official snapshot is stored at:
+
+`data/live/predictions/2026_27_gw03_predictions.csv`
+
+and was committed before the Gameweek began, preserving an auditable prospective record.
+
+### What the challenger experiments have taught us
+
+Models 3A through 5 tested increasingly different explanations for Model 2's limitations.
+
+Model 3A showed that correcting low-score dependence did not materially improve the probabilities.
+
+Model 3B showed that simply recalibrating Draw probability was not supported by the historical evidence.
+
+Model 4 showed that replacing the Poisson architecture with a direct 1X2 gradient-boosting model did not improve performance using essentially the same underlying information.
+
+Model 5 provided the strongest evidence of a potential improvement. Adding genuinely new observed xG information improved historical Accuracy, Log Loss and Brier Score and continued to improve probability quality on the untouched 2025/26 season. However, the improvement did not generalise to 1X2 accuracy strongly enough to pass the pre-registered promotion gate.
+
+The collective conclusion is therefore **not to continue creating new model architectures simply to search for a higher backtest score**.
+
+The next decision point will be after Gameweek 5, when Football Copilot will have accumulated approximately 50 genuinely prospective Premier League predictions.
+
+At that point the project will perform a structured failure analysis to identify where Model 2 succeeds and fails, including areas such as prediction confidence, close Home/Away probabilities, Draw behaviour, promoted teams, home/away effects, disagreement with market benchmarks and other identifiable match characteristics.
+
+Any subsequent challenger will be driven by evidence from that analysis and tested using historical data without retrospectively changing the frozen prospective baseline.
+
+Where additional information is required, priority will remain on **free and reproducible data sources**. Potential enrichment includes derived rest and fixture-congestion features, Elo and other team-strength measures, richer match statistics, observed xG signals and, where reliable free sources exist, player-level or availability information.
+
+This preserves a core Football Copilot design principle: model improvement should come from a clear hypothesis, genuinely useful information and out-of-sample evidence rather than repeated algorithm tuning.
+
 ---
 
 ## Experimental methodology

@@ -1,0 +1,2 @@
+Matches,Accuracy,LogLoss,Brier,ActualDraws,PredictedDraws
+730,53.56164383561644,0.986659094373658,0.5881050141858255,167,0

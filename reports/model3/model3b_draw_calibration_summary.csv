@@ -1,0 +1,2 @@
+Matches,ActualDraws,ActualDrawPct,Model2Accuracy,Model3BAccuracy,Model2LogLoss,Model3BLogLoss,Model2Brier,Model3BBrier,Model2PredictedDraws,Model2PredictedDrawPct,Model3BPredictedDraws,Model3BPredictedDrawPct,Model3BCorrectDraws,Model3BDrawRecall,Model3BDrawPrecision,MeanDrawMultiplier
+1100,268,24.363636363636363,52.18181818181819,52.18181818181819,1.0037472679944826,1.0036774241508855,0.5999316877842531,0.5998826921260653,0,0.0,0,0.0,0,0.0,,0.9920240449087642

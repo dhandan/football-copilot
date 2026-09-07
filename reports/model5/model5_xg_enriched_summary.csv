@@ -1,0 +1,2 @@
+Matches,Model2Accuracy,Model5Accuracy,AccuracyUpliftPP,Model2LogLoss,Model5LogLoss,LogLossImprovement,Model2Brier,Model5Brier,BrierImprovement,ActualDraws,Model2PredictedDraws,Model5PredictedDraws,AccuracyTarget,AccuracyTargetMet,LogLossTarget,LogLossTargetMet,BrierTarget,BrierTargetMet,ProbabilityQualityImproved,Verdict
+730,53.56164383561644,54.52054794520548,0.9589041095890423,0.986659094373658,0.9730532631547499,0.013605831218908016,0.5881050141858255,0.5786029141503762,0.009502100035449268,167,0,0,54.5,True,0.975,True,0.58,True,True,PROMOTE

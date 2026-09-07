@@ -1,0 +1,2 @@
+Matches,Model2Accuracy,Model5Accuracy,AccuracyUplift,Model2LogLoss,Model5LogLoss,LogLossImprovement,Model2Brier,Model5Brier,BrierImprovement,ActualDraws,Model2PredictedDraws,Model5PredictedDraws,GeneralisationPass
+370,0.4945945945945946,0.4783783783783784,-0.016216216216216217,1.037461772706185,1.0323260556726068,0.00513571703357818,0.6232653951543609,0.6196117377228204,0.003653657431540447,101,0,0,False

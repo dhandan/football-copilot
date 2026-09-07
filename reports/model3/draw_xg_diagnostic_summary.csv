@@ -1,0 +1,2 @@
+Matches,ActualDraws,ActualDrawPct,PredictedDraws,PredictedDrawPct,MeanDrawProbabilityPct,MeanDrawProbabilityActualDrawsPct,MeanDrawProbabilityNonDrawsPct,MaximumDrawMarginToTopPct,ModalOneOneCount,ModalOneOnePct
+1100,268,24.363636363636363,0,0.0,22.80539755399734,23.115717693123454,22.70543866302884,-8.144756443064837,783,71.18181818181817

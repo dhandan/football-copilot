@@ -214,7 +214,7 @@ The frozen GW3 snapshot contains:
 - 0 prediction failures
 - 3 fixtures using promoted-team cold-start priors
 - 0 Draw selections as the highest-probability 1X2 outcome
-- 6 fixtures with 1-1 as the individual modal scoreline
+- 7 fixtures with 1-1 as the individual modal scoreline
 
 The official snapshot is stored at:
 

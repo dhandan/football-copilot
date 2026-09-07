@@ -32,9 +32,7 @@ def run_step(
 
     print()
     print("=" * 70)
-    print(
-        f"STEP {number}: {name}"
-    )
+    print(f"STEP {number}: {name}")
     print("=" * 70)
 
     command = [
@@ -43,16 +41,8 @@ def run_step(
     ]
 
     print()
-    print(
-        "Running:"
-    )
-
-    print(
-        " ".join(
-            command
-        )
-    )
-
+    print("Running:")
+    print(" ".join(command))
     print()
 
     result = subprocess.run(
@@ -64,27 +54,18 @@ def run_step(
 
         print()
         print("=" * 70)
-        print(
-            f"BUILD FAILED AT STEP {number}"
-        )
+        print(f"BUILD FAILED AT STEP {number}")
         print("=" * 70)
 
-        print(
-            f"Stage: {name}"
-        )
-
-        print(
-            f"Script: {script_path}"
-        )
+        print(f"Stage: {name}")
+        print(f"Script: {script_path}")
 
         sys.exit(
             result.returncode
         )
 
     print()
-    print(
-        f"STEP {number} COMPLETE"
-    )
+    print(f"STEP {number} COMPLETE")
 
 
 # ==================================================
@@ -160,18 +141,43 @@ run_step(
 
 
 # ==================================================
-# HISTORICAL MARKET DATA
+# PROMOTED-TEAM PIPELINE
 # ==================================================
 
 run_step(
     7,
+    "Build Championship team-season summaries",
+    "prediction/build_promoted_team_priors.py",
+)
+
+
+run_step(
+    8,
+    "Calculate promotion translation factors",
+    "prediction/calculate_promotion_translation.py",
+)
+
+
+run_step(
+    9,
+    "Generate 2026/27 promoted-team priors",
+    "prediction/generate_2026_27_promoted_priors.py",
+)
+
+
+# ==================================================
+# HISTORICAL MARKET DATA
+# ==================================================
+
+run_step(
+    10,
     "Build historical bookmaker dataset",
     "prediction/build_market_data.py",
 )
 
 
 run_step(
-    8,
+    11,
     "Calculate fair market probabilities",
     "prediction/calculate_market_probabilities.py",
 )
@@ -182,7 +188,7 @@ run_step(
 # ==================================================
 
 run_step(
-    9,
+    12,
     "Train frozen production Model 2",
     "prediction/train_production_model.py",
 )
@@ -193,7 +199,7 @@ run_step(
 # ==================================================
 
 run_step(
-    10,
+    13,
     "Run final model validation",
     "prediction/final_model_validation.py",
 )
@@ -209,17 +215,18 @@ print("FOOTBALL COPILOT BUILD COMPLETE")
 print("=" * 70)
 
 print()
-print(
-    "The following have now been rebuilt:"
-)
+print("The following have now been rebuilt:")
 
 print(
     """
-- historical match data
+- historical Premier League match data
 - cleaned analytics data
 - DuckDB analytics database
 - Model 2 features
 - validation features
+- Championship team-season summaries
+- promotion translation factors
+- 2026/27 promoted-team priors
 - historical bookmaker data
 - fair market probabilities
 - frozen production Model 2
@@ -232,9 +239,7 @@ print(
 )
 
 print()
-
 print(
     "streamlit run app/streamlit_app.py"
 )
-
 print()

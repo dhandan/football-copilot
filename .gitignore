@@ -32,10 +32,18 @@ env/
 .streamlit/secrets.toml
 
 # Large / generated model files
+# Ignore generated models by default, but version the frozen production
+# model required for a clean clone to run Football Copilot.
 models/*.pkl
+!models/production_model_v2.pkl
 
 # Generated processed data
+# Ignore generated processed data by default, but version the small
+# runtime datasets required for a clean clone to run Football Copilot.
 data/processed/*.csv
+!data/processed/matches_clean.csv
+!data/processed/promoted_team_priors_2026_27.csv
+
 data/processed/*.duckdb
 data/processed/*.db
 

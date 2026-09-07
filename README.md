@@ -165,6 +165,38 @@ source .venv/bin/activate
 ```bash
 python -m pip install -r requirements.txt
 ```
+### Configure live fixture and result ingestion
+
+The core Football Copilot application can run from a clean clone without an external football-data API key.
+
+The live 2026/27 prediction workflow additionally uses the football-data.org API to retrieve current Premier League fixtures and completed results.  To use the live ingestion scripts, create a local `.env` file in the project root containing:
+
+```text
+FOOTBALL_DATA_API_KEY=your_api_token_here
+```
+
+The token is required by the live fixture and result ingestion scripts, including:
+
+```text
+scripts/fetch_live_fixtures.py
+scripts/fetch_gameweek_results.py
+```
+
+The `.env` file is intentionally excluded by `.gitignore` and must remain local to each development environment.  When moving between machines, such as Windows and macOS, create the `.env` file separately on each machine.
+
+**Never commit an API token, `.env` file, or other secret to Git.**  Only the environment-variable name and setup instructions belong in the repository.
+
+You can verify that the token has been loaded without displaying the secret:
+
+```bash
+python -c "from dotenv import load_dotenv; import os; load_dotenv(); print('API key loaded:', bool(os.getenv('FOOTBALL_DATA_API_KEY')))"
+```
+
+A correctly configured environment returns:
+
+```text
+API key loaded: True
+```
 
 ### Validate the installation
 

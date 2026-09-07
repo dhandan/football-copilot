@@ -1,0 +1,11 @@
+ResultTimestamp,Season,Gameweek,FixtureId,FixtureDate,HomeTeam,AwayTeam,APIHomeTeam,APIAwayTeam,Status,ActualHomeGoals,ActualAwayGoals,ActualScore,ActualResult,ActualResultCode,APIWinner,LastUpdated
+2026-09-07T14:46:36+01:00,2026/27,3,560566,2026-09-04,Ipswich,Liverpool,Ipswich Town FC,Liverpool FC,FINISHED,0,2,0-2,Liverpool,A,AWAY_TEAM,2026-09-07T00:20:34Z
+2026-09-07T14:46:38+01:00,2026/27,3,560571,2026-09-05,Newcastle,Bournemouth,Newcastle United FC,AFC Bournemouth,FINISHED,2,2,2-2,Draw,D,DRAW,2026-09-07T00:20:34Z
+2026-09-07T14:46:39+01:00,2026/27,3,560562,2026-09-05,Nott'm Forest,Tottenham,Nottingham Forest FC,Tottenham Hotspur FC,FINISHED,0,0,0-0,Draw,D,DRAW,2026-09-07T00:20:34Z
+2026-09-07T14:46:41+01:00,2026/27,3,560563,2026-09-05,Man City,Coventry City,Manchester City FC,Coventry City FC,FINISHED,1,0,1-0,Man City,H,HOME_TEAM,2026-09-07T00:20:34Z
+2026-09-07T14:46:42+01:00,2026/27,3,560564,2026-09-05,Brighton,Leeds,Brighton & Hove Albion FC,Leeds United FC,FINISHED,1,1,1-1,Draw,D,DRAW,2026-09-07T00:20:34Z
+2026-09-07T14:46:43+01:00,2026/27,3,560565,2026-09-05,Brentford,Sunderland,Brentford FC,Sunderland AFC,FINISHED,1,1,1-1,Draw,D,DRAW,2026-09-07T00:20:34Z
+2026-09-07T14:46:44+01:00,2026/27,3,560568,2026-09-05,Fulham,Crystal Palace,Fulham FC,Crystal Palace FC,FINISHED,2,3,2-3,Crystal Palace,A,AWAY_TEAM,2026-09-07T00:20:34Z
+2026-09-07T14:46:46+01:00,2026/27,3,560569,2026-09-05,Hull City,Aston Villa,Hull City AFC,Aston Villa FC,FINISHED,0,0,0-0,Draw,D,DRAW,2026-09-07T00:20:34Z
+2026-09-07T14:46:48+01:00,2026/27,3,560567,2026-09-06,Everton,Man United,Everton FC,Manchester United FC,FINISHED,2,2,2-2,Draw,D,DRAW,2026-09-07T00:20:34Z
+2026-09-07T14:46:49+01:00,2026/27,3,560570,2026-09-06,Arsenal,Chelsea,Arsenal FC,Chelsea FC,FINISHED,2,1,2-1,Arsenal,H,HOME_TEAM,2026-09-07T00:20:34Z

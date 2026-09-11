@@ -1,0 +1,11 @@
+PredictionTimestamp,Season,Gameweek,FixtureId,FixtureDate,FixtureTime,HomeTeam,AwayTeam,ModelVersion,PredictionStatus,PredictedResult,MostLikelyScore,HomeWinProbability,DrawProbability,AwayWinProbability,ExpectedHomeGoals,ExpectedAwayGoals,ColdStartUsed,ColdStartTeams,ColdStartMethod,FeatureSeason,ActualHomeGoals,ActualAwayGoals,ActualResult,Evaluated
+2026-09-11T17:41:02+01:00,2026/27,4,560572,2026-09-12,15:00,Crystal Palace,Ipswich,Model2_v1.0,Predicted,Crystal Palace,1-1,43.9,24.5,31.6,1.59,1.31,True,Ipswich,75% translated Championship prior + 25% historical Premier League baseline,2025/26,,,,False
+2026-09-11T17:41:02+01:00,2026/27,4,560573,2026-09-12,15:00,Liverpool,Fulham,Model2_v1.0,Predicted,Liverpool,1-1,48.5,24.5,27.0,1.64,1.16,False,,,2025/26,,,,False
+2026-09-11T17:41:02+01:00,2026/27,4,560574,2026-09-12,15:00,Aston Villa,Nott'm Forest,Model2_v1.0,Predicted,Aston Villa,1-1,44.2,24.1,31.7,1.63,1.35,False,,,2025/26,,,,False
+2026-09-11T17:41:02+01:00,2026/27,4,560576,2026-09-12,15:00,Bournemouth,Brentford,Model2_v1.0,Predicted,Bournemouth,1-1,46.3,24.6,29.2,1.61,1.23,False,,,2025/26,,,,False
+2026-09-11T17:41:02+01:00,2026/27,4,560581,2026-09-12,15:00,Chelsea,Hull City,Model2_v1.0,Predicted,Chelsea,1-1,50.1,24.0,25.9,1.7,1.16,True,Hull City,75% translated Championship prior + 25% historical Premier League baseline,2025/26,,,,False
+2026-09-11T17:41:02+01:00,2026/27,4,560575,2026-09-12,17:30,Tottenham,Everton,Model2_v1.0,Predicted,Everton,1-1,36.6,24.9,38.5,1.41,1.46,False,,,2025/26,,,,False
+2026-09-11T17:41:02+01:00,2026/27,4,560577,2026-09-12,20:00,Sunderland,Arsenal,Model2_v1.0,Predicted,Arsenal,1-1,26.1,25.0,48.9,1.09,1.59,False,,,2025/26,,,,False
+2026-09-11T17:41:02+01:00,2026/27,4,560578,2026-09-13,14:00,Coventry City,Brighton,Model2_v1.0,Predicted,Brighton,1-1,26.8,24.4,48.8,1.16,1.65,True,Coventry City,75% translated Championship prior + 25% historical Premier League baseline,2025/26,,,,False
+2026-09-11T17:41:02+01:00,2026/27,4,560580,2026-09-13,16:30,Man United,Man City,Model2_v1.0,Predicted,Man United,1-1,45.3,24.1,30.6,1.65,1.31,False,,,2025/26,,,,False
+2026-09-11T17:41:02+01:00,2026/27,4,560579,2026-09-14,20:00,Leeds,Newcastle,Model2_v1.0,Predicted,Leeds,1-1,47.4,24.6,28.0,1.61,1.18,False,,,2025/26,,,,False

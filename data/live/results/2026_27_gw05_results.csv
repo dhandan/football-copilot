@@ -1,0 +1,11 @@
+ResultTimestamp,Season,Gameweek,FixtureId,FixtureDate,HomeTeam,AwayTeam,APIHomeTeam,APIAwayTeam,Status,ActualHomeGoals,ActualAwayGoals,ActualScore,ActualResult,ActualResultCode,APIWinner,LastUpdated
+2026-09-21T15:47:37+01:00,2026/27,5,560591,2026-09-18,Brentford,Chelsea,Brentford FC,Chelsea FC,FINISHED,3,0,3-0,Brentford,H,HOME_TEAM,2026-09-21T00:20:30Z
+2026-09-21T15:47:38+01:00,2026/27,5,560587,2026-09-19,Tottenham,Aston Villa,Tottenham Hotspur FC,Aston Villa FC,FINISHED,2,3,2-3,Aston Villa,A,AWAY_TEAM,2026-09-21T00:20:30Z
+2026-09-21T15:47:40+01:00,2026/27,5,560584,2026-09-19,Everton,Ipswich,Everton FC,Ipswich Town FC,FINISHED,1,0,1-0,Everton,H,HOME_TEAM,2026-09-21T00:20:30Z
+2026-09-21T15:47:41+01:00,2026/27,5,560586,2026-09-19,Brighton,Arsenal,Brighton & Hove Albion FC,Arsenal FC,FINISHED,3,0,3-0,Brighton,H,HOME_TEAM,2026-09-21T00:20:30Z
+2026-09-21T15:47:42+01:00,2026/27,5,560588,2026-09-19,Newcastle,Hull City,Newcastle United FC,Hull City AFC,FINISHED,2,1,2-1,Newcastle,H,HOME_TEAM,2026-09-21T00:20:30Z
+2026-09-21T15:47:44+01:00,2026/27,5,560589,2026-09-19,Nott'm Forest,Coventry City,Nottingham Forest FC,Coventry City FC,FINISHED,0,1,0-1,Coventry City,A,AWAY_TEAM,2026-09-21T00:20:30Z
+2026-09-21T15:47:45+01:00,2026/27,5,560582,2026-09-20,Bournemouth,Liverpool,AFC Bournemouth,Liverpool FC,FINISHED,0,1,0-1,Liverpool,A,AWAY_TEAM,2026-09-21T00:20:30Z
+2026-09-21T15:47:46+01:00,2026/27,5,560585,2026-09-20,Leeds,Crystal Palace,Leeds United FC,Crystal Palace FC,FINISHED,0,0,0-0,Draw,D,DRAW,2026-09-21T00:20:30Z
+2026-09-21T15:47:47+01:00,2026/27,5,560590,2026-09-20,Man City,Sunderland,Manchester City FC,Sunderland AFC,FINISHED,5,3,5-3,Man City,H,HOME_TEAM,2026-09-21T00:20:30Z
+2026-09-21T15:47:48+01:00,2026/27,5,560583,2026-09-20,Fulham,Man United,Fulham FC,Manchester United FC,FINISHED,1,1,1-1,Draw,D,DRAW,2026-09-21T00:20:30Z

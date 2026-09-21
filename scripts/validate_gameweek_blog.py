@@ -16,6 +16,43 @@ def fail(message: str) -> None:
     sys.exit(1)
 
 
+def extract_section(blog: str, heading: str) -> str:
+    match = re.search(
+        rf"^{re.escape(heading)}\s*$\n(.*?)(?=^## |\Z)",
+        blog,
+        flags=re.DOTALL | re.MULTILINE,
+    )
+
+    if not match:
+        fail(f"Required section not found: '{heading}'")
+
+    return match.group(1)
+
+
+def markdown_table_rows(section: str) -> list[str]:
+    rows = []
+
+    for line in section.splitlines():
+        stripped = line.strip()
+
+        if not stripped.startswith("|"):
+            continue
+
+        # Ignore Markdown separator rows such as:
+        # | --- | ---: | :--- |
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+
+        if cells and all(
+            re.fullmatch(r":?-{3,}:?", cell) is not None
+            for cell in cells
+        ):
+            continue
+
+        rows.append(stripped)
+
+    return rows
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Validate Football Copilot Gameweek blog output."
@@ -24,7 +61,7 @@ def main() -> None:
         "--gameweek",
         type=int,
         required=True,
-        help="Gameweek number to validate, e.g. 4",
+        help="Gameweek number to validate, e.g. 5",
     )
     args = parser.parse_args()
 
@@ -59,7 +96,7 @@ def main() -> None:
         fail("Evaluation CSV is empty.")
 
     # --------------------------------------------------
-    # Expected live values
+    # Expected values from authoritative evaluation CSV
     # --------------------------------------------------
 
     matches = len(evaluation)
@@ -105,7 +142,7 @@ def main() -> None:
     )
 
     # --------------------------------------------------
-    # Structural checks
+    # Required structure
     # --------------------------------------------------
 
     required_sections = [
@@ -113,6 +150,7 @@ def main() -> None:
         "## Actual results",
         "## Gameweek performance",
         "## Diagnostics",
+        "## Draw and scoreline behaviour",
         "## What we learned",
     ]
 
@@ -121,37 +159,21 @@ def main() -> None:
             fail(f"Required section not found: '{section}'")
 
     # --------------------------------------------------
-    # Validate current Gameweek metrics
+    # Actual-results table
     # --------------------------------------------------
 
-    accuracy_text = f"**{accuracy:.1f}%**"
-
-    if accuracy_text not in blog:
-        fail(
-            "Gameweek accuracy does not match evaluation CSV.\n"
-            f"Expected to find: {accuracy_text}"
-        )
-
-    correct_text = f"**{correct_outcomes}**"
-
-    actual_results_match = re.search(
-        r"## Actual results(.*?)(?:\n## |\Z)",
+    actual_results_section = extract_section(
         blog,
-        flags=re.DOTALL,
+        "## Actual results",
     )
 
-    if not actual_results_match:
-        fail("'Actual results' section not found.")
+    rows = markdown_table_rows(actual_results_section)
 
-    actual_results_section = actual_results_match.group(1)
+    if not rows:
+        fail("Actual-results table not found.")
 
-    result_rows = [
-        line
-        for line in actual_results_section.splitlines()
-        if line.startswith("| ")
-        and not line.startswith("| Fixture")
-        and not line.startswith("|---")
-    ]
+    # First non-separator Markdown row is the header.
+    result_rows = rows[1:]
 
     if len(result_rows) != matches:
         fail(
@@ -160,103 +182,81 @@ def main() -> None:
         )
 
     # --------------------------------------------------
-    # Validate draw and 1-1 diagnostics
+    # Current Gameweek performance
     # --------------------------------------------------
 
-    draw_scoreline_match = re.search(
-        r"## Draw and scoreline behaviour(.*?)(?:\n## |\Z)",
+    gameweek_performance_section = extract_section(
         blog,
-        flags=re.DOTALL,
+        "## Gameweek performance",
     )
 
-    if not draw_scoreline_match:
-        fail("'Draw and scoreline behaviour' section not found.")
+    expected_accuracy = f"{accuracy:.1f}%"
 
-    draw_scoreline_section = draw_scoreline_match.group(1)
-
-    expected_draw_text = (
-        f"Model 2 predicted **"
-        f"{'zero' if predicted_draws == 0 else predicted_draws} draws** "
-        f"from the {matches} fixtures."
-    )
-
-    if expected_draw_text not in draw_scoreline_section:
+    if expected_accuracy not in gameweek_performance_section:
         fail(
-            "Predicted-draw diagnostic does not match evaluation CSV.\n"
-            f"Expected: {expected_draw_text}"
+            "Gameweek accuracy does not match evaluation CSV.\n"
+            f"Expected: {expected_accuracy}"
         )
 
-    number_words = {
-        0: "zero",
-        1: "one",
-        2: "two",
-        3: "three",
-        4: "four",
-        5: "five",
-        6: "six",
-        7: "seven",
-        8: "eight",
-        9: "nine",
-        10: "ten",
+    # --------------------------------------------------
+    # Draw / scoreline diagnostics
+    # --------------------------------------------------
+
+    draw_scoreline_section = extract_section(
+        blog,
+        "## Draw and scoreline behaviour",
+    )
+
+    diagnostic_patterns = {
+        "Predicted 1X2 draws": (
+            predicted_draws,
+            r"Predicted 1X2 draws:\**\s*(\d+)",
+        ),
+        "Actual draws": (
+            actual_draws,
+            r"Actual draws:\**\s*(\d+)",
+        ),
+        "Modal 1-1 predictions": (
+            modal_one_one,
+            r"Modal 1-1 predictions:\**\s*(\d+)",
+        ),
+        "Actual 1-1 results": (
+            actual_one_one,
+            r"Actual 1-1 results:\**\s*(\d+)",
+        ),
     }
 
-    draw_count_variants = [
-        str(actual_draws),
-        number_words.get(actual_draws, str(actual_draws)),
-    ]
-
-    draw_count_found = any(
-        f"{count} matches actually finished as draws".lower()
-        in draw_scoreline_section.lower()
-        for count in draw_count_variants
-    )
-
-    if not draw_count_found:
-        fail(
-            "Actual-draw diagnostic does not match evaluation CSV.\n"
-            f"Expected draw count: {actual_draws}"
+    for label, (expected, pattern) in diagnostic_patterns.items():
+        match = re.search(
+            pattern,
+            draw_scoreline_section,
+            flags=re.IGNORECASE,
         )
 
-    expected_modal_text = (
-        f"All **{modal_one_one}/{matches}** fixtures had 1-1 "
-        "as their modal predicted scoreline"
-    )
+        if not match:
+            fail(
+                f"{label} diagnostic not found in "
+                "'Draw and scoreline behaviour'."
+            )
 
-    if expected_modal_text not in draw_scoreline_section:
-        fail(
-            "1-1 modal-score diagnostic does not match evaluation CSV.\n"
-            f"Expected modal 1-1 count: {modal_one_one}/{matches}"
-        )
+        found = int(match.group(1))
 
-    if actual_one_one == 0:
-        expected_actual_one_one_text = "**none** finished 1-1"
-    else:
-        expected_actual_one_one_text = (
-            f"**{actual_one_one}** finished 1-1"
-        )
-
-    if expected_actual_one_one_text not in draw_scoreline_section:
-        fail(
-            "Actual 1-1 diagnostic does not match evaluation CSV.\n"
-            f"Expected actual 1-1 count: {actual_one_one}"
-        )
+        if found != expected:
+            fail(
+                f"{label} diagnostic does not match evaluation CSV.\n"
+                f"Expected: {expected}, found: {found}"
+            )
 
     # --------------------------------------------------
-    # Validate What we learned
+    # What we learned
     # --------------------------------------------------
 
-    what_we_learned_match = re.search(
-        r"## What we learned(.*?)(?:\n## |\n---|\Z)",
+    what_we_learned_section = extract_section(
         blog,
-        flags=re.DOTALL,
+        "## What we learned",
     )
 
-    if not what_we_learned_match:
-        fail("'What we learned' section not found.")
-
-    learned_section = what_we_learned_match.group(1)
-
-    if f"GW{gameweek}" not in learned_section:
+    if f"GW{gameweek}" not in what_we_learned_section:
         fail(
             f"Current Gameweek GW{gameweek} not referenced "
             "in 'What we learned'."

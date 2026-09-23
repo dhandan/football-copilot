@@ -293,3 +293,76 @@ Opening Market is the strongest challenger discovered during the post-GW5 deep d
 Models 3A/3B/4/5 and Model 6B/6C/6D/6E have not demonstrated sufficient evidence for promotion.
 
 The project now moves from retrospective model optimisation into a prospective champion/challenger experiment for GW6.
+
+## GW6 Operational Workflow
+
+Following the post-GW5 deep dive, the existing live prediction workflow was reviewed before making any implementation changes.
+
+### Champion: Model 2
+
+Model 2 remains the production Champion for GW6.
+
+The existing production workflow remains unchanged:
+
+1. `scripts/fetch_live_fixtures.py`
+   - Fetches the live Premier League fixture snapshot.
+   - Uses the official API matchday.
+   - Normalises team names.
+   - Saves a timestamped fixture snapshot.
+
+2. `scripts/generate_live_gameweek_predictions.py`
+   - Reads the latest fixture snapshot.
+   - Generates Model 2 predictions through `predict_fixture()`.
+   - Saves the protected official pre-match prediction snapshot.
+   - Prevents an existing official snapshot from being overwritten.
+
+3. `scripts/evaluate_gameweek.py`
+   - Joins the frozen prediction snapshot to the actual results by `FixtureId`.
+   - Evaluates Accuracy, Log Loss and Brier Score.
+   - Retains the existing Model 2 goal, scoreline, draw and cold-start diagnostics.
+
+No changes are required to this production workflow for GW6.
+
+### Shadow Challenger: Opening Market
+
+The Opening Market candidate remains the formal Shadow Challenger for GW6.
+
+It will run separately from the production Model 2 workflow and will not modify the official Model 2 prediction or evaluation files.
+
+The existing historical market pipeline already provides the required probability calculation:
+
+`1X2 odds -> implied probabilities -> remove bookmaker overround -> normalised H/D/A probabilities`
+
+For the live experiment, a separate immutable pre-match market snapshot will be frozen for the same GW6 fixtures.
+
+The market snapshot must record:
+
+- Fixture identifier
+- Home and away teams
+- Odds capture timestamp
+- Odds source
+- Home, draw and away odds
+- Normalised Home, Draw and Away probabilities
+- Modal 1X2 prediction
+
+The live market source and input format must be verified before implementation. No assumptions about the live odds schema will be built into the project.
+
+### GW6 Evaluation
+
+After GW6 results are available, Champion and Challenger will be compared on the same fixtures using:
+
+- 1X2 Accuracy
+- Log Loss
+- Brier Score
+
+Model 2-specific outputs such as expected goals and exact scorelines will remain part of the existing Model 2 evaluation but will not be required from the market challenger.
+
+GW6 is prospective evidence rather than a standalone promotion test.
+
+The GW7 Champion/Challenger decision will consider the combined evidence from:
+
+1. 1,100-match historical temporal out-of-time testing
+2. 30-match sealed historical GW6 simulation
+3. Live prospective 2026/27 GW6 performance
+
+No further Model 6 algorithm variants will be developed before this prospective test. The next modelling research cycle will focus on additional information rather than further tuning of the existing feature/model combinations.

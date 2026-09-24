@@ -1,0 +1,39 @@
+﻿{
+  "challenger_name": "Model2_OpeningMarket_40_60",
+  "version": "v1.0",
+  "status": "shadow",
+  "champion_model": "Model2_v1.0",
+  "model2_weight": 0.40,
+  "opening_market_weight": 0.60,
+  "market_source": "Football-Data",
+  "market_columns": {
+    "home": "AvgH",
+    "draw": "AvgD",
+    "away": "AvgA"
+  },
+  "market_probability_method": "inverse_decimal_odds_no_vig",
+  "development_period": {
+    "season": "2026/27",
+    "gameweeks": "GW1-GW5",
+    "matches": 50
+  },
+  "development_results": {
+    "model2": {
+      "accuracy": 0.42,
+      "log_loss": 1.0598,
+      "brier": 0.6371
+    },
+    "opening_market": {
+      "accuracy": 0.44,
+      "log_loss": 1.0522,
+      "brier": 0.6340
+    },
+    "blend_40_60": {
+      "accuracy": 0.46,
+      "log_loss": 1.0478,
+      "brier": 0.6294
+    }
+  },
+  "prospective_validation_start": "GW6",
+  "weight_policy": "FROZEN - do not retune using GW6+ results"
+}

@@ -120,6 +120,7 @@ flowchart TD
 
     O --> B
 ```
+
 ## Getting Started
 
 Football Copilot can be run directly from a clean clone of the repository.  The runtime data and frozen production model required by the application are versioned with the project, so rebuilding the modelling pipeline is not required for normal use.
@@ -165,37 +166,59 @@ source .venv/bin/activate
 ```bash
 python -m pip install -r requirements.txt
 ```
-### Configure live fixture and result ingestion
 
-The core Football Copilot application can run from a clean clone without an external football-data API key.
+### Configure live fixture, result and market ingestion
 
-The live 2026/27 prediction workflow additionally uses the football-data.org API to retrieve current Premier League fixtures and completed results.  To use the live ingestion scripts, create a local `.env` file in the project root containing:
+The core Football Copilot application can run from a clean clone without external football-data or market API keys.
+
+The live 2026/27 prediction workflow uses the football-data.org API to retrieve current Premier League fixtures and completed results.  The prospective market-shadow workflow additionally uses The Odds API to capture bookmaker market probabilities.
+
+To use the live ingestion workflows, create a local `.env` file in the project root containing:
 
 ```text
 FOOTBALL_DATA_API_KEY=your_api_token_here
+ODDS_API_KEY=your_odds_api_key_here
 ```
 
-The token is required by the live fixture and result ingestion scripts, including:
+`FOOTBALL_DATA_API_KEY` is required by the live fixture and result ingestion scripts:
 
 ```text
 scripts/fetch_live_fixtures.py
 scripts/fetch_gameweek_results.py
 ```
 
+`ODDS_API_KEY` is required by the prospective market snapshot script:
+
+```text
+scripts/fetch_opening_market_snapshot.py
+```
+
+The frozen market-shadow workflow additionally uses:
+
+```text
+scripts/generate_market_shadow_predictions.py
+scripts/evaluate_market_shadow.py
+```
+
+The prospective market source is The Odds API using UK-region decimal 1X2 (`h2h`) bookmaker odds.  Complete Home / Draw / Away prices are averaged across the available bookmaker panel and converted to normalised no-vig probabilities.
+
 The `.env` file is intentionally excluded by `.gitignore` and must remain local to each development environment.  When moving between machines, such as Windows and macOS, create the `.env` file separately on each machine.
 
-**Never commit an API token, `.env` file, or other secret to Git.**  Only the environment-variable name and setup instructions belong in the repository.
+The repository includes `.env.example` documenting the required environment-variable names without containing real credentials.
 
-You can verify that the token has been loaded without displaying the secret:
+**Never commit an API token, `.env` file, or other secret to Git.**  Only the environment-variable names and setup instructions belong in the repository.
+
+You can verify that both API keys have been loaded without displaying either secret:
 
 ```bash
-python -c "from dotenv import load_dotenv; import os; load_dotenv(); print('API key loaded:', bool(os.getenv('FOOTBALL_DATA_API_KEY')))"
+python -c "from dotenv import load_dotenv; import os; load_dotenv(); print('Football-data API key loaded:', bool(os.getenv('FOOTBALL_DATA_API_KEY'))); print('Odds API key loaded:', bool(os.getenv('ODDS_API_KEY')))"
 ```
 
 A correctly configured environment returns:
 
 ```text
-API key loaded: True
+Football-data API key loaded: True
+Odds API key loaded: True
 ```
 
 ### Validate the installation

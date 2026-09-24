@@ -234,15 +234,102 @@ Model 4 showed that replacing the Poisson architecture with a direct 1X2 gradien
 
 Model 5 provided the strongest evidence of a potential improvement. Adding genuinely new observed xG information improved historical Accuracy, Log Loss and Brier Score and continued to improve probability quality on the untouched 2025/26 season. However, the improvement did not generalise to 1X2 accuracy strongly enough to pass the pre-registered promotion gate.
 
-The collective conclusion is therefore **not to continue creating new model architectures simply to search for a higher backtest score**.
+The collective conclusion was therefore **not to continue creating new model architectures simply to search for a higher backtest score**.
 
-The next decision point will be after Gameweek 5, when Football Copilot will have accumulated approximately 50 genuinely prospective Premier League predictions.
+The next decision point was deliberately deferred until after Gameweek 5, when Football Copilot had accumulated 50 genuinely prospective Premier League predictions from the frozen Model 2.
 
-At that point the project will perform a structured failure analysis to identify where Model 2 succeeds and fails, including areas such as prediction confidence, close Home/Away probabilities, Draw behaviour, promoted teams, home/away effects, disagreement with market benchmarks and other identifiable match characteristics.
+### Post-GW5 review
 
-Any subsequent challenger will be driven by evidence from that analysis and tested using historical data without retrospectively changing the frozen prospective baseline.
+Following completion of GW5, the planned structured review was performed across the first 50 live predictions.
 
-Where additional information is required, priority will remain on **free and reproducible data sources**. Potential enrichment includes derived rest and fixture-congestion features, Elo and other team-strength measures, richer match statistics, observed xG signals and, where reliable free sources exist, player-level or availability information.
+The review examined Model 2's performance by Gameweek and investigated prediction confidence, close Home/Away probabilities, Draw behaviour, promoted-team cold starts, home and away effects, scoreline behaviour and disagreement with the bookmaker market.
+
+Model 2's aggregate GW1-GW5 performance was:
+
+| Metric | Result |
+| --- | ---: |
+| Matches | 50 |
+| 1X2 accuracy | 42.0% |
+| Log Loss | 1.0598 |
+| Multiclass Brier Score | 0.6371 |
+
+The post-GW5 analysis reinforced the decision not to alter or retrain the frozen production model using the live results.
+
+Instead, the bookmaker opening market was investigated as an independent external probability signal.
+
+### Opening market comparison
+
+The frozen GW1-GW5 Model 2 predictions were compared fixture-by-fixture with opening bookmaker consensus probabilities derived from the frozen Football-Data `AvgH`, `AvgD` and `AvgA` prices.
+
+Bookmaker overround was removed by converting the average decimal prices to inverse probabilities and normalising the resulting Home / Draw / Away probabilities to sum to one.
+
+Across the same 50-match development period:
+
+| Signal | Accuracy | Log Loss | Brier Score |
+| --- | ---: | ---: | ---: |
+| Model 2 | 42.0% | 1.0598 | 0.6371 |
+| Opening market | 44.0% | 1.0522 | 0.6340 |
+
+The market was narrowly stronger on the aggregate metrics, but the difference was small and performance varied by Gameweek.
+
+The disagreement analysis also showed that the two signals were not simply making identical predictions. This provided a clear hypothesis for testing whether Model 2 and the opening market contained complementary information.
+
+### Frozen 40/60 market shadow challenger
+
+A controlled blend sweep was performed using only the GW1-GW5 development period.
+
+The strongest results formed a broad, shallow region around approximately 35%-45% Model 2 and 55%-65% opening market rather than a single sharply defined optimum.
+
+A specification of **40% Model 2 / 60% opening market** was selected within that region and frozen as:
+
+`Model2_OpeningMarket_40_60_v1.0`
+
+Its GW1-GW5 development-period performance was:
+
+| Signal | Accuracy | Log Loss | Brier Score |
+| --- | ---: | ---: | ---: |
+| Model 2 | 42.0% | 1.0598 | 0.6371 |
+| Opening market | 44.0% | 1.0522 | 0.6340 |
+| 40/60 blend | **46.0%** | **1.0478** | **0.6294** |
+
+These 50 matches were used to develop and select the challenger. They are therefore **not prospective validation evidence for the selected 40/60 specification**.
+
+Model 2 remains the frozen production champion.
+
+The 40/60 blend is a separate **shadow challenger** and does not replace or modify the production model.
+
+### GW6 prospective validation
+
+Prospective validation of `Model2_OpeningMarket_40_60_v1.0` begins with Gameweek 6.
+
+The 40/60 weight is frozen before GW6 and must not be retuned using GW6 or later results.
+
+For prospective Gameweeks, the opening-market signal will be captured through The Odds API using UK-region decimal 1X2 (`h2h`) prices.
+
+Only bookmakers providing a complete Home / Draw / Away market are included. Available bookmaker prices are averaged separately for each outcome and converted to no-vig probabilities using the same inverse-odds normalisation principle used for the historical opening-market comparison.
+
+The prospective bookmaker panel is not assumed to be identical to the historical Football-Data panel, so the source change is explicitly recorded as part of the experiment.
+
+A single official snapshot will be taken approximately **24 hours before the first Premier League fixture of each Gameweek**.
+
+At that decision point:
+
+1. the latest Gameweek fixtures are refreshed
+2. the official `Model2_v1.0` predictions are generated and frozen
+3. the official opening-market snapshot is captured and frozen
+4. the `Model2_OpeningMarket_40_60_v1.0` shadow predictions are generated and frozen
+
+Neither the champion predictions nor the market snapshot will then be refreshed for that Gameweek's prospective evaluation.
+
+This ensures that Model 2 and the shadow challenger are compared using information available at the same pre-match decision point.
+
+A GW6 infrastructure test was completed on **24 September 2026**. It successfully retrieved all ten GW6 fixtures with complete market coverage from 18 UK bookmakers per fixture.
+
+That snapshot is explicitly a **test artefact only** and will not be used as prospective GW6 evidence.
+
+The official GW6 decision-point snapshot is scheduled for approximately **12:30 UK time on Friday 9 October 2026**, 24 hours before the first GW6 fixture.
+
+The next modelling decision will therefore be based on genuinely prospective evidence from GW6 onward rather than further tuning against the GW1-GW5 development sample.
 
 This preserves a core Football Copilot design principle: model improvement should come from a clear hypothesis, genuinely useful information and out-of-sample evidence rather than repeated algorithm tuning.
 
@@ -315,7 +402,7 @@ The 2025/26 holdout will not now be used to tune Model 5 and then reused as unto
 
 The immediate V1.5 priority returns to the **prospective 2026/27 experiment**.
 
-Model 2 remains frozen as the official model through Gameweek 5. The live evidence accumulated across those five Gameweeks will then be reviewed alongside the completed challenger experiments before deciding the next modelling direction.
+Model 2 remains frozen as the official production champion. The post-GW5 review has now been completed, and `Model2_OpeningMarket_40_60_v1.0` has been frozen as a separate shadow challenger for prospective validation from GW6 onward. The challenger will not be retuned using GW6 or later results.
 
 Potential future enrichment remains available, including:
 

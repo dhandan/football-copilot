@@ -407,3 +407,19 @@ GW6 onward
 Retuning using prospective results:
 NOT PERMITTED
 ```
+
+## GW6 Official Prospective Freeze — 9 October 2026
+
+The previously scheduled GW6 freeze has **now been completed**, and the original scheduling statement above is retained as the pre-execution plan. The first fixture was due on 10 October 2026 at 12:30 UK; the T-24h target was **9 October at 12:30 UK**. Actual capture took place **later**, prior to kickoff:
+
+- Fixture snapshot: `data/live/fixtures/fixtures_2026-10-10_2026-10-12_20261009_132546.csv` (13:25:46 UK filename timestamp; 10 fixtures).
+- Champion: `Model2_v1.0`, `data/live/predictions/2026_27_gw06_predictions.csv` (13:28:29 UK; 10/10 predicted; 0 failures; 3 promoted-team cold-starts).
+- Official The Odds API UK `h2h` market: `data/live/market/2026_27_gw06_opening_market_official_20261009_133237.csv` (13:32:37 UK; 20–21 bookmakers per fixture).
+- Shadow: `Model2_OpeningMarket_40_60_v1.0`, `data/live/challenger_predictions/2026_27_gw06_market_shadow_predictions.csv` (13:38:21 UK; 10 matched fixtures, frozen 40/60 weighting, official snapshot).
+
+The champion and shadow agreed on the 1X2 winner in 9/10 fixtures; the only switch was Chelsea vs Bournemouth (Model 2: away; shadow: home). **No GW6 results have been evaluated at this checkpoint.** These prospective predictions are not a reason to change the existing model or challenger parameters.
+
+The initial official market request failed at TLS handshake with VPN disabled; enabling VPN allowed the capture to complete. For future captures, **turn on the VPN before fetching market odds**. This is an operational workaround, not a verified diagnosis of the connection failure.
+
+The four official, immutable artefacts are in [Git commit `4efe874`](https://github.com/dhandan/football-copilot/commit/4efe87484d1f1c1e0d4789f55d58cd26870e3589). The late-versus-planned snapshot timing is explicitly acknowledged. **Production champion remains `Model2_v1.0`; shadow remains `Model2_OpeningMarket_40_60_v1.0`. No retuning from GW6+ evidence.**
+

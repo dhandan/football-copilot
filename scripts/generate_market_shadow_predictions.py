@@ -100,7 +100,7 @@ if __name__ == "__main__":
             f"Expected ModelVersion {MODEL_VERSION}."
         )
 
-    if not (model["PredictionStatus"] == "Available").all():
+    if not (model["PredictionStatus"] == "Predicted").all():
         raise RuntimeError(
             "Not all Model 2 predictions are available."
         )

@@ -1,0 +1,11 @@
+PredictionTimestamp,Season,Gameweek,FixtureId,FixtureDate,FixtureTime,HomeTeam,AwayTeam,ModelVersion,PredictionStatus,PredictedResult,MostLikelyScore,HomeWinProbability,DrawProbability,AwayWinProbability,ExpectedHomeGoals,ExpectedAwayGoals,ColdStartUsed,ColdStartTeams,ColdStartMethod,FeatureSeason,ActualHomeGoals,ActualAwayGoals,ActualResult,Evaluated
+2026-10-09T13:28:29+01:00,2026/27,6,560593,2026-10-10,12:30,Arsenal,Leeds,Model2_v1.0,Predicted,Arsenal,1-0,64.3,20.7,15.0,2.0,0.84,False,,,2025/26,,,,False
+2026-10-09T13:28:29+01:00,2026/27,6,560592,2026-10-10,15:00,Sunderland,Brighton,Model2_v1.0,Predicted,Brighton,1-1,34.3,25.4,40.3,1.32,1.45,False,,,2025/26,,,,False
+2026-10-09T13:28:29+01:00,2026/27,6,560595,2026-10-10,15:00,Chelsea,Bournemouth,Model2_v1.0,Predicted,Bournemouth,1-1,26.1,25.2,48.7,1.08,1.57,False,,,2025/26,,,,False
+2026-10-09T13:28:29+01:00,2026/27,6,560599,2026-10-10,15:00,Ipswich,Fulham,Model2_v1.0,Predicted,Fulham,1-1,29.4,25.3,45.3,1.18,1.53,True,Ipswich,75% translated Championship prior + 25% historical Premier League baseline,2025/26,,,,False
+2026-10-09T13:28:29+01:00,2026/27,6,560601,2026-10-10,15:00,Aston Villa,Brentford,Model2_v1.0,Predicted,Aston Villa,1-1,49.2,23.5,27.3,1.75,1.24,False,,,2025/26,,,,False
+2026-10-09T13:28:29+01:00,2026/27,6,560600,2026-10-10,17:30,Man United,Tottenham,Model2_v1.0,Predicted,Man United,2-0,64.0,20.5,15.5,2.03,0.88,False,,,2025/26,,,,False
+2026-10-09T13:28:29+01:00,2026/27,6,560594,2026-10-11,14:00,Hull City,Everton,Model2_v1.0,Predicted,Everton,1-2,21.5,21.2,57.3,1.18,2.04,True,Hull City,75% translated Championship prior + 25% historical Premier League baseline,2025/26,,,,False
+2026-10-09T13:28:29+01:00,2026/27,6,560596,2026-10-11,14:00,Crystal Palace,Nott'm Forest,Model2_v1.0,Predicted,Nott'm Forest,1-1,28.5,23.9,47.6,1.26,1.7,False,,,2025/26,,,,False
+2026-10-09T13:28:29+01:00,2026/27,6,560598,2026-10-11,16:30,Liverpool,Man City,Model2_v1.0,Predicted,Man City,1-1,31.6,23.9,44.4,1.36,1.66,False,,,2025/26,,,,False
+2026-10-09T13:28:29+01:00,2026/27,6,560597,2026-10-12,20:00,Coventry City,Newcastle,Model2_v1.0,Predicted,Newcastle,1-1,30.8,24.7,44.5,1.27,1.57,True,Coventry City,75% translated Championship prior + 25% historical Premier League baseline,2025/26,,,,False

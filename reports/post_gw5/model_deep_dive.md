@@ -572,3 +572,29 @@ At that point the GW6 fixtures will be refreshed and both the Champion and Shado
 GW6 and subsequent Gameweeks will provide the genuinely unseen evidence required to assess whether the 40/60 challenger generalises beyond the 50-match development period.
 
 No GW6 or later result will be used to retune the frozen 40/60 weight.
+
+---
+
+## GW6 Prospective Freeze Completed — 9 October 2026
+
+**Status: Official pre-match snapshots frozen and committed. Results not yet evaluated.**
+
+The GW6 champion/challenger procedure was executed before the first GW6 match, Arsenal vs Leeds (10 October 2026, 12:30 UK). The target snapshot point was 9 October at approximately 12:30 UK. Execution ran **later than planned**; this timing deviation is retained transparently rather than backdating any evidence.
+
+| Artefact | Actual UK time (9 Oct 2026) | Filename |
+| --- | --- | --- |
+| Refreshed GW6 fixtures | 13:25:46 (filename timestamp) | `data/live/fixtures/fixtures_2026-10-10_2026-10-12_20261009_132546.csv` |
+| Frozen production champion, `Model2_v1.0` | 13:28:29 | `data/live/predictions/2026_27_gw06_predictions.csv` |
+| Official The Odds API market snapshot | 13:32:37 | `data/live/market/2026_27_gw06_opening_market_official_20261009_133237.csv` |
+| Frozen shadow challenger, `Model2_OpeningMarket_40_60_v1.0` | 13:38:21 | `data/live/challenger_predictions/2026_27_gw06_market_shadow_predictions.csv` |
+
+The official fixture snapshot contained **10 GW6 fixtures**. The champion generated **10 predictions with zero failures**, including **three cold-start fixtures** (Ipswich, Hull City, Coventry City). The official UK `h2h` decimal-odds snapshot covered **20–21 complete bookmakers per fixture** (mean 20.9), with normalised no-vig H/D/A probabilities. The shadow generator joined all ten fixtures and applied the **unchanged frozen 40% Model 2 / 60% market weights**. It used the official, not test-only, market snapshot.
+
+Champion and shadow chose the same highest-probability outcome in **9 of 10** fixtures. The exception was **Chelsea vs Bournemouth**: Model 2 selected Bournemouth, the 40/60 shadow selected Chelsea. This is a *pre-result observation*, not an evaluation finding. Probability differences on the other nine matches remain relevant for future Log Loss and Brier comparison.
+
+**Operational issue and resolution:** The first live market fetch failed during TLS/SSL handshake. Repeating the fetch with the user's **VPN enabled** succeeded. For subsequent weekly freeze checklists, **turn VPN on before calling The Odds API**. This is an observed workaround, not a confirmed root-cause diagnosis. Avoid exposing API keys in output or issue comments.
+
+**Immutable evidence:** [Commit `4efe874`](https://github.com/dhandan/football-copilot/commit/4efe87484d1f1c1e0d4789f55d58cd26870e3589) on `main` contains exactly the four official GW6 artefacts. [Issue #2](https://github.com/dhandan/football-copilot/issues/2) tracks prospective challenger validation; [Issue #3](https://github.com/dhandan/football-copilot/issues/3) tracks source and snapshot quality. The [experimentation Kanban project](https://github.com/users/dhandan/projects/2/views/1) tracks the weekly test-and-learn work.
+
+**Next:** After *all* GW6 fixtures have finished, evaluate champion and shadow on the same ten results using Accuracy, Log Loss, and multiclass Brier, with diagnostics for scoreline concentration, draw behaviour, cold starts and model/market disagreements. GW6 is the **first prospective** evidence for the 40/60 blend; the GW1–GW5 50-match comparison was development/selection evidence. Do not retune the blend from GW6+ results or promote it on the basis of a single Gameweek.
+

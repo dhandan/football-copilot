@@ -12,6 +12,20 @@ The purpose is not simply to publish predictions. It is to understand where the 
 
 ---
 
+## Gameweek journal and operating checklist
+
+- [Mandatory Gameweek release and sprint checklist](gameweeks/OPERATING_CHECKLIST.md)
+- [GW06: frozen champion and 40/60 shadow, evaluation pending](gameweeks/GW06.md)
+- [GW05: completed five-Gameweek checkpoint](gameweeks/GW05.md)
+- [GW04](gameweeks/GW04.md)
+- [GW03](gameweeks/GW03.md)
+- [GW02](gameweeks/GW02.md)
+- [GW01](gameweeks/GW01.md)
+
+The GW6 pre-match freeze is **complete**, but the Gameweek evaluation and sprint retrospective are **not yet complete**. The GW1–GW5 model/market blend comparison was development evidence; GW6 onward is prospective shadow validation.
+
+---
+
 ## 2026/27 Live Prediction Journal
 
 ### Gameweek 2

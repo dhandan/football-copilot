@@ -12,6 +12,10 @@ The purpose is not simply to publish predictions. It is to understand where the 
 
 ---
 
+### GW6 first prospective challenger result (13 October 2026)
+
+[GW06 full retrospective](gameweeks/GW06.md): **Model 2 3/10, Log Loss 1.1747, Brier 0.7308** versus frozen **40/60 shadow 4/10, Log Loss 1.0745, Brier 0.6552** on the same ten completed fixtures. The blend improved both probability metrics on 8/10 fixtures; only 1X2 classification switch was Chelsea vs Bournemouth. Both picked zero draws (three actual). Model 2 remains champion; shadow validation continues under the [accelerated experimentation policy](accelerated-experimentation.md). [Results/evaluation evidence commit](https://github.com/dhandan/football-copilot/commit/dfcc5197a7b890f56a63abc99b568c0b11279698). GW1–GW5 results were blend-selection data, not independent prospective evidence.
+
 ## Gameweek journal and operating checklist
 
 - [Mandatory Gameweek release and sprint checklist](gameweeks/OPERATING_CHECKLIST.md)

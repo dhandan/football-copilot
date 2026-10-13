@@ -46,17 +46,17 @@ CHALLENGER_VERSION = "Model2_OpeningMarket_40_60_v1.0"
 
 def actual_probability(row):
 
-    if row["ActualResult"] == "H":
+    if row["ActualResultCode"] == "H":
         return row["ShadowHomeProbability"]
 
-    if row["ActualResult"] == "D":
+    if row["ActualResultCode"] == "D":
         return row["ShadowDrawProbability"]
 
-    if row["ActualResult"] == "A":
+    if row["ActualResultCode"] == "A":
         return row["ShadowAwayProbability"]
 
     raise RuntimeError(
-        f"Invalid ActualResult: {row['ActualResult']}"
+        f"Invalid ActualResultCode: {row['ActualResultCode']}"
     )
 
 
@@ -68,7 +68,7 @@ def calculate_brier(row):
         "A": 0.0,
     }
 
-    actual[row["ActualResult"]] = 1.0
+    actual[row["ActualResultCode"]] = 1.0
 
     return (
         (row["ShadowHomeProbability"] - actual["H"]) ** 2
@@ -204,11 +204,22 @@ if __name__ == "__main__":
         validate="one_to_one",
     )
 
-    if merged["ActualResult"].isna().any():
+    if merged["ActualResultCode"].isna().any():
         raise RuntimeError(
             "Not all shadow predictions matched "
             "to a result."
         )
+
+    if not merged["ActualResultCode"].isin(["H", "D", "A"]).all():
+        raise RuntimeError("Invalid ActualResultCode: expected H/D/A.")
+
+    # Validate the human-readable result matches the coded result.
+    expected_results = merged.apply(
+        lambda row: {"H": row["HomeTeam"], "D": "Draw", "A": row["AwayTeam"]}[row["ActualResultCode"]],
+        axis=1,
+    )
+    if not (merged["ActualResult"] == expected_results).all():
+        raise RuntimeError("ActualResult and ActualResultCode disagree.")
 
     # ----------------------------------------------
     # VALIDATE PROBABILITIES
@@ -251,7 +262,7 @@ if __name__ == "__main__":
 
     merged["OutcomeCorrect"] = (
         merged["ShadowPredictedResult"]
-        == merged["ActualResult"]
+        == merged["ActualResultCode"]
     )
 
     merged["ActualOutcomeProbability"] = (
@@ -327,6 +338,7 @@ if __name__ == "__main__":
                 "AwayTeam",
                 "ShadowPredictedResult",
                 "ActualResult",
+                "ActualResultCode",
                 "OutcomeCorrect",
                 "ActualOutcomeProbability",
                 "LogLoss",

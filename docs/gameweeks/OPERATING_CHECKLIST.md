@@ -1,5 +1,7 @@
 # Football Copilot: mandatory Gameweek release and sprint checklist
 
+**Experiment cadence:** [Accelerated parallel-shadow policy](../accelerated-experimentation.md). Weekly development and 2–3 GW reviews may proceed in parallel, but promotion uses registered independent evidence.
+
 **Authority:** [programme issue #1](https://github.com/dhandan/football-copilot/issues/1), [audit issue #8](https://github.com/dhandan/football-copilot/issues/8), [model card](../../MODEL_CARD.md). **Apply every Gameweek, starting with GW7.** This checklist is not permission to alter earlier freezes.
 
 ## Roles and sign-off

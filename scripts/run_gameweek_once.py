@@ -44,9 +44,25 @@ def team_name(v):
     return ALIASES.get(str(v), str(v))
 
 def fetch_json(url, params=None):
-    r = requests.get(url, params=params, timeout=40, headers={'User-Agent': 'FootballCopilot/1.0'})
-    r.raise_for_status()
-    return r.json(), r.headers
+    try:
+        r = requests.get(
+            url,
+            params=params,
+            timeout=40,
+            headers={'User-Agent': 'FootballCopilot/1.0'}
+        )
+        r.raise_for_status()
+        return r.json(), r.headers
+    except requests.exceptions.RequestException as exc:
+        # Never expose the exception or request URL:
+        # query parameters may contain the Odds API key.
+        host = 'Odds API' if 'the-odds-api.com' in url else 'FPL API'
+        error_type = type(exc).__name__
+        status = getattr(getattr(exc, 'response', None), 'status_code', None)
+        detail = f'HTTP {status}' if status is not None else error_type
+        raise RuntimeError(
+            f'{host} request failed ({detail}). Check VPN, connectivity and credentials.'
+        ) from None
 
 def fpl_data(dry):
     if dry:

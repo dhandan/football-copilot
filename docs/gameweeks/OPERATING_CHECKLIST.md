@@ -39,5 +39,17 @@ The assistant coordinates the checklist, checks the repository and records issue
 - [ ] Link exact commits, timestamps and filenames; distinguish T−24h target from actual capture time; note historical Football-Data opening odds versus live Odds API T−24h snapshot.
 - [ ] Review and explicitly close only issues whose registered acceptance criteria are met. An issue comment or completed freeze **does not** itself close a multi-week hypothesis.
 
+## GW7 operational improvements (16 October 2026)
+
+- **VPN preflight:** Connect the VPN before accessing The Odds API. Check connectivity before the official run.
+- **Credential security:** Never display API keys in URLs, logs or tracebacks. Rotate the exposed key and update the local `.env` file.
+- **Single-run workflow:** Run `python scripts/run_gameweek_once.py --gameweek N` once per gameweek, following a successful dry run.
+- **Timing:** Prefer Friday before the first fixture's T-24h cutoff. Record actual capture timestamps and lead hours for all fixtures.
+- **Failure recovery:** After any failed run, check for existing official files before retrying. Never overwrite or backdate a snapshot.
+- **H07:** Archive a fresh FPL player snapshot. Keep H07 observational until independently validated.
+- **Git governance:** Commit official outputs and the gameweek journal, update relevant issues, and verify actual GitHub Projects board statuses.
+- **Source files:** The current one-run workflow produces three official CSV files: Model 2, market and the 40/60 challenger. Preserve any separately archived fixture evidence.
+- **Implementation follow-up:** Add credential-safe exception handling to the Python API client before the next gameweek. A checklist entry alone does not implement this safeguard.
+
 ## GW6 exception record
 GW6 was successfully frozen but ran later than its 9 October 12:30 BST target. Official files are in [commit `4efe874`](https://github.com/dhandan/football-copilot/commit/4efe87484d1f1c1e0d4789f55d58cd26870e3589); [GW06 journal](GW06.md). The missing weekly journal was added after the original freeze, and the lifecycle checklist was introduced retrospectively as a process correction. Keep that deviation visible.

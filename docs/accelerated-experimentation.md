@@ -23,3 +23,11 @@ Decouple **rapid model development** from **controlled promotion**. We will not 
 ## First application after GW6
 
 The frozen 40/60 shadow achieved **4/10 accuracy, 1.0745 Log Loss, 0.6552 Brier** versus Model 2 **3/10, 1.1747, 0.7308** on GW6. This is favourable *first prospective evidence*, not a promotion. Prioritise the registered draw, scoreline/xG and cold-start diagnostics without recycling rejected calibrations. Preserve GW6 prediction artefacts unchanged, complete GitHub evidence and review, and start a separate versioned historical experiment only if it passes the registered development gate.
+
+## GW7 review and provisional GW8 decision (20 October 2026)
+
+Over GW6–GW7 (20 matched prospective fixtures), the unchanged 40/60 blend recorded 11/20 (55%) correct, Log Loss 0.9453 and multiclass Brier 0.5615; Model 2 recorded 8/20 (40%), 1.0621 and 0.6490. The blend led on all three metrics in both weeks. These findings were observed before a minimum sample, uncertainty/stopping procedure or effect threshold had been pre-registered for promotion. They are therefore **exploratory**, not confirmatory evidence under the rule above.
+
+**Agreed direction:** Make the existing 40/60 blend the **provisional champion candidate for GW8**, with frozen Model 2 as the baseline challenger. This is a reversible product-direction decision, **not confirmation that the champion has switched**. Before editing the production role/configuration, explicitly document an exception or an approved forward-looking decision rule, the risks of early selection and the rollback trigger in H01 / the GW8 release record. Do not present a rule created after viewing GW6–GW7 outcomes as a pre-registered test of those outcomes. If the governance check is not resolved before the freeze, retain the original operational champion while still displaying the 40/60 candidate prominently. Preserve all prior forecasts and never reweight the original shadow from live results.
+
+**GW8 capacity and backlog:** No new model-weight experiment or issue. H07 issue #10 is the prioritised bounded development feasibility assessment. H03/H04 are timeboxed diagnostics; H05/H06 should become routine scored segments where practicable. Respect existing Kanban work-in-progress limits.

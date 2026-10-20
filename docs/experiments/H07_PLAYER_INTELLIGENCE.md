@@ -2,7 +2,7 @@
 
 Status: In Progress
 Priority: P1
-Last updated: 14 October 2026
+Last updated: 20 October 2026
 
 ## Objective
 Evaluate whether player availability, recent form and replacement
@@ -40,6 +40,12 @@ Decision: Do not promote the historical H07 challenger.
 - No calibrated H07 probability adjustments approved.
 - H07 is observational for GW7.
 
+## GW7 result and GW8 scope
+
+GW7 frozen FPL snapshot captured 16 October 2026 (667 players across 20 clubs). Recorded statuses: 476 available, 105 FPL-unavailable, 63 injured, 20 doubtful, 3 suspended. These are pre-match observational flags, not evidence of causal match impacts. There was no separately frozen H07 forecast, so no valid GW7 H07 scorecard.
+
+**GW8 decision:** Continue existing H07 issue #10 as the sole prioritised new model-development candidate, first completing its source, licensing, point-in-time knowability and leakage feasibility gate. If GO, register one versioned prospective availability/replacement-strength shadow before kickoff; if NO-GO, document the blocker and do not invent a backtest. Avoid repeating rejected historical player-feature challengers. Separately, 40/60 is the provisional GW8 champion *candidate* subject to the promotion-policy check; it has not been switched operationally.
+
 ## Frozen model governance
 
 Neither Model2_v1.0 nor the frozen 40/60 market challenger
@@ -64,11 +70,10 @@ licensing, provenance and reproducibility requirements.
 
 ## Next steps
 
-1. Complete the Friday GW7 single-run official freeze.
-2. Capture updated player availability.
-3. Continue evaluating player availability and replacement quality.
-4. Register any new challenger before prospective assessment.
-5. Retain frozen Model 2 and 40/60 benchmarks unchanged.
+1. Complete the existing H07 feasibility and leakage gate in issue #10.
+2. If feasible, define prior player importance, match-specific availability and positional replacement signals without hindsight.
+3. Register and freeze one separately versioned H07 shadow before future kickoff, if historical validation supports it.
+4. Retain the immutable frozen Model 2 and 40/60 benchmarks. No additional backlog issue.
 
 ## GitHub tracking
 

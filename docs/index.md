@@ -12,6 +12,12 @@ The purpose is not simply to publish predictions. It is to understand where the 
 
 ---
 
+### GW7 retrospective and GW8 direction (20 October 2026)
+
+[GW07 completed retrospective](gameweeks/GW07.md): Across 20 prospective GW6–GW7 fixtures, frozen Model 2 recorded **8/20 (40%) accuracy, 1.0621 Log Loss and 0.6490 multiclass Brier**. The unchanged 40% Model 2 / 60% market challenger recorded **11/20 (55%), 0.9453 and 0.5615**, respectively. It performed better on all three measures in both gameweeks. This is promising but exploratory evidence with a small sample.
+
+**GW8 decision:** Advance the unchanged 40/60 blend as **provisional champion candidate** and retain frozen Model 2 as the challenger benchmark. **Operational promotion is pending** an explicit governance decision because prospective promotion thresholds/uncertainty procedures were not pre-registered before GW6–GW7. No retrospective change to model weights or prediction files. GW8 prioritises existing H07 feasibility, bounded H03/H04 diagnostics and recurring H05/H06 monitoring; **no new backlog issues**. [Existing promotion policy](accelerated-experimentation.md).
+
 ### GW6 first prospective challenger result (13 October 2026)
 
 [GW06 full retrospective](gameweeks/GW06.md): **Model 2 3/10, Log Loss 1.1747, Brier 0.7308** versus frozen **40/60 shadow 4/10, Log Loss 1.0745, Brier 0.6552** on the same ten completed fixtures. The blend improved both probability metrics on 8/10 fixtures; only 1X2 classification switch was Chelsea vs Bournemouth. Both picked zero draws (three actual). Model 2 remains champion; shadow validation continues under the [accelerated experimentation policy](accelerated-experimentation.md). [Results/evaluation evidence commit](https://github.com/dhandan/football-copilot/commit/dfcc5197a7b890f56a63abc99b568c0b11279698). GW1–GW5 results were blend-selection data, not independent prospective evidence.
@@ -19,7 +25,7 @@ The purpose is not simply to publish predictions. It is to understand where the 
 ## Gameweek journal and operating checklist
 
 - [Mandatory Gameweek release and sprint checklist](gameweeks/OPERATING_CHECKLIST.md)
-- [GW07: Friday 16 October pre-match freeze planned](gameweeks/GW07.md)
+- [GW07: completed post-match evaluation and GW8 decisions](gameweeks/GW07.md)
 - [GW06: completed first prospective challenger evaluation](gameweeks/GW06.md)
 - [GW05: completed five-Gameweek checkpoint](gameweeks/GW05.md)
 - [GW04](gameweeks/GW04.md)
@@ -27,7 +33,7 @@ The purpose is not simply to publish predictions. It is to understand where the 
 - [GW02](gameweeks/GW02.md)
 - [GW01](gameweeks/GW01.md)
 
-The GW6 pre-match freeze is **complete**, but the Gameweek evaluation and sprint retrospective are **not yet complete**. The GW1–GW5 model/market blend comparison was development evidence; GW6 onward is prospective shadow validation.
+GW6 and GW7 results have been evaluated and their retrospectives recorded. GW1–GW5 model/market blend comparisons were development evidence; GW6 onward is prospective shadow validation. The agreed GW8 direction is to advance the unchanged 40/60 blend as a provisional champion candidate, subject to the existing promotion-governance check before any operational switch.
 
 ---
 

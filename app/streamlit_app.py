@@ -522,6 +522,16 @@ def deterministic_route(
     )
 
 
+    # First bounded multi-tool workflow: one question, two trusted sources.
+    combined_gw = re.search(r"\b(?:gw|gameweek)\s*(\d{1,2})\b", lowered)
+    if combined_gw and re.search(r"\bh07\b", lowered) and any(
+        word in lowered for word in ("predict", "forecast", "champion", "model")
+    ):
+        return {
+            "name": "gw_predictions_with_h07_context",
+            "arguments": {"gameweek": int(combined_gw.group(1))},
+        }
+
     # Historical experiment questions use a grounded, read-only document.
     if re.search(r"\bh07\b", lowered) and any(
         word in lowered for word in ("why", "reject", "park", "experiment", "result", "outcome", "perform", "test")
@@ -1427,6 +1437,36 @@ def run_agent(
         )
     )
 
+
+    if deterministic_call and deterministic_call["name"] == "gw_predictions_with_h07_context":
+        gw = deterministic_call["arguments"]["gameweek"]
+        forecasts = execute_tool("frozen_gameweek_predictions", {"gameweek": gw})
+        history = execute_tool("experiment_history", {"experiment": "H07"})
+        debug_info.extend([
+            {"routing": "bounded_multi_tool", "tool": "frozen_gameweek_predictions", "arguments": {"gameweek": gw}},
+            {"routing": "bounded_multi_tool", "tool": "experiment_history", "arguments": {"experiment": "H07"}},
+        ])
+        ui_results.extend([forecasts, history])
+        if "error" in forecasts or "error" in history:
+            answer = "Cannot complete the combined question: " + "; ".join(
+                result["error"] for result in (forecasts, history) if "error" in result
+            )
+        else:
+            benchmark = history["historical_2025_26"]["Model 2"]
+            challenger = history["historical_2025_26"]["H07 xG+xA"]
+            answer = (
+                f"GW{gw}: {len(forecasts['data'])} frozen fixtures.  Model 2 is the benchmark, "
+                "40/60 is the provisional champion and the adaptive model is a challenger.  "
+                "The table gives their frozen forecasts.  Separately, H07 was parked because "
+                f"its historical 2025/26 validation was weaker than Model 2: "
+                f"accuracy {challenger['accuracy_pct']}% versus {benchmark['accuracy_pct']}%, "
+                f"Log Loss {challenger['log_loss']} versus {benchmark['log_loss']}, "
+                f"Brier {challenger['brier']} versus {benchmark['brier']}.  "
+                "H07 has no separately frozen GW7 forecast and is not a GW8 challenger.  "
+                f"Experiment source: {history['source']}."
+            )
+        messages.append({"role": "assistant", "content": answer})
+        return answer, ui_results, debug_info
 
     if deterministic_call:
 

@@ -42,6 +42,14 @@ LLM explanation
 Streamlit visualisation
 ```
 
+## LangGraph V2 milestone — evaluated experimental mode (23 October 2026)
+
+V2 is available as an **opt-in Streamlit sidebar mode**, not the default chatbot.  It uses local Qwen3 0.6B for planning, structured Pydantic tool contracts, bounded LangGraph tool execution, session-scoped memory, and grounded answer synthesis with factual fallback.  Qwen3 4B remains available for configuration, but automatic light/heavy switching is not implemented.
+
+Local verification: **16/16 unit tests**, **7/7 offline** and **7/7 live** multi-turn acceptance scenarios passed.  Some live answers required a factual fallback, response times remain material on CPU, and V2 currently supports only three specialist tools.  Legacy chatbot parity is not yet achieved.
+
+Full findings, repeatable commands, limitations and prioritised next steps: [V2 milestone report](docs/V2_LANGGRAPH_STATUS.md).  Preserved snapshot branch: `checkpoint/v2-langgraph-evaluated-2026-10-23`.  [V2 tracking issue #11](https://github.com/dhandan/football-copilot/issues/11) stays open.
+
 ## Current direction: AI engineering first (23 October 2026)
 
 Football Copilot is primarily a **zero-cost, hands-on AI/LLM engineering side project**. The weekly match prediction process is a supporting product capability, not the main development backlog.

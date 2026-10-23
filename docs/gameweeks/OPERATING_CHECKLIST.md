@@ -1,6 +1,6 @@
 # Football Copilot: mandatory Gameweek release and sprint checklist
 
-**Experiment cadence:** [Accelerated parallel-shadow policy](../accelerated-experimentation.md). Weekly development and 2–3 GW reviews may proceed in parallel, but promotion uses registered independent evidence.
+**Experiment cadence:** [Weekly rapid optimisation policy](../accelerated-experimentation.md). Diagnose, experiment, validate and decide on the next release **every Gameweek**. No fixed three-Gameweek wait or requirement to change the model every week. Distinguish provisional deployment from confirmed statistical promotion.
 
 **Authority:** [programme issue #1](https://github.com/dhandan/football-copilot/issues/1), [audit issue #8](https://github.com/dhandan/football-copilot/issues/8), [model card](../../MODEL_CARD.md). **Apply every Gameweek, starting with GW7.** This checklist is not permission to alter earlier freezes.
 
@@ -11,16 +11,16 @@ The assistant coordinates the checklist, checks the repository and records issue
 - [ ] Reconcile GitHub `main`, existing docs and relevant Kanban issues; recall model decisions and *previously rejected experiments* before making recommendations.
 - [ ] Create or pre-populate `docs/gameweeks/GWxx.md` using the previous week's structure; link it in `docs/index.md` and record the week's next sprint/experiment scope.
 - [ ] Verify fixture schedule, **first fixture kickoff in UK local time**, and T−24h target in UK local time (including BST/GMT). Note provider delays and bank holidays if relevant.
-- [ ] Confirm `Model2_v1.0` and `Model2_OpeningMarket_40_60_v1.0` remain the frozen champion and shadow; 40/60 weight unchanged; no look-ahead data.
+- [ ] Verify the **actual configured primary release and benchmark roles** for this Gameweek against the written H01 approval; do not assume a documentation decision has changed code. For GW8 the unchanged 40/60 blend is the provisional champion candidate (subject to recorded exception and operational switch), while frozen Model 2 remains the benchmark. No look-ahead data or unrecorded weight changes.
 - [ ] Inspect local `git status --short` before staging. Avoid unrelated untracked artefacts, September test odds and duplicate report trees.
 - [ ] Check local environment and credentials without displaying tokens. Enable **VPN before Odds API request** (GW6 observed SSL workaround, not proven cause).
 - [ ] Perform only non-destructive preflight/test checks as appropriate; official snapshots must never be overwritten.
 
 ## B. Official freeze (before first kickoff)
 - [ ] Fetch/validate the correct 10 fixtures, dates, times and stable IDs; save source and timestamp.
-- [ ] Generate *official* Model 2 predictions; require exactly 10 successful, version-checked predictions, valid H/D/A probabilities and documented cold starts. Capture actual generation timestamp.
+- [ ] Generate the frozen Model 2 benchmark predictions; require exactly 10 successful, version-checked predictions, valid H/D/A probabilities and documented cold starts. Capture actual generation timestamp. If it remains the configured champion, label it accordingly.
 - [ ] Fetch official market once, validate ten fixture matches, complete UK H/D/A bookmaker odds, plausible positive decimal prices, bookmaker counts and normalised no-vig probabilities. Record timestamp, source/panel and explicit delay relative to planned T−24h.
-- [ ] Generate shadow from **those exact frozen official model and market files**; assert 10/10 one-to-one fixture joins, same prediction population, valid probabilities, versions and 0.40/0.60 weighting. Record shadow timestamp and disagreements.
+- [ ] Generate the unchanged 40/60 blend from **those exact frozen official Model 2 and market files**; assert 10/10 fixture joins, valid probabilities, versions and 0.40/0.60 weighting. Record which version is actually primary versus benchmark; never relabel without the approved operational role switch. Freeze any newly validated, preregistered version separately before kickoff.
 - [ ] If odds fetch fails or coverage is incomplete: do **not** silently use test odds or a later substitute; diagnose without printing API keys; record the failure and observed timestamp. If official snapshot has already been written, do **not** overwrite it. Escalate any exception to the planned capture protocol and assess comparability.
 - [ ] Stage **explicit paths only**: official fixture, champion, market and shadow snapshots; inspect `git diff --cached --name-only` and `git diff --cached --check`; commit and push; verify the GitHub commit and four file paths.
 - [ ] Finalise `GWxx.md` with pre-match probability table, scorelines, baseline and challenger, cold starts, draw/scoreline diagnostics, capture deviations, operational incidents and links to immutable evidence. Update main docs navigation.
@@ -32,7 +32,7 @@ The assistant coordinates the checklist, checks the repository and records issue
 - [ ] Analyse fixture-level agreement/disagreement and changes in probability quality; report per-GW and cumulative GW6+ challenger performance distinctly from GW1–GW5 development evidence.
 - [ ] Update `GWxx.md` with results, metrics, outliers, limitations, hypothesis evidence and sprint retrospective; commit evaluation files, scripts if separately authorised, and documentation with explicit paths.
 - [ ] Conduct sprint review: retain/reject/continue evidence for hypotheses; capture limitations and confidence; update Kanban status and RICE only with measured or sourced inputs; select and prepare next week's work.
-- [ ] Don't retune the frozen 40/60 challenger on GW6+ or promote based on a single Gameweek. Record any *future* prospective promotion policy and sample/guardrails **before** reviewing results intended to drive that decision.
+- [ ] Make a **weekly** retain/improve/provisionally release/revert decision. Do not retune frozen 40/60 weights using GW6+ or declare confirmatory promotion from a single Gameweek. Predefine future candidate validation/guardrails **before** scoring the new candidate; document any exploratory or exceptional deployment transparently.
 
 ## D. Audit and security
 - [ ] Avoid logs or tracebacks exposing `apiKey` URLs, environment secrets and credentials. Provider key rotation/update to local `.env` is an operator action; never commit `.env`.
@@ -53,3 +53,11 @@ The assistant coordinates the checklist, checks the repository and records issue
 
 ## GW6 exception record
 GW6 was successfully frozen but ran later than its 9 October 12:30 BST target. Official files are in [commit `4efe874`](https://github.com/dhandan/football-copilot/commit/4efe87484d1f1c1e0d4789f55d58cd26870e3589); [GW06 journal](GW06.md). The missing weekly journal was added after the original freeze, and the lifecycle checklist was introduced retrospectively as a process correction. Keep that deviation visible.
+
+## GW8 fast-release guardrails (23 October 2026)
+
+- [ ] Record and approve the reversible H01 40/60 operational promotion exception before changing model role configuration; specify the fallback if market coverage/integrity fails. No three-Gameweek waiting rule.
+- [ ] Identify one existing highest-priority opportunity (H07 first) and run a bounded leakage-safe historical feasibility / validation with success criteria set before scoring.
+- [ ] If a candidate passes, publish a new versioned release candidate for **this coming Gameweek** after technical checks; otherwise continue with the last verified deployable baseline.
+- [ ] Before kickoff, independently validate actual primary and comparator labels, model versions, source timestamps and all ten immutable forecasts; do not overwrite past snapshots.
+- [ ] After final results, assess both on the same fixtures, document weaknesses and make the next weekly decision, with immediate fallback for critical data failures.

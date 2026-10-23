@@ -1,6 +1,6 @@
 ﻿# H07 Player Intelligence Research
 
-Status: In Progress
+Status: Closed - no deployable improvement established (23 October 2026)
 Priority: P1
 Last updated: 23 October 2026
 
@@ -68,12 +68,13 @@ data/live/model2/matches_asof_gw07.csv
 These datasets remain local pending review of size,
 licensing, provenance and reproducibility requirements.
 
-## Next steps
+## Final decision: park H07 (23 October 2026)
 
-1. Complete the existing H07 feasibility and leakage gate in issue #10.
-2. If feasible, define prior player importance, match-specific availability and positional replacement signals without hindsight.
-3. Register and freeze one separately versioned H07 shadow before future kickoff, if historical validation supports it.
-4. Retain the immutable frozen Model 2 and 40/60 benchmarks. No additional backlog issue.
+Existing historical research assessed player form, injury/availability impact, squad depth, combined player features and xG+xA challengers. Some variants improved accuracy, but none showed a credible, independently validated improvement in overall Log Loss and multiclass Brier suitable for release. The independent 2025/26 xG+xA result was worse than Model 2 on all three reported measures. The lagged absence dataset has 3,800 team-fixture rows with substantial nonzero coverage (Last1_ImportanceKnown 89.7%, Last5_WeightedInjury 83.8%), but **coverage alone is not predictive lift**; a distinct validated gain against the current 40/60 primary was not demonstrated. Some retrospective availability/lineup sources lack verified pre-match publication timestamps, creating a leakage risk. No H07 model was frozen prospectively for GW7 or GW8.
+
+**Disposition:** Close the current H07 feasibility/research issue as **not planned for further work now**, rather than claim that all conceivable player signals are disproven. Do not deploy or rerun rejected H07 variants. Reopen only with a specific, new point-in-time source or hypothesis and a demonstrable path to beating the current 40/60 release baseline on prespecified temporal validation. Keep local research artefacts untouched; do not add a replacement issue.
+
+**Next improvement focus:** Work existing H05 disagreement analysis into a bounded diagnostic identifying potential 40/60 failure segments, without repeating the rejected Model 6D override. H03/H04 and H06 remain background scored diagnostics; H01/H02 remain weekly evaluation/data-quality controls.
 
 ## GitHub tracking
 

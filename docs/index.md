@@ -1,5 +1,16 @@
 # Football Copilot
 
+## Product roadmap rebalanced (23 October 2026)
+
+**Original purpose:** Build real AI and analytics engineering capability through a working Football Copilot application. The prediction model remains valuable but is no longer the sole focus. All new work must meet a **£0 ongoing cost** constraint, reusing local Qwen/Ollama, Streamlit, DuckDB and open-source code.
+
+1. **V2 [AI agent orchestration and offline evaluation, #11](https://github.com/dhandan/football-copilot/issues/11): primary near-term development.** Start from existing deterministic routing and tools. Deliver a meaningful multi-tool question, bounded orchestration, grounded responses and lightweight tests. Do not introduce LangGraph merely for appearances.
+2. **V3 [Portable local runtime and interchangeable LLM configuration, #12](https://github.com/dhandan/football-copilot/issues/12): next, after V2 MVP.** Lightweight reproducibility and Docker where useful. Existing [£0 public demo, #9](https://github.com/dhandan/football-copilot/issues/9) stays a separate lower-priority product item.
+3. **Weekly model optimisation:** GW freeze, compare champion/challenger against identical final results, make a weekly keep/improve/release decision. No repeated rejected experiments, no forced releases or extended hold. GW8 40/60 and adaptive forecasts remain immutable.
+4. **V4 FPL Copilot: parked.** No active development or new ticket.
+
+**Side-project operating principle:** One AI engineering build task at a time; weekly prediction evaluation alongside it. Prefer short practical increments, no admin-heavy ceremonies, no paid APIs or hosting.
+
 ## 2026/27 Premier League Live Prediction Experiment
 
 Football Copilot is an AI-powered football analytics and prediction project built to explore how historical match data, statistical modelling and conversational AI can be combined into an interactive football analytics application.

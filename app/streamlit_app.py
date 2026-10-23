@@ -1459,14 +1459,29 @@ def run_agent(
         )
 
 
-        answer = (
-            explain_tool_result(
-                messages,
-                function_name,
-                arguments,
-                result,
+        if function_name == "frozen_gameweek_predictions":
+            if "error" in result:
+                answer = result["error"]
+            else:
+                answer = (
+                    f"Frozen GW{result['gameweek']} forecasts loaded for "
+                    f"{len(result['data'])} fixtures.  "
+                    "Model 2 is the benchmark; the 40/60 market blend is the "
+                    "provisional champion; the adaptive confidence model is "
+                    "a challenger.  These are saved pre-match predictions, "
+                    "not live recalculations.  The table below shows each "
+                    "model's probabilities and outcomes."
+                )
+            messages.append({"role": "assistant", "content": answer})
+        else:
+            answer = (
+                explain_tool_result(
+                    messages,
+                    function_name,
+                    arguments,
+                    result,
+                )
             )
-        )
 
 
         return (
@@ -2261,6 +2276,14 @@ def render_tool_result(
         )
     )
 
+
+    if result_type == "frozen_gameweek_predictions":
+        st.subheader(f"GW{result['gameweek']} frozen forecasts")
+        df = pd.DataFrame(result.get("data", []))
+        if not df.empty:
+            st.dataframe(df, width="stretch", hide_index=True)
+        st.caption(result.get("note", ""))
+        return
 
     # ==================================================
     # FIXTURE PREDICTION

@@ -518,7 +518,7 @@ def deterministic_route(
 
     # Official frozen gameweek forecasts take priority over generic
     # single-fixture on-demand prediction routing.
-    gw_match = re.search(r"\\b(?:gw|gameweek)\\s*(\\d{1,2})\\b", lowered)
+    gw_match = re.search(r"\b(?:gw|gameweek)\s*(\d{1,2})\b", lowered)
     if gw_match and any(word in lowered for word in ("predict", "forecast", "probabilit", "champion", "model", "score")):
         return {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": int(gw_match.group(1))}}
 

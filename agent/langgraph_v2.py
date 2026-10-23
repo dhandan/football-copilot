@@ -316,7 +316,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             return save(facts)
         # The LLM is not permitted to compress or replace fixture-by-fixture
         # forecast output: the user asked for the actual saved predictions.
-        if any(item["tool"] == "frozen_gameweek_predictions" for item in state["evidence"]):
+        if len(state["evidence"]) == 1 and state["evidence"][0]["tool"] == "frozen_gameweek_predictions":
             return {**save(facts), "trace": [*state["trace"], "forecast_rows_preserved"]}
         if any("error" in item["result"] for item in state["evidence"]):
             return {**save(facts), "trace": [*state["trace"], "synthesis_skipped_tool_error"]}

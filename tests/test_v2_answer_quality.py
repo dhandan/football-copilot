@@ -59,8 +59,8 @@ class AnswerQualityTests(unittest.TestCase):
             {"name": "model_performance", "arguments": {}}
         ])
         passed, failures = assess(result["answer"])
-        if not passed:
-            self.assertTrue(failures)  # record the limitations; don't disguise them
+        self.assertFalse(passed)  # Known gap: current answer omits formal status.
+        self.assertIn("provisional_status", failures)
         self.assertIn("55%", result["answer"])
 
 

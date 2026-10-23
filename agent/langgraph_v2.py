@@ -220,10 +220,10 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         # This does not force any tool for unrelated requests.
         previous_questions = " ".join(x["question"] for x in state.get("history", [])[-2:])
         wants_champion_comparison = (
-            bool(re.search(r"\\b(champion|40/60)\\b", state["question"], re.I))
-            and bool(re.search(r"\\b(compare|compared|comparison|versus|vs|how does that)\\b", state["question"], re.I))
+            bool(re.search(r"\b(champion|40/60)\b", state["question"], re.I))
+            and bool(re.search(r"\b(compare|compared|comparison|versus|vs|how does that)\b", state["question"], re.I))
         )
-        has_forecast_context = bool(re.search(r"\\b(GW\\s*\\d+|gameweek\\s*\\d+)\\b", previous_questions, re.I))
+        has_forecast_context = bool(re.search(r"\b(GW\s*\d+|gameweek\s*\d+)\b", previous_questions, re.I))
         repaired = False
         if wants_champion_comparison and has_forecast_context and not any(
             x["name"] == "model_performance" for x in valid

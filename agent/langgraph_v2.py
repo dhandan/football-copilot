@@ -132,7 +132,10 @@ def local_synthesizer(question: str, facts: str) -> str:
                 "scores, teams, metrics, fixtures or sources. Explain comparisons in plain English. "
                 "Saved forecasts are NOT evaluated results. GW8 forecast accuracy is unknown until "
                 "the matches finish and results are evaluated. Do not claim model improvement "
-                "from the small GW6-GW7 sample. Keep all figures exact and be concise."
+                "from the small GW6-GW7 sample. If comparing forecasts with historical "
+                "performance, explicitly state that forecasts are not yet evaluated. "
+                "Do not say observed champion performance is unavailable when supplied. "
+                "Keep all figures exact and be concise."
             )},
             {"role": "user", "content": f"Question: {question}\nVerified evidence:\n{facts}"},
         ],
@@ -265,6 +268,13 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     f"Source: {result['source']}."
                 )
         facts = "\n\n".join(parts)
+        # Earlier answers are labelled context, not fresh tool evidence.
+        # This supports follow-ups even when the planner only fetches new data.
+        previous = state.get("history", [])[-1:]
+        if previous:
+            prior = previous[0]
+            facts += ("\n\nPrevious turn (context, not newly evaluated): "
+                      + prior["question"] + "\n" + prior["answer"][:900])
         if synthesizer is None:
             return save(facts)
         if any("error" in item["result"] for item in state["evidence"]):
@@ -272,9 +282,12 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         try:
             candidate = synthesizer(state["question"], facts)
             tools = {item["tool"] for item in state["evidence"]}
+            has_forecast_context = "frozen forecasts" in facts.lower()
             if not _grounded(candidate, facts,
-                             "frozen_gameweek_predictions" in tools,
+                             "frozen_gameweek_predictions" in tools or has_forecast_context,
                              "model_performance" in tools):
+                if os.getenv("FOOTBALL_AGENT_DEBUG") == "1":
+                    print("[synthesis rejected]", repr(candidate[:1200]))
                 return {**save(facts), "trace": [*state["trace"], "synthesis_rejected_grounding"]}
             return {**save(candidate), "trace": [*state["trace"], "synthesis_accepted"]}
         except (ReadTimeout, TimeoutError, ValueError, TypeError) as exc:

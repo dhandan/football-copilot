@@ -523,7 +523,7 @@ def deterministic_route(
 
 
     # Historical experiment questions use a grounded, read-only document.
-    if re.search(r"\\bh07\\b", lowered) and any(
+    if re.search(r"\bh07\b", lowered) and any(
         word in lowered for word in ("why", "reject", "park", "experiment", "result", "outcome", "perform", "test")
     ):
         return {"name": "experiment_history", "arguments": {"experiment": "H07"}}

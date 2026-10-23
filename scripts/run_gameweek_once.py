@@ -268,6 +268,11 @@ def main():
     odds_retrieved=pd.Timestamp.now(tz='UTC')
     market['SnapshotTimestamp']=odds_retrieved.isoformat()
     shadow=blend_forecasts(model,market,captured,args.gameweek)
+    # GW8 onward: unchanged 40/60 blend is the provisional champion.
+    # Model 2 remains the frozen benchmark.
+    model['ForecastRole'] = 'Benchmark'
+    shadow['ForecastRole'] = 'ProvisionalChampion'
+
     stamp=captured.strftime('%Y%m%dT%H%M%S%fZ')
     fpl_folder=ROOT/'data/live/players/h07_snapshots'/stamp
     if fpl_folder.exists(): raise FileExistsError(str(fpl_folder))
@@ -279,6 +284,9 @@ def main():
               'HistoricMatchesUsed':len(hist),'CurrentSeasonMatchesUsed':current_count,
               'H07':'observational only; no injury/replacement goal adjustments',
               'Market':'UK h2h pre-match odds at Friday capture, not guaranteed opening'}
+    manifest['PrimaryForecastVersion'] = SHADOW_VERSION
+    manifest['BenchmarkForecastVersion'] = MODEL_VERSION
+    manifest['PromotionStatus'] = 'Provisional'
     # All remote reads and integrity checks precede writes. Keep official outputs write-once.
     for name,df in [('model',model),('market',market),('shadow',shadow)]:
         if len(df)!=10:raise RuntimeError('Incomplete '+name)

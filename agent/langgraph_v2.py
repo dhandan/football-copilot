@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from httpx import ReadTimeout
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.checkpoint.memory import InMemorySaver
 
 from agent.football_tools import (
     experiment_history,
@@ -76,6 +77,7 @@ class AgentState(TypedDict):
     evidence: list[dict]
     answer: str
     trace: list[str]
+    history: list[dict]
 
 
 def local_planner(question: str) -> list[dict]:
@@ -114,14 +116,21 @@ def local_planner(question: str) -> list[dict]:
     return [call.model_dump() for call in parsed.calls]
 
 
-def make_graph(planner: Callable[[str], list[dict]] = local_planner):
+def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointer=None):
     def plan(state: AgentState):
         # Safety gate: destructive intent must not trigger unrelated read tools.
         # Actual tool permissions remain read-only regardless of this check.
         if re.search(r"\b(delete|erase|wipe|remove|overwrite|retrain|drop|destroy)\b", state["question"], re.I):
             return {"plan": [], "trace": ["rejected_destructive_intent"]}
         try:
-            raw = planner(state["question"])
+            previous = state.get("history", [])[-2:]
+            context = "\n".join(
+                f"Earlier user: {item['question']}\nEarlier assistant: {item['answer'][:300]}"
+                for item in previous
+            )
+            prompt = (f"Conversation context:\n{context}\nCurrent question: {state['question']}"
+                      if context else state["question"])
+            raw = planner(prompt)
         except (ReadTimeout, TimeoutError) as exc:
             return {"plan": [], "trace": [f"planner_timeout: {type(exc).__name__} (local planner timeout)"]}
         except (ValueError, KeyError, TypeError, ValidationError) as exc:
@@ -166,10 +175,13 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner):
         return {"evidence": evidence, "trace": trace}
 
     def respond(state: AgentState):
+        def save(answer: str):
+            history = state.get("history", [])
+            return {"answer": answer, "history": (history + [{"question": state["question"], "answer": answer}])[-4:]}
         if not state["evidence"]:
             if any("planner_timeout" in t for t in state["trace"]):
-                return {"answer": "Local Qwen planner timed out. No tools were run or data changed; see trace for details."}
-            return {"answer": "No supported evidence tool selected. Please specify a gameweek, H07, or model performance."}
+                return save("Local Qwen planner timed out. No tools were run or data changed; see trace for details.")
+            return save("No supported evidence tool selected. Please specify a gameweek, H07, or model performance.")
         parts = []
         for item in state["evidence"]:
             result, name = item["result"], item["tool"]
@@ -200,7 +212,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner):
                     "Small prospective sample, not evidence of a confirmed model improvement. "
                     f"Source: {result['source']}."
                 )
-        return {"answer": "\n\n".join(parts)}
+        return save("\n\n".join(parts))
 
     graph = StateGraph(AgentState)
     graph.add_node("plan", plan)
@@ -210,10 +222,29 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner):
     graph.add_conditional_edges("plan", lambda s: "execute" if s["plan"] else "respond")
     graph.add_edge("execute", "respond")
     graph.add_edge("respond", END)
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
 
 
 def ask(question: str, planner: Callable[[str], list[dict]] = local_planner):
     return make_graph(planner).invoke({
         "question": question, "plan": [], "evidence": [], "answer": "", "trace": []
     })
+
+
+class Conversation:
+    """Session-scoped in-memory LangGraph state; no disk, cloud or paid services.
+
+    Use a stable thread_id for follow-ups. A new Conversation has no prior memory.
+    This prototype does not persist across Python process restarts.
+    """
+
+    def __init__(self, planner: Callable[[str], list[dict]] = local_planner):
+        self.graph = make_graph(planner, checkpointer=InMemorySaver())
+
+    def ask(self, question: str, thread_id: str = "default"):
+        if not thread_id.strip():
+            raise ValueError("thread_id must be non-empty")
+        return self.graph.invoke(
+            {"question": question, "plan": [], "evidence": [], "answer": "", "trace": []},
+            config={"configurable": {"thread_id": thread_id}},
+        )

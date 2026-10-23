@@ -296,3 +296,32 @@ def experiment_history(experiment: str):
         "final_decision_note": final_note[:3000] if final_note else "See source document.",
         "note": "Historical experiment, not a GW8 prospective forecast. No separately frozen H07 GW7 forecast."
     }
+
+
+def model_performance():
+    """Read the latest documented prospective scorecard, without inventing GW8 results."""
+    from pathlib import Path
+    import re
+    source = "docs/gameweeks/GW07.md"
+    path = Path(__file__).resolve().parent.parent / source
+    if not path.exists():
+        return {"type": "model_performance", "error": "Verified performance report unavailable."}
+    doc = path.read_text(encoding="utf-8-sig")
+    section = doc.split("### Prospective performance", 1)
+    if len(section) < 2:
+        return {"type": "model_performance", "error": "No prospective scorecard in report."}
+    section = section[1].split("### Findings", 1)[0]
+    rows = []
+    for line in section.splitlines():
+        parts = [part.strip() for part in line.strip().strip("|").split("|")]
+        if len(parts) == 6 and parts[0] in ("GW6", "GW7", "GW6-GW7") and parts[1] in ("Model 2", "40/60"):
+            rows.append({"period": parts[0], "model": parts[1],
+                         "correct": parts[2], "accuracy": parts[3],
+                         "log_loss": parts[4], "brier": parts[5]})
+    if len(rows) != 6:
+        return {"type": "model_performance", "error": "Scorecard incomplete or changed; refusing to infer missing results."}
+    return {"type": "model_performance", "source": source,
+            "completed_period": "GW6-GW7 (20 prospective matches)",
+            "metrics": rows,
+            "current_gw8_status": "Forecasts frozen; GW8 results not included in this scorecard.",
+            "note": "Lower Log Loss and Brier are better. 20 matches is a small sample. Adaptive confidence has no prospective final-result evaluation yet."}

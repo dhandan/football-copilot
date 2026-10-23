@@ -6,6 +6,7 @@ No model writes, hidden retries, paid providers, or answer-generation LLM loop.
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Callable, TypedDict
 
@@ -55,7 +56,7 @@ def local_planner(question: str) -> list[dict]:
         "'How has 40/60 performed?' -> model_performance()."
     )
     result = Client(timeout=30).chat(
-        model="qwen3:4b",
+        model=os.getenv("FOOTBALL_AGENT_MODEL", "qwen3:4b"),
         messages=[
             {"role": "system", "content": instruction},
             {"role": "user", "content": question},
@@ -84,7 +85,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner):
         for call in raw[:MAX_TOOLS] if isinstance(raw, list) else []:
             if not isinstance(call, dict):
                 continue
-            name, args = call.get("name"), call.get("arguments", {})
+            name, args = call.get("name", call.get("tool")), call.get("arguments", {})
             if name not in ALLOWED or not isinstance(args, dict):
                 continue
             if name == "frozen_gameweek_predictions":

@@ -32,6 +32,10 @@ Over GW6–GW7 (20 matched prospective fixtures), the unchanged 40/60 blend reco
 
 **GW8 capacity and backlog:** No new model-weight experiment or issue. H07 issue #10 is the prioritised bounded development feasibility assessment. H03/H04 are timeboxed diagnostics; H05/H06 should become routine scored segments where practicable. Respect existing Kanban work-in-progress limits.
 
+## Backlog rationalisation (23 October 2026)
+
+H07 issue #10 is now **closed/parked**, with historical findings and unresolved point-in-time limitations retained in [H07 research](experiments/H07_PLAYER_INTELLIGENCE.md). Earlier references to H07 as the next active experiment are dated decisions, not instructions to restart it. The next candidate for bounded diagnosis is existing H05 (#6), where model/market disagreement may identify systematic 40/60 weaknesses; **do not** repeat rejected Model 6D result overrides. H03 (#4), H04 (#5) and H06 (#7) are routine monitoring segments unless new, testable information emerges. H01 (#2) and H02 (#3) are recurring prospective performance/integrity controls, not competing model-development experiments. No new issues or model variant merely to fill the weekly release cadence.
+
 ## Weekly rapid optimisation operating decision (23 October 2026)
 
 **Objective:** Improve the deployed prediction baseline as quickly as defensible, rather than lock the champion for three more Gameweeks while working on disconnected shadows. Every week follow **Diagnose → Experiment → Validate → Release or reject → Measure**, with a release decision ahead of that Gameweek's official freeze. A meaningful weekly decision is required; a weekly model change is not.

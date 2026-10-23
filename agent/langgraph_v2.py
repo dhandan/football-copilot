@@ -145,7 +145,7 @@ def local_synthesizer(question: str, facts: str) -> str:
 
 def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: bool) -> bool:
     """Conservative numeric guard; reject novel numbers and unsupported evaluation claims."""
-    number = r"(?<![A-Za-z0-9])\\d+(?:\\.\\d+)?%?"
+    number = r"(?<![A-Za-z0-9])\d+(?:\.\d+)?%?"
     known = set(re.findall(number, facts))
     if set(re.findall(number, candidate)) - known:
         return False

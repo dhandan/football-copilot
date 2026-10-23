@@ -51,6 +51,7 @@ from agent.football_tools import (
     fixture_prediction,
     frozen_gameweek_predictions,
     experiment_history,
+    model_performance,
 )
 
 
@@ -190,6 +191,7 @@ TOOLS = [
     fixture_prediction,
     frozen_gameweek_predictions,
     experiment_history,
+    model_performance,
 ]
 
 
@@ -224,6 +226,9 @@ TOOL_FUNCTIONS = {
 
     "experiment_history":
         experiment_history,
+
+    "model_performance":
+        model_performance,
 }
 
 
@@ -521,6 +526,12 @@ def deterministic_route(
         )
     )
 
+
+    # Completed prospective scorecards are separate from future forecasts.
+    if any(term in lowered for term in ("performance", "accuracy", "log loss", "brier", "how has", "how did")) and any(
+        term in lowered for term in ("champion", "40/60", "model 2", "models", "challenger")
+    ) and not re.search(r"\bh07\b", lowered):
+        return {"name": "model_performance", "arguments": {}}
 
     # First bounded multi-tool workflow: one question, two trusted sources.
     combined_gw = re.search(r"\b(?:gw|gameweek)\s*(\d{1,2})\b", lowered)
@@ -1511,9 +1522,21 @@ def run_agent(
         )
 
 
-        if function_name in ("frozen_gameweek_predictions", "experiment_history"):
+        if function_name in ("frozen_gameweek_predictions", "experiment_history", "model_performance"):
             if "error" in result:
                 answer = result["error"]
+            elif function_name == "model_performance":
+                rows = {r["model"]: r for r in result["metrics"] if r["period"] == "GW6-GW7"}
+                b, c = rows["Model 2"], rows["40/60"]
+                answer = (
+                    f"Completed GW6–GW7: the 40/60 provisional champion recorded {c['correct']} "
+                    f"({c['accuracy']}), Log Loss {c['log_loss']} and Brier {c['brier']}.  "
+                    f"Model 2 recorded {b['correct']} ({b['accuracy']}), Log Loss "
+                    f"{b['log_loss']} and Brier {b['brier']}.  The blend is ahead on "
+                    "all three metrics, but only 20 prospective fixtures have been evaluated.  "
+                    "The adaptive challenger has no prospective final-results evaluation yet.  "
+                    f"Source: {result['source']}."
+                )
             elif function_name == "experiment_history":
                 h = result["historical_2025_26"]
                 b, c = h["Model 2"], h["H07 xG+xA"]
@@ -2339,6 +2362,12 @@ def render_tool_result(
         )
     )
 
+
+    if result_type == "model_performance":
+        st.subheader("Prospective model performance")
+        st.dataframe(pd.DataFrame(result.get("metrics", [])), width="stretch", hide_index=True)
+        st.caption(f"Source: {result.get('source', '')}. {result.get('note', '')}")
+        return
 
     if result_type == "experiment_history":
         st.caption(f"Evidence source: {result.get('source', '')}")

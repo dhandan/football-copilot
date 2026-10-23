@@ -46,6 +46,8 @@ def local_planner(question: str) -> list[dict]:
         "'name' and 'arguments'. Allowed: frozen_gameweek_predictions "
         "(arguments: gameweek integer 1..38), experiment_history "
         "(arguments: experiment='H07'), model_performance (arguments: {}). "
+        "The arguments object for model_performance MUST be empty {}. "
+        "Never include champion, accuracy or any other parameter for model_performance. "
         "Choose every relevant tool for multi-part questions, up to three calls. "
         "For a request combining performance and forecasts, select BOTH tools. "
         "For unsupported or destructive requests, return an empty calls list. "
@@ -55,7 +57,8 @@ def local_planner(question: str) -> list[dict]:
         "'Why reject H07?' -> experiment_history(H07); "
         "'How has 40/60 performed?' -> model_performance()."
     )
-    result = Client(timeout=30).chat(
+    timeout = max(5, min(180, int(os.getenv("FOOTBALL_AGENT_TIMEOUT", "30"))))
+    result = Client(timeout=timeout).chat(
         model=os.getenv("FOOTBALL_AGENT_MODEL", "qwen3:4b"),
         messages=[
             {"role": "system", "content": instruction},
@@ -78,7 +81,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner):
         try:
             raw = planner(state["question"])
         except (ReadTimeout, TimeoutError) as exc:
-            return {"plan": [], "trace": [f"planner_timeout: {type(exc).__name__} (30s local CPU budget)"]}
+            return {"plan": [], "trace": [f"planner_timeout: {type(exc).__name__} (local planner timeout)"]}
         except (ValueError, KeyError, TypeError) as exc:
             return {"plan": [], "trace": [f"planner_invalid_output: {type(exc).__name__}"]}
         valid = []

@@ -149,6 +149,17 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
     known = set(re.findall(number, facts))
     if set(re.findall(number, candidate)) - known:
         return False
+    if is_performance:
+        lower = candidate.lower()
+        # An answer about performance must contain the observed comparison, not
+        # merely claim that the evidence is insufficient.
+        if not ("55%" in candidate and "40%" in candidate):
+            return False
+        if any(x in lower for x in (
+            "not explicitly stated", "no clear information",
+            "does not provide clear information", "performance is unknown",
+        )):
+            return False
     if is_forecast and is_performance:
         # The model must state the temporal distinction explicitly.
         lower = candidate.lower()

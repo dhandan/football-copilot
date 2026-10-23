@@ -270,20 +270,21 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         facts = "\n\n".join(parts)
         # Earlier answers are labelled context, not fresh tool evidence.
         # This supports follow-ups even when the planner only fetches new data.
+        synthesis_facts = facts
         previous = state.get("history", [])[-1:]
-        if previous:
+        if synthesizer is not None and previous:
             prior = previous[0]
-            facts += ("\n\nPrevious turn (context, not newly evaluated): "
+            synthesis_facts += ("\n\nPrevious turn (context, not newly evaluated): "
                       + prior["question"] + "\n" + prior["answer"][:900])
         if synthesizer is None:
             return save(facts)
         if any("error" in item["result"] for item in state["evidence"]):
             return {**save(facts), "trace": [*state["trace"], "synthesis_skipped_tool_error"]}
         try:
-            candidate = synthesizer(state["question"], facts)
+            candidate = synthesizer(state["question"], synthesis_facts)
             tools = {item["tool"] for item in state["evidence"]}
-            has_forecast_context = "frozen forecasts" in facts.lower()
-            if not _grounded(candidate, facts,
+            has_forecast_context = "frozen forecasts" in synthesis_facts.lower()
+            if not _grounded(candidate, synthesis_facts,
                              "frozen_gameweek_predictions" in tools or has_forecast_context,
                              "model_performance" in tools):
                 if os.getenv("FOOTBALL_AGENT_DEBUG") == "1":

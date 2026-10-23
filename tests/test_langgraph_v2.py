@@ -49,6 +49,45 @@ class AgentGraphTests(unittest.TestCase):
         self.assertNotIn("Earlier user:", prompts[1])
         self.assertEqual(len(chat.graph.get_state({"configurable": {"thread_id": "b"}}).values["history"]), 1)
 
+    def test_synthesis_rejects_invented_numeric_claims(self):
+        from agent.langgraph_v2 import ask
+        result = ask(
+            "Compare GW8 forecasts and model performance",
+            planner=lambda q: [
+                {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}},
+                {"name": "model_performance", "arguments": {}},
+            ],
+            synthesizer=lambda q, facts: "GW8 forecasts achieved 99% accuracy and are not yet evaluated.",
+        )
+        self.assertIn("synthesis_rejected_grounding", result["trace"])
+        self.assertIn("GW6-GW7", result["answer"])
+
+    def test_synthesis_accepts_grounded_comparison(self):
+        from agent.langgraph_v2 import ask
+        result = ask(
+            "Compare GW8 forecasts and model performance",
+            planner=lambda q: [
+                {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}},
+                {"name": "model_performance", "arguments": {}},
+            ],
+            synthesizer=lambda q, facts: (
+                "GW8 contains 10 frozen forecasts. These are not yet evaluated. "
+                "GW6-GW7 performance: champion 55%, Model 2 40%."
+            ),
+        )
+        self.assertIn("synthesis_accepted", result["trace"])
+
+    def test_synthesis_error_falls_back_to_facts(self):
+        from agent.langgraph_v2 import ask
+        def fail(q, facts):
+            raise ValueError("invalid model output")
+        result = ask(
+            "H07", planner=lambda q: [{"name": "experiment_history", "arguments": {"experiment": "H07"}}],
+            synthesizer=fail,
+        )
+        self.assertIn("synthesis_fallback: ValueError", result["trace"])
+        self.assertIn("H07 parked", result["answer"])
+
     def test_strict_planner_schema(self):
         from pydantic import ValidationError
         from agent.langgraph_v2 import _Plan

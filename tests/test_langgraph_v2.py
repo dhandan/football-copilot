@@ -49,6 +49,19 @@ class AgentGraphTests(unittest.TestCase):
         self.assertNotIn("Earlier user:", prompts[1])
         self.assertEqual(len(chat.graph.get_state({"configurable": {"thread_id": "b"}}).values["history"]), 1)
 
+    def test_followup_repairs_missing_champion_tool(self):
+        from agent.langgraph_v2 import Conversation
+        def planner(question):
+            return ([{"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}}]
+                    if "Current question:" not in question else
+                    [{"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}}])
+        chat = Conversation(planner)
+        chat.ask("Show me the GW8 forecasts", thread_id="repair")
+        result = chat.ask("How does that compare with champion performance?", thread_id="repair")
+        self.assertEqual({x["tool"] for x in result["evidence"]},
+                         {"frozen_gameweek_predictions", "model_performance"})
+        self.assertIn("plan_completed_missing_comparison_evidence", result["trace"])
+
     def test_synthesis_rejects_invented_numeric_claims(self):
         from agent.langgraph_v2 import ask
         result = ask(

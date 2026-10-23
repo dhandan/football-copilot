@@ -261,11 +261,29 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             if "error" in result:
                 parts.append(f"{name}: {result['error']}")
             elif name == "frozen_gameweek_predictions":
-                parts.append(
-                    f"GW{result['gameweek']} frozen forecasts: {len(result['data'])} fixtures. "
-                    "Model 2 benchmark, 40/60 provisional champion and adaptive challenger "
-                    "(where available). The forecasts are saved, not regenerated."
+                rows = result["data"]
+                lines = [
+                    f"**GW{result['gameweek']} frozen forecasts ({len(rows)} fixtures)**",
+                    "",
+                    "| Fixture | 40/60 champion | Model 2 | Adaptive challenger |",
+                    "|---|---|---|---|",
+                ]
+                for fixture in rows:
+                    match = f"{fixture['HomeTeam']} vs {fixture['AwayTeam']}"
+                    champion = fixture.get("ShadowPredictedResult")
+                    benchmark = fixture.get("PredictedResult")
+                    adaptive = fixture.get("AdaptivePredictedResult")
+                    lines.append(
+                        f"| {match} | {champion if champion is not None else 'N/A'} "
+                        f"| {benchmark if benchmark is not None else 'N/A'} "
+                        f"| {adaptive if adaptive is not None else 'N/A'} |"
+                    )
+                lines.append(
+                    "\n40/60 is the provisional champion; Model 2 is the benchmark. "
+                    "These are saved forecasts, not evaluated results. "
+                    f"Source: {result['source']}."
                 )
+                parts.append("\n".join(lines))
             elif name == "experiment_history":
                 metrics = result["historical_2025_26"]
                 a, b = metrics["Model 2"], metrics["H07 xG+xA"]
@@ -296,6 +314,10 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                       + prior["question"] + "\n" + prior["answer"][:900])
         if synthesizer is None:
             return save(facts)
+        # The LLM is not permitted to compress or replace fixture-by-fixture
+        # forecast output: the user asked for the actual saved predictions.
+        if any(item["tool"] == "frozen_gameweek_predictions" for item in state["evidence"]):
+            return {**save(facts), "trace": [*state["trace"], "forecast_rows_preserved"]}
         if any("error" in item["result"] for item in state["evidence"]):
             return {**save(facts), "trace": [*state["trace"], "synthesis_skipped_tool_error"]}
         try:

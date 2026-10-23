@@ -152,6 +152,12 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
     known = set(re.findall(number, facts))
     if set(re.findall(number, candidate)) - known:
         return False
+    if "H07 parked:" in facts:
+        lower = candidate.lower()
+        if "h07" not in lower or not any(
+            x in lower for x in ("parked", "rejected", "did not outperform", "underperformed")
+        ):
+            return False
     if is_performance:
         lower = candidate.lower()
         # An answer about performance must contain the observed comparison, not
@@ -173,6 +179,10 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
 
 def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointer=None, synthesizer: Callable[[str, str], str] | None = None):
     def plan(state: AgentState):
+        # Narrow guard against clearly non-football questions which the small
+        # local planner can otherwise misroute to forecast tools.
+        if re.search(r"\b(weather|temperature|rainfall|wind speed)\b", state["question"], re.I):
+            return {"plan": [], "trace": ["rejected_out_of_scope"]}
         # Safety gate: destructive intent must not trigger unrelated read tools.
         # Actual tool permissions remain read-only regardless of this check.
         if re.search(r"\b(delete|erase|wipe|remove|overwrite|retrain|drop|destroy)\b", state["question"], re.I):

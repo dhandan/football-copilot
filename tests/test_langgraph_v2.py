@@ -165,6 +165,22 @@ class AgentGraphTests(unittest.TestCase):
             with self.assertRaises(ValidationError):
                 _Plan.model_validate(bad)
 
+    def test_weather_does_not_call_football_tools(self):
+        def forbidden(question):
+            raise AssertionError("Weather must not reach the football planner")
+        result = ask("Can you tell me today's weather in London?", planner=forbidden)
+        self.assertEqual(result["evidence"], [])
+        self.assertIn("rejected_out_of_scope", result["trace"])
+
+    def test_h07_synthesis_requires_rejection_explanation(self):
+        result = ask(
+            "Why was H07 rejected?",
+            planner=lambda q: [{"name": "experiment_history", "arguments": {"experiment": "H07"}}],
+            synthesizer=lambda q, facts: "H07 was evaluated in the historical season.",
+        )
+        self.assertIn("synthesis_rejected_grounding", result["trace"])
+        self.assertIn("H07 parked", result["answer"])
+
     def test_destructive_request_never_calls_planner(self):
         def forbidden_planner(question):
             raise AssertionError("Planner should not run for destructive intent")

@@ -21,6 +21,13 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("10 fixtures", result["answer"])
         self.assertIn("H07 parked", result["answer"])
 
+    def test_destructive_request_never_calls_planner(self):
+        def forbidden_planner(question):
+            raise AssertionError("Planner should not run for destructive intent")
+        result = ask("Delete our prediction history and retrain the model", planner=forbidden_planner)
+        self.assertEqual(result["evidence"], [])
+        self.assertIn("rejected_destructive_intent", result["trace"])
+
     def test_reject_hallucinated_or_writing_tools(self):
         result = ask("Test", planner=lambda q: [
             {"name": "overwrite_predictions", "arguments": {}},

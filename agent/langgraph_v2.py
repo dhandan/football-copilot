@@ -116,7 +116,48 @@ def local_planner(question: str) -> list[dict]:
     return [call.model_dump() for call in parsed.calls]
 
 
-def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointer=None):
+class _Answer(_Strict):
+    answer: str = Field(min_length=20, max_length=1800)
+
+
+def local_synthesizer(question: str, facts: str) -> str:
+    """Experimental Ollama answer writer; only compact verified tool summaries."""
+    from ollama import Client
+
+    result = Client(timeout=max(5, min(180, int(os.getenv("FOOTBALL_ANSWER_TIMEOUT", "60"))))).chat(
+        model=os.getenv("FOOTBALL_ANSWER_MODEL", "qwen3:0.6b"),
+        messages=[
+            {"role": "system", "content": (
+                "Answer using ONLY the supplied football evidence. Never invent results, "
+                "scores, teams, metrics, fixtures or sources. Explain comparisons in plain English. "
+                "Saved forecasts are NOT evaluated results. GW8 forecast accuracy is unknown until "
+                "the matches finish and results are evaluated. Do not claim model improvement "
+                "from the small GW6-GW7 sample. Keep all figures exact and be concise."
+            )},
+            {"role": "user", "content": f"Question: {question}\nVerified evidence:\n{facts}"},
+        ],
+        format=_Answer.model_json_schema(),
+        think=False,
+        options={"num_predict": 320, "num_ctx": 2048, "temperature": 0},
+    )
+    return _Answer.model_validate_json(result.message.content).answer
+
+
+def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: bool) -> bool:
+    """Conservative numeric guard; reject novel numbers and unsupported evaluation claims."""
+    number = r"(?<![A-Za-z0-9])\\d+(?:\\.\\d+)?%?"
+    known = set(re.findall(number, facts))
+    if set(re.findall(number, candidate)) - known:
+        return False
+    if is_forecast and is_performance:
+        # The model must state the temporal distinction explicitly.
+        lower = candidate.lower()
+        if not any(x in lower for x in ("not yet evaluated", "not evaluated", "cannot assess", "cannot yet", "unknown", "not results")):
+            return False
+    return True
+
+
+def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointer=None, synthesizer: Callable[[str, str], str] | None = None):
     def plan(state: AgentState):
         # Safety gate: destructive intent must not trigger unrelated read tools.
         # Actual tool permissions remain read-only regardless of this check.
@@ -212,7 +253,21 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     "Small prospective sample, not evidence of a confirmed model improvement. "
                     f"Source: {result['source']}."
                 )
-        return save("\n\n".join(parts))
+        facts = "\n\n".join(parts)
+        if synthesizer is None:
+            return save(facts)
+        if any("error" in item["result"] for item in state["evidence"]):
+            return {**save(facts), "trace": [*state["trace"], "synthesis_skipped_tool_error"]}
+        try:
+            candidate = synthesizer(state["question"], facts)
+            tools = {item["tool"] for item in state["evidence"]}
+            if not _grounded(candidate, facts,
+                             "frozen_gameweek_predictions" in tools,
+                             "model_performance" in tools):
+                return {**save(facts), "trace": [*state["trace"], "synthesis_rejected_grounding"]}
+            return {**save(candidate), "trace": [*state["trace"], "synthesis_accepted"]}
+        except (ReadTimeout, TimeoutError, ValueError, TypeError) as exc:
+            return {**save(facts), "trace": [*state["trace"], f"synthesis_fallback: {type(exc).__name__}"]}
 
     graph = StateGraph(AgentState)
     graph.add_node("plan", plan)
@@ -225,8 +280,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
     return graph.compile(checkpointer=checkpointer)
 
 
-def ask(question: str, planner: Callable[[str], list[dict]] = local_planner):
-    return make_graph(planner).invoke({
+def ask(question: str, planner: Callable[[str], list[dict]] = local_planner, synthesizer=None):
+    return make_graph(planner, synthesizer=synthesizer).invoke({
         "question": question, "plan": [], "evidence": [], "answer": "", "trace": []
     })
 
@@ -238,8 +293,8 @@ class Conversation:
     This prototype does not persist across Python process restarts.
     """
 
-    def __init__(self, planner: Callable[[str], list[dict]] = local_planner):
-        self.graph = make_graph(planner, checkpointer=InMemorySaver())
+    def __init__(self, planner: Callable[[str], list[dict]] = local_planner, synthesizer=None):
+        self.graph = make_graph(planner, checkpointer=InMemorySaver(), synthesizer=synthesizer)
 
     def ask(self, question: str, thread_id: str = "default"):
         if not thread_id.strip():

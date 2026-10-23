@@ -42,6 +42,17 @@ LLM explanation
 Streamlit visualisation
 ```
 
+## Current direction: AI engineering first (23 October 2026)
+
+Football Copilot is primarily a **zero-cost, hands-on AI/LLM engineering side project**. The weekly match prediction process is a supporting product capability, not the main development backlog.
+
+- **Primary focus, V2:** Extend the working Qwen/Ollama, Streamlit, DuckDB and deterministic-tool system with one genuinely multi-step agent workflow, local LangGraph only if it adds value, structured tool contracts and a small repeatable offline evaluation set. [V2 issue #11](https://github.com/dhandan/football-copilot/issues/11).
+- **Next, V3:** Simple reproducible local runtime, replaceable LLM interface and targeted Dockerisation if beneficial; no paid hosting or LLM dependencies. [V3 issue #12](https://github.com/dhandan/football-copilot/issues/12). The separate [free public demo #9](https://github.com/dhandan/football-copilot/issues/9) remains lower priority.
+- **Prediction modelling:** Keep the existing GW-by-GW release, prospective scoring and evidence-based challenger decisions as a bounded routine, not a full-time research programme. Do not rerun failed historical hypotheses.
+- **V4 Fantasy Premier League Copilot:** Parked, not an active workstream.
+
+**Cost ceiling: £0 ongoing additional cost.** Reuse local Ollama/Qwen and open-source software; do not introduce paid inference, hosted observability or subscription tooling. Only one active AI development change at a time. Keep the existing application and frozen forecasts working.
+
 ## Project Objective
 
 The project had two main objectives.

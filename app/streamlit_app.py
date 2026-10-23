@@ -3313,6 +3313,21 @@ with st.sidebar:
 
 
     st.markdown(
+        "### Experimental agent"
+    )
+
+    use_langgraph_v2 = st.toggle(
+        "Use LangGraph V2",
+        value=False,
+        help="Experimental: only GW forecasts, H07 and model-performance tools. "
+             "Switch off for the established Football Copilot.",
+    )
+
+    if use_langgraph_v2:
+        st.caption("Local Qwen planner with conversation state and optional answer synthesis. "
+                   "Other historical/team questions are not supported in this mode.")
+
+    st.markdown(
         "### AI"
     )
 
@@ -3350,6 +3365,8 @@ with st.sidebar:
 
 
         st.session_state.conversation = []
+        st.session_state.pop("langgraph_v2_conversation", None)
+
 
         st.session_state.debug_info = []
 
@@ -3672,15 +3689,33 @@ if prompt:
 
             try:
 
-                (
-                    answer,
-                    ui_results,
-                    debug_info,
-                ) = run_agent(
-                    st.session_state.llm_messages,
-                    prompt,
-                    st.session_state.conversation,
-                )
+                if use_langgraph_v2:
+                    from agent.langgraph_v2 import Conversation, local_synthesizer
+                    if "langgraph_v2_conversation" not in st.session_state:
+                        st.session_state.langgraph_v2_conversation = Conversation(
+                            synthesizer=local_synthesizer,
+                        )
+                    result = st.session_state.langgraph_v2_conversation.ask(
+                        prompt, thread_id="streamlit_v2"
+                    )
+                    answer = result["answer"]
+                    ui_results = []
+                    debug_info = [{
+                        "routing": "langgraph_v2",
+                        "tool": item["tool"],
+                        "arguments": item["arguments"],
+                    } for item in result["evidence"]]
+                    st.session_state.langgraph_v2_trace = result["trace"]
+                else:
+                    (
+                        answer,
+                        ui_results,
+                        debug_info,
+                    ) = run_agent(
+                        st.session_state.llm_messages,
+                        prompt,
+                        st.session_state.conversation,
+                    )
 
 
                 st.session_state.debug_info = (

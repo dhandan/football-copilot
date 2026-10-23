@@ -50,6 +50,7 @@ from agent.football_tools import (
     team_comparison,
     fixture_prediction,
     frozen_gameweek_predictions,
+    experiment_history,
 )
 
 
@@ -122,6 +123,7 @@ Use head_to_head for meetings between two teams.
 
 Use team_comparison to compare two teams during a season.
 
+Use experiment_history for documented historical experiment outcomes, starting H07.
 Use fixture_prediction for an unfrozen, on-demand Model 2 estimate.
 For official 2026/27 gameweek forecasts, use frozen_gameweek_predictions.
 This tool reads the versioned 40/60 champion, Model 2 benchmark and
@@ -187,6 +189,7 @@ TOOLS = [
     team_comparison,
     fixture_prediction,
     frozen_gameweek_predictions,
+    experiment_history,
 ]
 
 
@@ -218,6 +221,9 @@ TOOL_FUNCTIONS = {
 
     "frozen_gameweek_predictions":
         frozen_gameweek_predictions,
+
+    "experiment_history":
+        experiment_history,
 }
 
 
@@ -515,6 +521,12 @@ def deterministic_route(
         )
     )
 
+
+    # Historical experiment questions use a grounded, read-only document.
+    if re.search(r"\\bh07\\b", lowered) and any(
+        word in lowered for word in ("why", "reject", "park", "experiment", "result", "outcome", "perform", "test")
+    ):
+        return {"name": "experiment_history", "arguments": {"experiment": "H07"}}
 
     # Official frozen gameweek forecasts take priority over generic
     # single-fixture on-demand prediction routing.
@@ -1459,9 +1471,20 @@ def run_agent(
         )
 
 
-        if function_name == "frozen_gameweek_predictions":
+        if function_name in ("frozen_gameweek_predictions", "experiment_history"):
             if "error" in result:
                 answer = result["error"]
+            elif function_name == "experiment_history":
+                h = result["historical_2025_26"]
+                b, c = h["Model 2"], h["H07 xG+xA"]
+                answer = (
+                    f"H07 was parked because the historical 2025/26 xG+xA challenger "
+                    f"did not outperform Model 2.  Accuracy: {c['accuracy_pct']}% "
+                    f"versus {b['accuracy_pct']}%; Log Loss: {c['log_loss']} versus "
+                    f"{b['log_loss']}; Brier: {c['brier']} versus {b['brier']}.  "
+                    f"No separately frozen H07 GW7 forecast exists.  "
+                    f"Source: {result['source']}."
+                )
             else:
                 answer = (
                     f"Frozen GW{result['gameweek']} forecasts loaded for "
@@ -2276,6 +2299,10 @@ def render_tool_result(
         )
     )
 
+
+    if result_type == "experiment_history":
+        st.caption(f"Evidence source: {result.get('source', '')}")
+        return
 
     if result_type == "frozen_gameweek_predictions":
         st.subheader(f"GW{result['gameweek']} frozen forecasts")

@@ -21,6 +21,34 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("10 fixtures", result["answer"])
         self.assertIn("H07 parked", result["answer"])
 
+    def test_conversation_followup_uses_prior_turn(self):
+        from agent.langgraph_v2 import Conversation
+        prompts = []
+        def planner(prompt):
+            prompts.append(prompt)
+            if "Current question: How does that compare with champion performance?" in prompt:
+                self.assertIn("Earlier user: Show GW8 forecasts", prompt)
+                return [{"name": "model_performance", "arguments": {}}]
+            return [{"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}}]
+        chat = Conversation(planner)
+        first = chat.ask("Show GW8 forecasts", thread_id="a")
+        second = chat.ask("How does that compare with champion performance?", thread_id="a")
+        self.assertEqual(first["evidence"][0]["tool"], "frozen_gameweek_predictions")
+        self.assertEqual(second["evidence"][0]["tool"], "model_performance")
+        self.assertEqual(len(second["history"]), 2)
+
+    def test_conversation_threads_are_isolated(self):
+        from agent.langgraph_v2 import Conversation
+        prompts = []
+        def planner(prompt):
+            prompts.append(prompt)
+            return []
+        chat = Conversation(planner)
+        chat.ask("What is H07?", thread_id="a")
+        chat.ask("What are GW8 predictions?", thread_id="b")
+        self.assertNotIn("Earlier user:", prompts[1])
+        self.assertEqual(len(chat.graph.get_state({"configurable": {"thread_id": "b"}}).values["history"]), 1)
+
     def test_strict_planner_schema(self):
         from pydantic import ValidationError
         from agent.langgraph_v2 import _Plan

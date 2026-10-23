@@ -45,7 +45,10 @@ def local_planner(question: str) -> list[dict]:
         "'name' and 'arguments'. Allowed: frozen_gameweek_predictions "
         "(arguments: gameweek integer 1..38), experiment_history "
         "(arguments: experiment='H07'), model_performance (arguments: {}). "
-        "Choose at most three calls, only when relevant. No invented tools. "
+        "Choose every relevant tool for multi-part questions, up to three calls. "
+        "For a request combining performance and forecasts, select BOTH tools. "
+        "For unsupported or destructive requests, return an empty calls list. "
+        "No invented tools, and never interpret a destructive request as a research question. "
         "Do not provide an answer. "
         "Examples: 'GW8 forecasts?' -> frozen_gameweek_predictions(8); "
         "'Why reject H07?' -> experiment_history(H07); "
@@ -67,6 +70,10 @@ def local_planner(question: str) -> list[dict]:
 
 def make_graph(planner: Callable[[str], list[dict]] = local_planner):
     def plan(state: AgentState):
+        # Safety gate: destructive intent must not trigger unrelated read tools.
+        # Actual tool permissions remain read-only regardless of this check.
+        if re.search(r"\b(delete|erase|wipe|remove|overwrite|retrain|drop|destroy)\b", state["question"], re.I):
+            return {"plan": [], "trace": ["rejected_destructive_intent"]}
         try:
             raw = planner(state["question"])
         except (ReadTimeout, TimeoutError) as exc:

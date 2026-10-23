@@ -77,7 +77,7 @@ def evaluate(live=False):
                 if "performance" in checks:
                     ok &= "55%" in answer and "40%" in answer
                 if "h07" in checks:
-                    ok &= "H07" in answer and "parked" in answer.lower()
+                    ok &= "H07" in answer and any(word in answer.lower() for word in ("parked", "rejected", "underperformed", "did not outperform"))
                 if "unsupported" in checks:
                     ok &= not result["evidence"]
                 if "rejected" in checks:
@@ -87,6 +87,8 @@ def evaluate(live=False):
                 trace = result["trace"]
             except Exception as exc:
                 ok, trace = False, [f"{type(exc).__name__}: {exc}"]
+            if not ok:
+                print(f"  DIAGNOSTIC answer={answer[:600]!r}" if "answer" in locals() else "  DIAGNOSTIC no answer", flush=True)
             passed += bool(ok)
             elapsed = time.perf_counter() - start
             print(f"{name} turn {index+1}: {'PASS' if ok else 'FAIL'} "

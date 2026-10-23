@@ -9,6 +9,8 @@ import json
 import re
 from typing import Callable, TypedDict
 
+from httpx import ReadTimeout
+
 from langgraph.graph import END, START, StateGraph
 
 from agent.football_tools import (
@@ -49,14 +51,15 @@ def local_planner(question: str) -> list[dict]:
         "'Why reject H07?' -> experiment_history(H07); "
         "'How has 40/60 performed?' -> model_performance()."
     )
-    result = Client(timeout=35).chat(
+    result = Client(timeout=60).chat(
         model="qwen3:4b",
         messages=[
             {"role": "system", "content": instruction},
             {"role": "user", "content": question},
         ],
         format="json",
-        options={"num_predict": 180, "temperature": 0},
+        think=False,
+        options={"num_predict": 120, "num_ctx": 1024, "temperature": 0},
     )
     parsed = json.loads(result.message.content)
     return parsed.get("calls", [])
@@ -64,7 +67,12 @@ def local_planner(question: str) -> list[dict]:
 
 def make_graph(planner: Callable[[str], list[dict]] = local_planner):
     def plan(state: AgentState):
-        raw = planner(state["question"])
+        try:
+            raw = planner(state["question"])
+        except (ReadTimeout, TimeoutError) as exc:
+            return {"plan": [], "trace": [f"planner_timeout: {type(exc).__name__}"]}
+        except (ValueError, KeyError, TypeError) as exc:
+            return {"plan": [], "trace": [f"planner_invalid_output: {type(exc).__name__}"]}
         valid = []
         for call in raw[:MAX_TOOLS] if isinstance(raw, list) else []:
             if not isinstance(call, dict):
@@ -106,6 +114,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner):
 
     def respond(state: AgentState):
         if not state["evidence"]:
+            if any("planner_timeout" in t for t in state["trace"]):
+                return {"answer": "Local Qwen planner timed out. No tools were run or data changed; see trace for details."}
             return {"answer": "No supported evidence tool selected. Please specify a gameweek, H07, or model performance."}
         parts = []
         for item in state["evidence"]:

@@ -269,3 +269,30 @@ def frozen_gameweek_predictions(gameweek: int = 8):
         "note": "Model 2 supplies historical most-likely scorelines; blended forecasts do not generate their own exact scores. All probabilities come from frozen files.",
         "data": output.to_dict(orient="records")
     }
+
+
+def experiment_history(experiment: str):
+    """Read a versioned project experiment note, never infer missing results."""
+    from pathlib import Path
+    notes = {"H07": "docs/experiments/H07_PLAYER_INTELLIGENCE.md"}
+    code = experiment.strip().upper()
+    if code not in notes:
+        return {"type": "experiment_history", "error": f"No approved experiment document for {code}."}
+    path = Path(__file__).resolve().parent.parent / notes[code]
+    if not path.is_file():
+        return {"type": "experiment_history", "error": "Experiment document not found."}
+    content = path.read_text(encoding="utf-8-sig")
+    final_heading = "## Final decision: park H07"
+    final_note = content.split(final_heading, 1)[-1].strip() if final_heading in content else None
+    return {
+        "type": "experiment_history", "experiment": code,
+        "source": notes[code],
+        "status": "Parked / no deployable improvement established",
+        "historical_2025_26": {
+            "Model 2": {"accuracy_pct": 51.85, "log_loss": 1.0263, "brier": 0.6152},
+            "H07 xG+xA": {"accuracy_pct": 51.28, "log_loss": 1.0279, "brier": 0.6168},
+        },
+        "decision": "Do not promote H07. Historical 2025/26 validation did not beat frozen Model 2.",
+        "final_decision_note": final_note[:3000] if final_note else "See source document.",
+        "note": "Historical experiment, not a GW8 prospective forecast. No separately frozen H07 GW7 forecast."
+    }

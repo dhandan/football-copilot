@@ -8,7 +8,8 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Callable, TypedDict
+from typing import Annotated, Callable, Literal, TypedDict, Union
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from httpx import ReadTimeout
 
@@ -26,6 +27,47 @@ ALLOWED = {
     "model_performance": model_performance,
 }
 MAX_TOOLS = 3
+
+class _Strict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class _GWArgs(_Strict):
+    gameweek: int = Field(ge=1, le=38)
+
+
+class _H07Args(_Strict):
+    experiment: Literal["H07"]
+
+
+class _EmptyArgs(_Strict):
+    pass
+
+
+class _ForecastCall(_Strict):
+    name: Literal["frozen_gameweek_predictions"]
+    arguments: _GWArgs
+
+
+class _HistoryCall(_Strict):
+    name: Literal["experiment_history"]
+    arguments: _H07Args
+
+
+class _PerformanceCall(_Strict):
+    name: Literal["model_performance"]
+    arguments: _EmptyArgs
+
+
+_ToolCall = Annotated[
+    Union[_ForecastCall, _HistoryCall, _PerformanceCall],
+    Field(discriminator="name"),
+]
+
+
+class _Plan(_Strict):
+    calls: list[_ToolCall] = Field(max_length=MAX_TOOLS)
+
 
 
 class AgentState(TypedDict):
@@ -59,17 +101,17 @@ def local_planner(question: str) -> list[dict]:
     )
     timeout = max(5, min(180, int(os.getenv("FOOTBALL_AGENT_TIMEOUT", "30"))))
     result = Client(timeout=timeout).chat(
-        model=os.getenv("FOOTBALL_AGENT_MODEL", "qwen3:4b"),
+        model=os.getenv("FOOTBALL_AGENT_MODEL", "qwen3:0.6b"),
         messages=[
             {"role": "system", "content": instruction},
             {"role": "user", "content": question},
         ],
-        format="json",
+        format=_Plan.model_json_schema(),
         think=False,
-        options={"num_predict": 120, "num_ctx": 1024, "temperature": 0},
+        options={"num_predict": 200, "num_ctx": 2048, "temperature": 0},
     )
-    parsed = json.loads(result.message.content)
-    return parsed.get("calls", [])
+    parsed = _Plan.model_validate_json(result.message.content)
+    return [call.model_dump() for call in parsed.calls]
 
 
 def make_graph(planner: Callable[[str], list[dict]] = local_planner):
@@ -82,7 +124,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner):
             raw = planner(state["question"])
         except (ReadTimeout, TimeoutError) as exc:
             return {"plan": [], "trace": [f"planner_timeout: {type(exc).__name__} (local planner timeout)"]}
-        except (ValueError, KeyError, TypeError) as exc:
+        except (ValueError, KeyError, TypeError, ValidationError) as exc:
             return {"plan": [], "trace": [f"planner_invalid_output: {type(exc).__name__}"]}
         valid = []
         for call in raw[:MAX_TOOLS] if isinstance(raw, list) else []:

@@ -49,6 +49,7 @@ from agent.football_tools import (
     head_to_head,
     team_comparison,
     fixture_prediction,
+    frozen_gameweek_predictions,
 )
 
 
@@ -121,14 +122,18 @@ Use head_to_head for meetings between two teams.
 
 Use team_comparison to compare two teams during a season.
 
-Use fixture_prediction for predictions, probabilities,
-expected goals, likely outcomes and likely scorelines.
+Use fixture_prediction for an unfrozen, on-demand Model 2 estimate.
+For official 2026/27 gameweek forecasts, use frozen_gameweek_predictions.
+This tool reads the versioned 40/60 champion, Model 2 benchmark and
+available adaptive challenger from immutable saved files.
+Never claim on-demand Model 2 predictions are the official 40/60 champion.
 
 
 PREDICTION RULES:
 
-The production model is frozen Model 2 using Poisson
-regression.
+Model 2 remains the frozen benchmark for the 2026/27 GW8 experiment.
+The provisional GW8 primary is the frozen 40/60 Model2/market blend.
+Do not confuse official frozen forecasts with on-demand model estimates.
 
 Never invent or alter probabilities returned by the tool.
 
@@ -181,6 +186,7 @@ TOOLS = [
     head_to_head,
     team_comparison,
     fixture_prediction,
+    frozen_gameweek_predictions,
 ]
 
 
@@ -209,6 +215,9 @@ TOOL_FUNCTIONS = {
 
     "fixture_prediction":
         fixture_prediction,
+
+    "frozen_gameweek_predictions":
+        frozen_gameweek_predictions,
 }
 
 
@@ -506,6 +515,12 @@ def deterministic_route(
         )
     )
 
+
+    # Official frozen gameweek forecasts take priority over generic
+    # single-fixture on-demand prediction routing.
+    gw_match = re.search(r"\\b(?:gw|gameweek)\\s*(\\d{1,2})\\b", lowered)
+    if gw_match and any(word in lowered for word in ("predict", "forecast", "probabilit", "champion", "model", "score")):
+        return {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": int(gw_match.group(1))}}
 
     # ==================================================
     # FOLLOW-UP HOME TEAM SWITCH

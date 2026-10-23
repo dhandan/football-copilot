@@ -12,6 +12,18 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("H07 parked", result["answer"])
         self.assertEqual(len(result["evidence"]), 1)
 
+    def test_gw8_returns_actual_fixture_rows(self):
+        result = ask("Show GW8 forecasts", planner=lambda q: [
+            {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}}
+        ], synthesizer=lambda q, facts: "This must not replace the fixture table.")
+        rows = result["evidence"][0]["result"]["data"]
+        self.assertEqual(len(rows), 10)
+        self.assertIn("forecast_rows_preserved", result["trace"])
+        self.assertIn("| Fixture | 40/60 champion | Model 2 | Adaptive challenger |", result["answer"])
+        for row in rows:
+            self.assertIn(f"{row['HomeTeam']} vs {row['AwayTeam']}", result["answer"])
+            self.assertIn(str(row["PredictedResult"]), result["answer"])
+
     def test_multi_tool(self):
         result = ask("GW8 forecasts and H07?", planner=lambda q: [
             {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}},

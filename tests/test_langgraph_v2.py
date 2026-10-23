@@ -62,6 +62,27 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("synthesis_rejected_grounding", result["trace"])
         self.assertIn("GW6-GW7", result["answer"])
 
+    def test_followup_synthesis_receives_previous_forecast_context(self):
+        from agent.langgraph_v2 import Conversation
+        captured = []
+        def planner(question):
+            if "Current question:" in question:
+                return [{"name": "model_performance", "arguments": {}}]
+            return [{"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}}]
+        def synthesizer(question, facts):
+            captured.append(facts)
+            if "champion" in question:
+                return ("GW8 frozen forecasts are not yet evaluated. "
+                        "GW6-GW7 champion performance is 55% versus 40% for Model 2.")
+            return "GW8 frozen forecasts: 10 fixtures, saved and not yet evaluated."
+        conversation = Conversation(planner=planner, synthesizer=synthesizer)
+        conversation.ask("Show GW8 forecasts", thread_id="followup")
+        result = conversation.ask("Compare with champion performance", thread_id="followup")
+        self.assertIn("Previous turn", captured[-1])
+        self.assertIn("GW8 frozen forecasts", captured[-1])
+        self.assertIn("synthesis_accepted", result["trace"])
+        self.assertIn("55%", result["answer"])
+
     def test_synthesis_rejects_denial_of_available_performance(self):
         from agent.langgraph_v2 import ask
         result = ask(

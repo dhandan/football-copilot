@@ -51,7 +51,7 @@ def local_planner(question: str) -> list[dict]:
         "'Why reject H07?' -> experiment_history(H07); "
         "'How has 40/60 performed?' -> model_performance()."
     )
-    result = Client(timeout=60).chat(
+    result = Client(timeout=30).chat(
         model="qwen3:4b",
         messages=[
             {"role": "system", "content": instruction},
@@ -70,7 +70,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner):
         try:
             raw = planner(state["question"])
         except (ReadTimeout, TimeoutError) as exc:
-            return {"plan": [], "trace": [f"planner_timeout: {type(exc).__name__}"]}
+            return {"plan": [], "trace": [f"planner_timeout: {type(exc).__name__} (30s local CPU budget)"]}
         except (ValueError, KeyError, TypeError) as exc:
             return {"plan": [], "trace": [f"planner_invalid_output: {type(exc).__name__}"]}
         valid = []

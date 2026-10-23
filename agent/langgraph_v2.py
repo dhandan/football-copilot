@@ -215,7 +215,25 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 continue
             if {"name": name, "arguments": args} not in valid:
                 valid.append({"name": name, "arguments": args})
-        return {"plan": valid, "trace": [f"planned {len(valid)} tool(s)"]}
+        # Narrow completeness check for a comparative follow-up. The small model
+        # sometimes selects only forecasts even when asked for champion performance.
+        # This does not force any tool for unrelated requests.
+        previous_questions = " ".join(x["question"] for x in state.get("history", [])[-2:])
+        wants_champion_comparison = (
+            bool(re.search(r"\\b(champion|40/60)\\b", state["question"], re.I))
+            and bool(re.search(r"\\b(compare|compared|comparison|versus|vs|how does that)\\b", state["question"], re.I))
+        )
+        has_forecast_context = bool(re.search(r"\\b(GW\\s*\\d+|gameweek\\s*\\d+)\\b", previous_questions, re.I))
+        repaired = False
+        if wants_champion_comparison and has_forecast_context and not any(
+            x["name"] == "model_performance" for x in valid
+        ) and len(valid) < MAX_TOOLS:
+            valid.append({"name": "model_performance", "arguments": {}})
+            repaired = True
+        trace = [f"planned {len(valid)} tool(s)"]
+        if repaired:
+            trace.append("plan_completed_missing_comparison_evidence")
+        return {"plan": valid, "trace": trace}
 
     def execute(state: AgentState):
         evidence, trace = [], list(state["trace"])

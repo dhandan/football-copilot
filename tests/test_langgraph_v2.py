@@ -62,6 +62,19 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("synthesis_rejected_grounding", result["trace"])
         self.assertIn("GW6-GW7", result["answer"])
 
+    def test_synthesis_rejects_denial_of_available_performance(self):
+        from agent.langgraph_v2 import ask
+        result = ask(
+            "How does that compare with the champion performance?",
+            planner=lambda q: [{"name": "model_performance", "arguments": {}}],
+            synthesizer=lambda q, facts: (
+                "The evidence does not provide clear information about champion performance."
+            ),
+        )
+        self.assertIn("synthesis_rejected_grounding", result["trace"])
+        self.assertIn("55%", result["answer"])
+        self.assertIn("40%", result["answer"])
+
     def test_synthesis_accepts_grounded_comparison(self):
         from agent.langgraph_v2 import ask
         result = ask(

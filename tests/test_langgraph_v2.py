@@ -21,6 +21,24 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("10 fixtures", result["answer"])
         self.assertIn("H07 parked", result["answer"])
 
+    def test_strict_planner_schema(self):
+        from pydantic import ValidationError
+        from agent.langgraph_v2 import _Plan
+        good = _Plan.model_validate({
+            "calls": [
+                {"name": "model_performance", "arguments": {}},
+                {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}},
+            ]
+        })
+        self.assertEqual(len(good.calls), 2)
+        for bad in (
+            {"calls": [{"name": "made_up_tool", "arguments": {}}]},
+            {"calls": [{"name": "model_performance", "arguments": {"champion": "x"}}]},
+            {"calls": [{"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 40}}]},
+        ):
+            with self.assertRaises(ValidationError):
+                _Plan.model_validate(bad)
+
     def test_destructive_request_never_calls_planner(self):
         def forbidden_planner(question):
             raise AssertionError("Planner should not run for destructive intent")

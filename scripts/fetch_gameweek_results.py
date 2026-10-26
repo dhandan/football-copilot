@@ -28,11 +28,7 @@ API_KEY = os.getenv(
     "FOOTBALL_DATA_API_KEY"
 )
 
-if not API_KEY:
-
-    raise RuntimeError(
-        "FOOTBALL_DATA_API_KEY is not set in .env"
-    )
+# The football-data.org key is required only for legacy-source fixtures.
 
 
 # ==================================================
@@ -177,6 +173,117 @@ def fetch_match(
     return response.json()
 
 
+
+# ==================================================
+# PROVIDER-AWARE RESULT RETRIEVAL
+# ==================================================
+
+import json
+
+sources = (
+    predictions["FixtureIdSource"].fillna("football-data.org")
+    if "FixtureIdSource" in predictions.columns
+    else pd.Series("football-data.org", index=predictions.index)
+)
+
+if any(src != "FPL" for src in sources) and not API_KEY:
+    raise RuntimeError("FOOTBALL_DATA_API_KEY is required for legacy fixtures.")
+
+fpl_live = {}
+fpl_original = {}
+fpl_team_names = {}
+
+if any(src == "FPL" for src in sources):
+    snapshot_root = PROJECT_ROOT / "data/live/players/h07_snapshots"
+    snapshots = sorted(
+        (
+            folder for folder in snapshot_root.iterdir()
+            if folder.is_dir()
+            and (folder / "fixtures.json").exists()
+            and (folder / "bootstrap.json").exists()
+        ),
+        reverse=True,
+    )
+    if not snapshots:
+        raise RuntimeError("Archived FPL fixture snapshot not found.")
+
+    snapshot = snapshots[0]
+    archived = json.loads(
+        (snapshot / "fixtures.json").read_text(encoding="utf-8")
+    )
+    bootstrap = json.loads(
+        (snapshot / "bootstrap.json").read_text(encoding="utf-8")
+    )
+    fpl_original = {
+        int(f["id"]): f for f in archived if f.get("event") == gameweek
+    }
+    fpl_team_names = {
+        int(t["id"]): t["name"] for t in bootstrap["teams"]
+    }
+
+    response = requests.get(
+        "https://fantasy.premierleague.com/api/fixtures/",
+        timeout=40,
+        headers={"User-Agent": "FootballCopilot/1.0"},
+    )
+    response.raise_for_status()
+    fpl_live = {
+        int(f["id"]): f
+        for f in response.json()
+        if f.get("event") == gameweek
+    }
+
+    if len(fpl_original) != 10 or len(fpl_live) != 10:
+        raise RuntimeError("Expected exactly ten archived and live FPL fixtures.")
+
+
+def fetch_provider_match(fixture_id, source):
+    if source != "FPL":
+        if source not in ("football-data.org", "nan", ""):
+            raise RuntimeError(f"Unsupported fixture ID source: {source}")
+        return fetch_match(fixture_id)
+
+    before = fpl_original.get(fixture_id)
+    current = fpl_live.get(fixture_id)
+    if before is None or current is None:
+        raise RuntimeError(f"Missing FPL fixture {fixture_id}.")
+
+    for key in ("id", "event", "team_h", "team_a", "kickoff_time"):
+        if before.get(key) != current.get(key):
+            raise RuntimeError(
+                f"FPL fixture {fixture_id} identity mismatch: {key}."
+            )
+
+    if current.get("finished") is not True:
+        raise RuntimeError(f"FPL fixture {fixture_id} is not finished.")
+
+    home = current.get("team_h_score")
+    away = current.get("team_a_score")
+    if home is None or away is None:
+        raise RuntimeError(f"FPL fixture {fixture_id} has no final score.")
+
+    winner = (
+        "HOME_TEAM" if home > away
+        else "AWAY_TEAM" if away > home
+        else "DRAW"
+    )
+
+    return {
+        "status": "FINISHED",
+        "homeTeam": {
+            "name": fpl_team_names[int(current["team_h"])]
+        },
+        "awayTeam": {
+            "name": fpl_team_names[int(current["team_a"])]
+        },
+        "score": {
+            "fullTime": {"home": int(home), "away": int(away)},
+            "winner": winner,
+        },
+        "lastUpdated": current.get("kickoff_time"),
+    }
+
+
 # ==================================================
 # FETCH RESULTS
 # ==================================================
@@ -223,9 +330,8 @@ for _, prediction in (
     )
 
 
-    match = fetch_match(
-        fixture_id
-    )
+    source = str(prediction.get("FixtureIdSource", "football-data.org"))
+    match = fetch_provider_match(fixture_id, source)
 
 
     status = match.get(

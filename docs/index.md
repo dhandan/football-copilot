@@ -1,5 +1,16 @@
 # Football Copilot
 
+## Product roadmap rebalanced (23 October 2026)
+
+**Original purpose:** Build real AI and analytics engineering capability through a working Football Copilot application. The prediction model remains valuable but is no longer the sole focus. All new work must meet a **£0 ongoing cost** constraint, reusing local Qwen/Ollama, Streamlit, DuckDB and open-source code.
+
+1. **V2 [AI agent orchestration and offline evaluation, #11](https://github.com/dhandan/football-copilot/issues/11): primary near-term development.** Start from existing deterministic routing and tools. Deliver a meaningful multi-tool question, bounded orchestration, grounded responses and lightweight tests. Do not introduce LangGraph merely for appearances.
+2. **V3 [Portable local runtime and interchangeable LLM configuration, #12](https://github.com/dhandan/football-copilot/issues/12): next, after V2 MVP.** Lightweight reproducibility and Docker where useful. Existing [£0 public demo, #9](https://github.com/dhandan/football-copilot/issues/9) stays a separate lower-priority product item.
+3. **Weekly model optimisation:** GW freeze, compare champion/challenger against identical final results, make a weekly keep/improve/release decision. No repeated rejected experiments, no forced releases or extended hold. GW8 40/60 and adaptive forecasts remain immutable.
+4. **V4 FPL Copilot: parked.** No active development or new ticket.
+
+**Side-project operating principle:** One AI engineering build task at a time; weekly prediction evaluation alongside it. Prefer short practical increments, no admin-heavy ceremonies, no paid APIs or hosting.
+
 ## 2026/27 Premier League Live Prediction Experiment
 
 Football Copilot is an AI-powered football analytics and prediction project built to explore how historical match data, statistical modelling and conversational AI can be combined into an interactive football analytics application.
@@ -12,6 +23,22 @@ The purpose is not simply to publish predictions. It is to understand where the 
 
 ---
 
+### GW7 retrospective and GW8 direction (20 October 2026)
+
+[GW07 completed retrospective](gameweeks/GW07.md): Across 20 prospective GW6–GW7 fixtures, frozen Model 2 recorded **8/20 (40%) accuracy, 1.0621 Log Loss and 0.6490 multiclass Brier**. The unchanged 40% Model 2 / 60% market challenger recorded **11/20 (55%), 0.9453 and 0.5615**, respectively. It performed better on all three measures in both gameweeks. This is promising but exploratory evidence with a small sample.
+
+**GW8 decision (updated 23 October):** Use the unchanged 40/60 blend as the **provisional primary-release candidate and optimisation baseline**, retaining frozen Model 2 as the benchmark. **Operational promotion remains pending** the explicit governance exception and validated configuration/fallback, not a mandatory three-Gameweek hold. Every week: **diagnose → experiment → validate → release or reject → measure**. Start with existing H07 player intelligence; pursue H03/H04 diagnostics and H05/H06 tracking without new issues. A new version may ship for the next Gameweek only when its pre-scored historical and technical checks pass; otherwise retain the verified baseline. No retrospective changes. [Weekly rapid optimisation policy](accelerated-experimentation.md).
+
+### H07 closure and existing backlog focus (23 October 2026)
+
+[H07 research](experiments/H07_PLAYER_INTELLIGENCE.md) is **closed/parked**: tested player-feature variants did not establish deployable improvement; historical lagged-absence coverage does not on its own establish predictive benefit or point-in-time safety. Do not rerun failed variants. Next, use existing [H05 issue #6](https://github.com/dhandan/football-copilot/issues/6) for a bounded diagnostic of where the provisional 40/60 champion is weak, without repeating the rejected Model 6D override. H01/H02 are recurring validation/integrity controls, while H03/H04/H06 remain low-effort monitoring only. The objective is to improve the deployed champion, not expand the experiment backlog.
+
+### GW8 adaptive market-confidence challenger (23 October 2026)
+
+**Official GW8 freeze:** All ten forecasts captured on 23 October 2026 before kickoff. [Model 2 benchmark](../data/live/predictions/2026_27_gw08_predictions.csv), [40/60 provisional champion](../data/live/challenger_predictions/2026_27_gw08_market_shadow_predictions.csv) and [official bookmaker market](../data/live/market/2026_27_gw08_opening_market_official_20261023_090651.csv) remain immutable. Ipswich vs Nottingham Forest was captured ~9.89 hours before kickoff, short of the preferred T-24h target.
+
+**New registered challenger:** [AdaptiveMarketConfidence_v1.0](../data/live/challenger_predictions/2026_27_gw08_adaptive_confidence_v1.json), with [10/10 pre-match predictions](../data/live/challenger_predictions/2026_27_gw08_adaptive_confidence_v1.csv), committed in [`1bdf191`](https://github.com/dhandan/football-copilot/commit/1bdf191). Market weight = clip(0.60 − 0.60 × (largest market H/D/A probability − 0.50), 0.20, 0.90). GW1–GW5 selected the −0.6 slope. On GW6–GW7 (20 already observed matches), accuracy tied at 55%; adaptive Log Loss 0.9436 versus 40/60's 0.9453, Brier 0.5604 versus 0.5615. These are **very small exploratory improvements** with a short post-selection sample, not confirmatory superiority. All ten adaptive GW8 winning picks match the 40/60 picks. After GW8, compare paired Log Loss, multiclass Brier and accuracy on identical fixtures, with probability-level diagnostics and uncertainty. Do not overwrite or retrospectively change any forecast, nor automatically promote the challenger.
+
 ### GW6 first prospective challenger result (13 October 2026)
 
 [GW06 full retrospective](gameweeks/GW06.md): **Model 2 3/10, Log Loss 1.1747, Brier 0.7308** versus frozen **40/60 shadow 4/10, Log Loss 1.0745, Brier 0.6552** on the same ten completed fixtures. The blend improved both probability metrics on 8/10 fixtures; only 1X2 classification switch was Chelsea vs Bournemouth. Both picked zero draws (three actual). Model 2 remains champion; shadow validation continues under the [accelerated experimentation policy](accelerated-experimentation.md). [Results/evaluation evidence commit](https://github.com/dhandan/football-copilot/commit/dfcc5197a7b890f56a63abc99b568c0b11279698). GW1–GW5 results were blend-selection data, not independent prospective evidence.
@@ -19,7 +46,7 @@ The purpose is not simply to publish predictions. It is to understand where the 
 ## Gameweek journal and operating checklist
 
 - [Mandatory Gameweek release and sprint checklist](gameweeks/OPERATING_CHECKLIST.md)
-- [GW07: Friday 16 October pre-match freeze planned](gameweeks/GW07.md)
+- [GW07: completed post-match evaluation and GW8 decisions](gameweeks/GW07.md)
 - [GW06: completed first prospective challenger evaluation](gameweeks/GW06.md)
 - [GW05: completed five-Gameweek checkpoint](gameweeks/GW05.md)
 - [GW04](gameweeks/GW04.md)
@@ -27,7 +54,7 @@ The purpose is not simply to publish predictions. It is to understand where the 
 - [GW02](gameweeks/GW02.md)
 - [GW01](gameweeks/GW01.md)
 
-The GW6 pre-match freeze is **complete**, but the Gameweek evaluation and sprint retrospective are **not yet complete**. The GW1–GW5 model/market blend comparison was development evidence; GW6 onward is prospective shadow validation.
+GW6 and GW7 results have been evaluated and their retrospectives recorded. GW1–GW5 model/market blend comparisons were development evidence; GW6 onward is prospective shadow validation. The agreed GW8 direction is to advance the unchanged 40/60 blend as a provisional champion candidate, subject to the existing promotion-governance check before any operational switch.
 
 ---
 

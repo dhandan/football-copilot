@@ -49,6 +49,9 @@ from agent.football_tools import (
     head_to_head,
     team_comparison,
     fixture_prediction,
+    frozen_gameweek_predictions,
+    experiment_history,
+    model_performance,
 )
 
 
@@ -121,14 +124,19 @@ Use head_to_head for meetings between two teams.
 
 Use team_comparison to compare two teams during a season.
 
-Use fixture_prediction for predictions, probabilities,
-expected goals, likely outcomes and likely scorelines.
+Use experiment_history for documented historical experiment outcomes, starting H07.
+Use fixture_prediction for an unfrozen, on-demand Model 2 estimate.
+For official 2026/27 gameweek forecasts, use frozen_gameweek_predictions.
+This tool reads the versioned 40/60 champion, Model 2 benchmark and
+available adaptive challenger from immutable saved files.
+Never claim on-demand Model 2 predictions are the official 40/60 champion.
 
 
 PREDICTION RULES:
 
-The production model is frozen Model 2 using Poisson
-regression.
+Model 2 remains the frozen benchmark for the 2026/27 GW8 experiment.
+The provisional GW8 primary is the frozen 40/60 Model2/market blend.
+Do not confuse official frozen forecasts with on-demand model estimates.
 
 Never invent or alter probabilities returned by the tool.
 
@@ -181,6 +189,9 @@ TOOLS = [
     head_to_head,
     team_comparison,
     fixture_prediction,
+    frozen_gameweek_predictions,
+    experiment_history,
+    model_performance,
 ]
 
 
@@ -209,6 +220,15 @@ TOOL_FUNCTIONS = {
 
     "fixture_prediction":
         fixture_prediction,
+
+    "frozen_gameweek_predictions":
+        frozen_gameweek_predictions,
+
+    "experiment_history":
+        experiment_history,
+
+    "model_performance":
+        model_performance,
 }
 
 
@@ -506,6 +526,34 @@ def deterministic_route(
         )
     )
 
+
+    # Completed prospective scorecards are separate from future forecasts.
+    if any(term in lowered for term in ("performance", "accuracy", "log loss", "brier", "how has", "how did")) and any(
+        term in lowered for term in ("champion", "40/60", "model 2", "models", "challenger")
+    ) and not re.search(r"\bh07\b", lowered):
+        return {"name": "model_performance", "arguments": {}}
+
+    # First bounded multi-tool workflow: one question, two trusted sources.
+    combined_gw = re.search(r"\b(?:gw|gameweek)\s*(\d{1,2})\b", lowered)
+    if combined_gw and re.search(r"\bh07\b", lowered) and any(
+        word in lowered for word in ("predict", "forecast", "champion", "model")
+    ):
+        return {
+            "name": "gw_predictions_with_h07_context",
+            "arguments": {"gameweek": int(combined_gw.group(1))},
+        }
+
+    # Historical experiment questions use a grounded, read-only document.
+    if re.search(r"\bh07\b", lowered) and any(
+        word in lowered for word in ("why", "reject", "park", "experiment", "result", "outcome", "perform", "test")
+    ):
+        return {"name": "experiment_history", "arguments": {"experiment": "H07"}}
+
+    # Official frozen gameweek forecasts take priority over generic
+    # single-fixture on-demand prediction routing.
+    gw_match = re.search(r"\b(?:gw|gameweek)\s*(\d{1,2})\b", lowered)
+    if gw_match and any(word in lowered for word in ("predict", "forecast", "probabilit", "champion", "model", "score")):
+        return {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": int(gw_match.group(1))}}
 
     # ==================================================
     # FOLLOW-UP HOME TEAM SWITCH
@@ -1401,6 +1449,36 @@ def run_agent(
     )
 
 
+    if deterministic_call and deterministic_call["name"] == "gw_predictions_with_h07_context":
+        gw = deterministic_call["arguments"]["gameweek"]
+        forecasts = execute_tool("frozen_gameweek_predictions", {"gameweek": gw})
+        history = execute_tool("experiment_history", {"experiment": "H07"})
+        debug_info.extend([
+            {"routing": "bounded_multi_tool", "tool": "frozen_gameweek_predictions", "arguments": {"gameweek": gw}},
+            {"routing": "bounded_multi_tool", "tool": "experiment_history", "arguments": {"experiment": "H07"}},
+        ])
+        ui_results.extend([forecasts, history])
+        if "error" in forecasts or "error" in history:
+            answer = "Cannot complete the combined question: " + "; ".join(
+                result["error"] for result in (forecasts, history) if "error" in result
+            )
+        else:
+            benchmark = history["historical_2025_26"]["Model 2"]
+            challenger = history["historical_2025_26"]["H07 xG+xA"]
+            answer = (
+                f"GW{gw}: {len(forecasts['data'])} frozen fixtures.  Model 2 is the benchmark, "
+                "40/60 is the provisional champion and the adaptive model is a challenger.  "
+                "The table gives their frozen forecasts.  Separately, H07 was parked because "
+                f"its historical 2025/26 validation was weaker than Model 2: "
+                f"accuracy {challenger['accuracy_pct']}% versus {benchmark['accuracy_pct']}%, "
+                f"Log Loss {challenger['log_loss']} versus {benchmark['log_loss']}, "
+                f"Brier {challenger['brier']} versus {benchmark['brier']}.  "
+                "H07 has no separately frozen GW7 forecast and is not a GW8 challenger.  "
+                f"Experiment source: {history['source']}."
+            )
+        messages.append({"role": "assistant", "content": answer})
+        return answer, ui_results, debug_info
+
     if deterministic_call:
 
         function_name = (
@@ -1444,14 +1522,52 @@ def run_agent(
         )
 
 
-        answer = (
-            explain_tool_result(
-                messages,
-                function_name,
-                arguments,
-                result,
+        if function_name in ("frozen_gameweek_predictions", "experiment_history", "model_performance"):
+            if "error" in result:
+                answer = result["error"]
+            elif function_name == "model_performance":
+                rows = {r["model"]: r for r in result["metrics"] if r["period"] == "GW6-GW7"}
+                b, c = rows["Model 2"], rows["40/60"]
+                answer = (
+                    f"Completed GW6–GW7: the 40/60 provisional champion recorded {c['correct']} "
+                    f"({c['accuracy']}), Log Loss {c['log_loss']} and Brier {c['brier']}.  "
+                    f"Model 2 recorded {b['correct']} ({b['accuracy']}), Log Loss "
+                    f"{b['log_loss']} and Brier {b['brier']}.  The blend is ahead on "
+                    "all three metrics, but only 20 prospective fixtures have been evaluated.  "
+                    "The adaptive challenger has no prospective final-results evaluation yet.  "
+                    f"Source: {result['source']}."
+                )
+            elif function_name == "experiment_history":
+                h = result["historical_2025_26"]
+                b, c = h["Model 2"], h["H07 xG+xA"]
+                answer = (
+                    f"H07 was parked because the historical 2025/26 xG+xA challenger "
+                    f"did not outperform Model 2.  Accuracy: {c['accuracy_pct']}% "
+                    f"versus {b['accuracy_pct']}%; Log Loss: {c['log_loss']} versus "
+                    f"{b['log_loss']}; Brier: {c['brier']} versus {b['brier']}.  "
+                    f"No separately frozen H07 GW7 forecast exists.  "
+                    f"Source: {result['source']}."
+                )
+            else:
+                answer = (
+                    f"Frozen GW{result['gameweek']} forecasts loaded for "
+                    f"{len(result['data'])} fixtures.  "
+                    "Model 2 is the benchmark; the 40/60 market blend is the "
+                    "provisional champion; the adaptive confidence model is "
+                    "a challenger.  These are saved pre-match predictions, "
+                    "not live recalculations.  The table below shows each "
+                    "model's probabilities and outcomes."
+                )
+            messages.append({"role": "assistant", "content": answer})
+        else:
+            answer = (
+                explain_tool_result(
+                    messages,
+                    function_name,
+                    arguments,
+                    result,
+                )
             )
-        )
 
 
         return (
@@ -2246,6 +2362,24 @@ def render_tool_result(
         )
     )
 
+
+    if result_type == "model_performance":
+        st.subheader("Prospective model performance")
+        st.dataframe(pd.DataFrame(result.get("metrics", [])), width="stretch", hide_index=True)
+        st.caption(f"Source: {result.get('source', '')}. {result.get('note', '')}")
+        return
+
+    if result_type == "experiment_history":
+        st.caption(f"Evidence source: {result.get('source', '')}")
+        return
+
+    if result_type == "frozen_gameweek_predictions":
+        st.subheader(f"GW{result['gameweek']} frozen forecasts")
+        df = pd.DataFrame(result.get("data", []))
+        if not df.empty:
+            st.dataframe(df, width="stretch", hide_index=True)
+        st.caption(result.get("note", ""))
+        return
 
     # ==================================================
     # FIXTURE PREDICTION
@@ -3179,6 +3313,21 @@ with st.sidebar:
 
 
     st.markdown(
+        "### Experimental agent"
+    )
+
+    use_langgraph_v2 = st.toggle(
+        "Use LangGraph V2",
+        value=False,
+        help="Experimental: only GW forecasts, H07 and model-performance tools. "
+             "Switch off for the established Football Copilot.",
+    )
+
+    if use_langgraph_v2:
+        st.caption("Local Qwen planner with conversation state and optional answer synthesis. "
+                   "Other historical/team questions are not supported in this mode.")
+
+    st.markdown(
         "### AI"
     )
 
@@ -3216,6 +3365,8 @@ with st.sidebar:
 
 
         st.session_state.conversation = []
+        st.session_state.pop("langgraph_v2_conversation", None)
+
 
         st.session_state.debug_info = []
 
@@ -3538,15 +3689,33 @@ if prompt:
 
             try:
 
-                (
-                    answer,
-                    ui_results,
-                    debug_info,
-                ) = run_agent(
-                    st.session_state.llm_messages,
-                    prompt,
-                    st.session_state.conversation,
-                )
+                if use_langgraph_v2:
+                    from agent.langgraph_v2 import Conversation, local_synthesizer
+                    if "langgraph_v2_conversation" not in st.session_state:
+                        st.session_state.langgraph_v2_conversation = Conversation(
+                            synthesizer=local_synthesizer,
+                        )
+                    result = st.session_state.langgraph_v2_conversation.ask(
+                        prompt, thread_id="streamlit_v2"
+                    )
+                    answer = result["answer"]
+                    ui_results = []
+                    debug_info = [{
+                        "routing": "langgraph_v2",
+                        "tool": item["tool"],
+                        "arguments": item["arguments"],
+                    } for item in result["evidence"]]
+                    st.session_state.langgraph_v2_trace = result["trace"]
+                else:
+                    (
+                        answer,
+                        ui_results,
+                        debug_info,
+                    ) = run_agent(
+                        st.session_state.llm_messages,
+                        prompt,
+                        st.session_state.conversation,
+                    )
 
 
                 st.session_state.debug_info = (

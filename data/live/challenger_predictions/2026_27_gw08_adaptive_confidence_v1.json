@@ -1,0 +1,18 @@
+{
+  "version": "AdaptiveMarketConfidence_v1.0",
+  "status": "Exploratory prospective challenger",
+  "registered_utc": "2026-10-23T09:43:21.823146+00:00",
+  "development": "GW1-GW5",
+  "historical_validation": "GW6-GW7, 20 fixtures",
+  "shift": -0.6,
+  "rule": "market_weight=clip(0.60-0.6*(max_market_probability-0.50),0.20,0.90)",
+  "comparison": "Frozen 40/60 champion",
+  "metrics": [
+    "Accuracy",
+    "Log Loss",
+    "Multiclass Brier"
+  ],
+  "risk": "Small historical improvement; not confirmed superiority",
+  "model_source": "data\\live\\predictions\\2026_27_gw08_predictions.csv",
+  "market_source": "data\\live\\market\\2026_27_gw08_opening_market_official_20261023_090651.csv"
+}

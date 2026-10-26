@@ -197,7 +197,21 @@ if __name__ == "__main__":
         required_result_columns
     ].copy()
 
-    merged = shadow.merge(
+    # Frozen prediction exports contain empty pre-match outcome placeholders.
+    # Remove only those placeholders so verified final results retain their
+    # original column names rather than pandas creating _x/_y suffixes.
+    placeholder_columns = [
+        "ActualHomeGoals", "ActualAwayGoals", "ActualResult"
+    ]
+    for column in placeholder_columns:
+        if column in shadow.columns and shadow[column].notna().any():
+            raise RuntimeError(
+                f"Frozen forecast has a non-empty {column}; refusing to replace it."
+            )
+    shadow_for_merge = shadow.drop(
+        columns=placeholder_columns, errors="ignore"
+    )
+    merged = shadow_for_merge.merge(
         result_subset,
         on="FixtureId",
         how="left",

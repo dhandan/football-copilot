@@ -1,0 +1,11 @@
+ResultTimestamp,Season,Gameweek,FixtureId,FixtureDate,HomeTeam,AwayTeam,APIHomeTeam,APIAwayTeam,Status,ActualHomeGoals,ActualAwayGoals,ActualScore,ActualResult,ActualResultCode,APIWinner,LastUpdated
+2026-10-20T17:06:41+01:00,2026/27,7,64,2026-10-17,Everton,Chelsea,Everton,Chelsea,FINISHED,0,2,0-2,Chelsea,A,AWAY_TEAM,2026-10-17T11:30:00Z
+2026-10-20T17:06:41+01:00,2026/27,7,62,2026-10-17,Brentford,Liverpool,Brentford,Liverpool,FINISHED,1,2,1-2,Liverpool,A,AWAY_TEAM,2026-10-17T14:00:00Z
+2026-10-20T17:06:41+01:00,2026/27,7,65,2026-10-17,Fulham,Hull City,Fulham,Hull City,FINISHED,1,0,1-0,Fulham,H,HOME_TEAM,2026-10-17T14:00:00Z
+2026-10-20T17:06:41+01:00,2026/27,7,67,2026-10-17,Man City,Ipswich,Man City,Ipswich Town,FINISHED,3,2,3-2,Man City,H,HOME_TEAM,2026-10-17T14:00:00Z
+2026-10-20T17:06:41+01:00,2026/27,7,68,2026-10-17,Newcastle,Aston Villa,Newcastle,Aston Villa,FINISHED,0,1,0-1,Aston Villa,A,AWAY_TEAM,2026-10-17T16:30:00Z
+2026-10-20T17:06:41+01:00,2026/27,7,61,2026-10-18,Bournemouth,Sunderland,Bournemouth,Sunderland,FINISHED,2,0,2-0,Bournemouth,H,HOME_TEAM,2026-10-18T13:00:00Z
+2026-10-20T17:06:41+01:00,2026/27,7,63,2026-10-18,Brighton,Crystal Palace,Brighton,Crystal Palace,FINISHED,5,0,5-0,Brighton,H,HOME_TEAM,2026-10-18T13:00:00Z
+2026-10-20T17:06:41+01:00,2026/27,7,66,2026-10-18,Leeds,Man United,Leeds,Man Utd,FINISHED,1,1,1-1,Draw,D,DRAW,2026-10-18T13:00:00Z
+2026-10-20T17:06:41+01:00,2026/27,7,69,2026-10-18,Nott'm Forest,Arsenal,Nott'm Forest,Arsenal,FINISHED,0,1,0-1,Arsenal,A,AWAY_TEAM,2026-10-18T15:30:00Z
+2026-10-20T17:06:41+01:00,2026/27,7,70,2026-10-19,Tottenham,Coventry City,Spurs,Coventry City,FINISHED,3,1,3-1,Tottenham,H,HOME_TEAM,2026-10-19T19:00:00Z

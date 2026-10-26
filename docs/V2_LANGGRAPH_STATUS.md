@@ -53,3 +53,25 @@ Enable **Use LangGraph V2** in the sidebar for experimental conversation testing
 6. V3 portable runtime and public demo remain separate lower-priority issues (#12, #9).
 
 **Decision:** V2 MVP milestone complete; full legacy parity / promotion to default **not complete**. Keep issue #11 open for next incremental work and preserve this checkpoint.
+
+
+## Mandatory session handoff and change-control rules — 26 October 2026
+
+**These rules apply to ALL Football Copilot work, not just LangGraph V2. This is a £0 incremental-cost, part-time learning project. Time spent rediscovering prior decisions or debugging avoidable breakage is a project defect.**
+
+1. **Review before changing:** At the start of each session, read this handoff, the relevant gameweek journal, relevant GitHub issue and the exact current scripts, input schemas and previous working examples. Distinguish completed work from outstanding work. Do not change code or request commands until the existing process and data contracts are verified.
+2. **No speculative fixes:** Reproduce or establish the cause from code and actual evidence, compare with last working gameweek, make the smallest justified change, and run available tests. State clearly what was tested in GitHub versus what still requires the user's local environment. Never present a commit as a verified fix until validated.
+3. **One authoritative record:** Update this document with the last verified results, blockers, decisions, next single action and exact validation evidence whenever meaningful progress is made. Keep the relevant issue linked; avoid creating fragmented restart plans. Gameweek-specific immutable forecasts and retrospective findings remain in their own `docs/gameweeks/GWxx.md` journals.
+4. **Protect project time:** One bounded increment at a time, with no unsolicited new modelling experiments, reruns of settled work, changes to frozen files, rebuilds or tool/framework migrations. Prefer a stopping point over a troubleshooting spiral. Only one active AI-development item; gameweek scoring remains lightweight maintenance.
+
+### Handoff snapshot — GW8, 26 October 2026
+
+**Verified by user locally:** `python scripts/fetch_gameweek_results.py --gameweek 8` captured all ten final fixtures and created `data/live/results/2026_27_gw08_results.csv`. `python scripts/evaluate_market_shadow.py --gameweek 8` ran after commit `4f7143c` and created `data/live/challenger_evaluations/2026_27_gw08_market_shadow_evaluation.csv`. The frozen 40/60 blend scored **3/10 correct (30%), Log Loss 1.2021, Brier 0.7446**. These files exist on the user's Windows machine; do NOT assume committed/pushed to GitHub.
+
+**Root cause of evaluation failure:** GW8 frozen market-shadow CSV contains `ActualHomeGoals`, `ActualAwayGoals`, `ActualResult` as empty pre-match placeholders. Pandas merged the actual results with suffixes and subsequent direct access to `ActualResult` raised `KeyError`. Commit `4f7143c` removes only empty placeholders before merging and fails if they unexpectedly hold populated values. User rerun successfully evaluated GW8. Do not repeat this investigation.
+
+**Outstanding:** Evaluate the **frozen Model 2 GW8 forecast** with the *existing* scoring workflow after inspecting its current implementation and GW7 precedent. Check whether an adaptive challenger has a valid frozen GW8 snapshot before evaluating. Then independently validate matches, scores, probabilities and forecast timestamps, calculate GW6–GW8 cumulative performance, author `docs/gameweeks/GW08.md` and commit only appropriately checked results/documentation. Do NOT guess Model 2's performance, infer adaptive performance, assume model promotion happened or change weights because GW8 was poor. GW7 journal explicitly says formal 40/60 operational promotion was pending governance exception and technical fallback.
+
+**Next single action:** Inspect the repo's existing Model 2 evaluation process and its frozen GW8 inputs, without editing or running a replacement scoring method first. Give the user only the next necessary command after verification.
+
+**Primary longer-term objective:** Resume V2 grounded-answer quality work in issue #11 after the bounded weekly evaluation, retaining original Streamlit default. No extra paid services, no new backlogs or repeated master-plan discussions.

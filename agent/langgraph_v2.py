@@ -178,7 +178,8 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
         # and the limited size of the prospective sample.
         if not any(x in lower for x in ("provisional", "not formally promoted", "not officially promoted", "pending promotion")):
             return False
-        if not any(x in lower for x in ("small sample", "limited sample", "only 20", "20 matches", "20 fixtures", "insufficient evidence")):
+        if not (any(x in lower for x in ("small sample", "limited sample", "only 20", "20 matches", "20 fixtures", "insufficient evidence"))
+                or re.search(r"\b(?:small|limited)\s+\d+[- ]match\s+sample\b", lower)):
             return False
         if any(x in lower for x in (
             "not explicitly stated", "no clear information",

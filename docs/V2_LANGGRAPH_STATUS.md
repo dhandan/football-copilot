@@ -95,3 +95,6 @@ User live V2 form comparison Liverpool/Arsenal succeeded but synthesis overclaim
 
 ### GW8 monitoring display correction — 28 October 2026
 User screenshot showed outdated GW5 heading, literal f-string code in the 1-1 bullet and obsolete five-gameweek governance wording. Code inspection confirmed static triple-quoted Markdown and undefined names embedded literally. Commit `0ea8dde` changes only `app/live_predictions.py`: dynamic gameweek label, actual gameweek-specific modal 1-1 counts from existing evaluation, ongoing diagnostic caveats and current provisional blend governance. **Unverified locally** pending pull, tests and Streamlit refresh. No model or frozen forecast changes.
+
+### GW8 model comparison dashboard — 28 October 2026
+Committed `b4382d4`: completed GW8 Streamlit view now leads with the documented four-method GW8 scorecard and a comparable 30-match GW6–GW8 40/60-versus-Model-2 scorecard. Existing detailed Model 2 evaluation is explicitly labelled a benchmark. Metrics and provisional/non-promoted governance are taken from `docs/gameweeks/GW08.md`, not recalculated or written to frozen data. UI change is GW8/2026-27-scoped; no broad generic tracker implemented. **Outstanding:** user to pull and visually verify; not yet locally run. No model, freeze or evaluation changes.

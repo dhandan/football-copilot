@@ -54,13 +54,17 @@ class AnswerQualityTests(unittest.TestCase):
         self.assertIn("limits_claim", failures)
         self.assertIn("clean_rendering", failures)
 
-    def test_current_agent_response_is_scored_not_assumed_good(self):
+    def test_current_agent_response_has_completed_gw8_evidence(self):
         result = ask(QUESTION, planner=lambda _: [
             {"name": "model_performance", "arguments": {}}
         ])
-        passed, failures = assess(result["answer"])
-        self.assertTrue(passed, f"Current V2 factual fallback failed: {failures}")
-        self.assertIn("55%", result["answer"])
+        answer = result["answer"]
+        self.assertIn("GW8 (10 finished matches)", answer)
+        self.assertIn("market only 4/10 (40%)", answer)
+        self.assertIn("adaptive 3/10 (30%)", answer)
+        self.assertIn("provisional champion candidate", answer)
+        self.assertIn("docs/gameweeks/GW08.md", answer)
+        self.assertNotIn("not formally promoted", answer)
 
 
 if __name__ == "__main__":

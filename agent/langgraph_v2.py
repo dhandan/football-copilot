@@ -168,12 +168,11 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
         # merely claim that the evidence is insufficient.
         if not ("55%" in candidate and "40%" in candidate):
             return False
-        # Reject a reversed winner even when all mentioned numbers are genuine.
-        # The small local model has incorrectly called Model 2 the leader while
-        # attributing the 40/60 accuracy to it.
-        if re.search(r"\\bmodel\\s*2\\b.{0,80}\\b(best|better|leader|leading|highest.performing|outperform)", lower):
+        # Reject explicit claims that Model 2 leads. Do not reject statements
+        # such as "40/60 is better than Model 2".
+        if re.search(r"\bmodel\s*2\s+(?:is|was|remains|has been)\s+(?:the\s+)?(?:best|better|leader|leading|highest.performing|top.performing)", lower):
             return False
-        if re.search(r"\\b(best|better|leader|leading|highest.performing)\\b.{0,50}\\bmodel\\s*2\\b", lower):
+        if re.search(r"\b(?:best|leading|top.performing)\s+model\s+is\s+model\s*2\b", lower):
             return False
         # A valid answer must preserve both the provisional governance status
         # and the limited size of the prospective sample.
@@ -327,8 +326,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     f"Log Loss {b['log_loss']}, Brier {b['brier']}; "
                     f"Model 2 {a['correct']} ({a['accuracy']}), "
                     f"Log Loss {a['log_loss']}, Brier {a['brier']}. "
-                    "Small prospective sample (20 matches): 40/60 is the provisional leading candidate, "
-                    "not formally promoted as operational champion and not proven superior. "
+                    "Small sample of 20 matches: 40/60 is the provisional leading candidate, "
+                    "not yet formally promoted as operational champion and not proven superior. "
                     f"Source: {result['source']}."
                 )
         facts = "\n\n".join(parts)

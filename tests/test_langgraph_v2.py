@@ -41,6 +41,17 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("Arsenal recent form", result["answer"])
         self.assertIn("DuckDB team_match_stats", result["answer"])
 
+    def test_form_validation_error_is_explained(self):
+        from unittest.mock import patch
+        def invalid_team(team, games):
+            raise ValueError("Team 'Manchester City' was not found. Did you mean: Man City?")
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": invalid_team}):
+            result = ask("Show Manchester City form", planner=lambda _: [
+                {"name": "form_summary", "arguments": {"team": "Manchester City", "games": 5}}
+            ])
+        self.assertIn("Did you mean: Man City?", result["answer"])
+        self.assertIn("Tool execution failed: ValueError", result["answer"])
+
     def test_form_schema_rejects_invalid_game_count(self):
         from pydantic import ValidationError
         from agent.langgraph_v2 import _Plan

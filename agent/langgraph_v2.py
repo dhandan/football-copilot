@@ -263,16 +263,16 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             if {"name": name, "arguments": args} not in valid:
                 valid.append({"name": name, "arguments": args})
         # Resolve a missing second team in a two-team recent-form follow-up.
-        if (re.search(r"\\b(their|both|those)\\b", state["question"], re.I)
+        if (re.search(r"\b(their|both|those)\b", state["question"], re.I)
                 and any(c["name"] == "form_summary" for c in valid)):
             prior = next((h["question"] for h in reversed(state.get("history", []))
-                          if re.search(r"\\bcompare\\b", h["question"], re.I)), "")
+                          if re.search(r"\bcompare\b", h["question"], re.I)), "")
             # Use earlier planner-validated team names carried in prior tool
             # evidence when available; otherwise resolve explicit known names.
             names = []
             for label in ("Manchester City", "Manchester United", "Liverpool",
                           "Arsenal", "Chelsea", "Man City", "Man United"):
-                if re.search(r"(?<!\\w)" + re.escape(label) + r"(?!\\w)", prior, re.I):
+                if re.search(r"(?<!\w)" + re.escape(label) + r"(?!\w)", prior, re.I):
                     canonical = TEAM_ALIASES.get(label.lower(), label)
                     if canonical not in names:
                         names.append(canonical)

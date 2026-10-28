@@ -287,7 +287,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             try:
                 result = ALLOWED[name](**call["arguments"])
             except Exception as exc:
-                result = {"error": f"Tool execution failed: {type(exc).__name__}"}
+                result = {"error": f"Tool execution failed: {type(exc).__name__}: {exc}" if isinstance(exc, ValueError) else f"Tool execution failed: {type(exc).__name__}"}
             evidence.append({"tool": name, "arguments": call["arguments"], "result": result})
             trace.append(f"executed {name}")
         return {"evidence": evidence, "trace": trace}

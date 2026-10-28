@@ -769,7 +769,7 @@ def render_completed_gameweek(
 
 
     st.caption(
-    f"GW{gameweek} contains {matches_evaluated} matches, "
+    f"GW{gameweek} contains {matches} matches, "
     "so Gameweek-level differences from historical "
     "performance should not be treated as statistically "
     "meaningful in isolation."

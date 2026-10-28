@@ -109,6 +109,17 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("synthesis_accepted", result["trace"])
         self.assertIn("55%", result["answer"])
 
+    def test_performance_uses_completed_gw8_scorecard(self):
+        result = ask(
+            "Which model performed best in GW8?",
+            planner=lambda q: [{"name": "model_performance", "arguments": {}}],
+        )
+        self.assertIn("GW8 (10 finished matches)", result["answer"])
+        self.assertIn("adaptive 3/10 (30%)", result["answer"])
+        self.assertIn("market only 4/10 (40%)", result["answer"])
+        self.assertIn("docs/gameweeks/GW08.md", result["answer"])
+        self.assertNotIn("GW8 forecast accuracy is unknown", result["answer"])
+
     def test_synthesis_accepts_small_20_match_sample_phrasing(self):
         result = ask(
             "Which model is performing best so far and why?",

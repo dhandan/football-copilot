@@ -109,6 +109,19 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("synthesis_accepted", result["trace"])
         self.assertIn("55%", result["answer"])
 
+    def test_synthesis_accepts_small_20_match_sample_phrasing(self):
+        result = ask(
+            "Which model is performing best so far and why?",
+            planner=lambda q: [{"name": "model_performance", "arguments": {}}],
+            synthesizer=lambda q, facts: (
+                "The 40/60 blend is the provisional leader with 55% accuracy, "
+                "Log Loss 0.9453 and Brier 0.5615, compared with Model 2 at "
+                "40% accuracy, Log Loss 1.0621 and Brier 0.6490. "
+                "This is a small 20-match sample; formal promotion remains pending."
+            ),
+        )
+        self.assertIn("synthesis_accepted", result["trace"])
+
     def test_synthesis_rejects_reversed_performance_winner(self):
         result = ask(
             "Which model is performing best and why?",

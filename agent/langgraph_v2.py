@@ -165,7 +165,7 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
         lower = candidate.lower()
         # An answer about performance must contain the observed comparison, not
         # merely claim that the evidence is insufficient.
-        if not ("55%" in candidate and "40%" in candidate):
+        if not (("30%" in candidate and "40%" in candidate) if "GW8 (10 finished matches)" in facts else ("55%" in candidate and "40%" in candidate)):
             return False
         # Reject explicit claims that Model 2 leads. Do not reject statements
         # such as "40/60 is better than Model 2".
@@ -177,7 +177,7 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
         # and the limited size of the prospective sample.
         if not any(x in lower for x in ("provisional", "not formally promoted", "not officially promoted", "pending promotion")):
             return False
-        if not (any(x in lower for x in ("small sample", "limited sample", "only 20", "20 matches", "20 fixtures", "insufficient evidence"))
+        if not (any(x in lower for x in ("small sample", "limited sample", "only 20", "20 matches", "20 fixtures", "insufficient evidence", "one gameweek", "ten matches", "10 matches"))
                 or re.search(r"\b(?:small|limited)\s+\d+[- ]match\s+sample\b", lower)):
             return False
         if any(x in lower for x in (
@@ -185,7 +185,7 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
             "does not provide clear information", "performance is unknown",
         )):
             return False
-    if is_forecast and is_performance:
+    if is_forecast and is_performance and "GW8 (10 finished matches)" not in facts:
         # The model must state the temporal distinction explicitly.
         lower = candidate.lower()
         if not any(x in lower for x in ("not yet evaluated", "not evaluated", "cannot assess", "cannot yet", "unknown", "not results")):

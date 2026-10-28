@@ -135,6 +135,8 @@ def local_synthesizer(question: str, facts: str) -> str:
                 "from the small GW6-GW7 sample. If comparing forecasts with historical "
                 "performance, explicitly state that forecasts are not yet evaluated. "
                 "Do not say observed champion performance is unavailable when supplied. "
+                "For model performance, explicitly identify the 40/60 provisional leader, "
+                "the small 20-match sample, and that formal operational promotion is not confirmed. "
                 "Keep all figures exact and be concise."
             )},
             {"role": "user", "content": f"Question: {question}\nVerified evidence:\n{facts}"},
@@ -163,6 +165,12 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
         # An answer about performance must contain the observed comparison, not
         # merely claim that the evidence is insufficient.
         if not ("55%" in candidate and "40%" in candidate):
+            return False
+        # A valid answer must preserve both the provisional governance status
+        # and the limited size of the prospective sample.
+        if not any(x in lower for x in ("provisional", "not formally promoted", "not officially promoted", "pending promotion")):
+            return False
+        if not any(x in lower for x in ("small sample", "limited sample", "only 20", "20 matches", "20 fixtures", "insufficient evidence")):
             return False
         if any(x in lower for x in (
             "not explicitly stated", "no clear information",
@@ -310,7 +318,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     f"Log Loss {b['log_loss']}, Brier {b['brier']}; "
                     f"Model 2 {a['correct']} ({a['accuracy']}), "
                     f"Log Loss {a['log_loss']}, Brier {a['brier']}. "
-                    "Small prospective sample, not evidence of a confirmed model improvement. "
+                    "Small prospective sample (20 matches): 40/60 is the provisional leading candidate, "
+                    "not formally promoted as operational champion and not proven superior. "
                     f"Source: {result['source']}."
                 )
         facts = "\n\n".join(parts)

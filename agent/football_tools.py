@@ -320,8 +320,33 @@ def model_performance():
                          "log_loss": parts[4], "brier": parts[5]})
     if len(rows) != 6:
         return {"type": "model_performance", "error": "Scorecard incomplete or changed; refusing to infer missing results."}
-    return {"type": "model_performance", "source": source,
-            "completed_period": "GW6-GW7 (20 prospective matches)",
+    # GW7 is retained as historical evidence. GW8 is the newer completed
+    # report, not a replacement for the original 20-match comparison.
+    gw8_source = "docs/gameweeks/GW08.md"
+    gw8_path = Path(__file__).resolve().parent.parent / gw8_source
+    latest = []
+    if gw8_path.exists():
+        gw8_doc = gw8_path.read_text(encoding="utf-8-sig")
+        section = gw8_doc.split("## GW8 prospective results", 1)
+        if len(section) == 2:
+            section = section[1].split("## Comparable prospective", 1)[0]
+            names = {
+                "Frozen market-only implied probabilities": "Market only",
+                "Frozen 40/60 market–Model 2 blend": "40/60",
+                "Frozen adaptive-confidence blend (GW8 prospective challenger)": "Adaptive",
+                "Frozen Model 2 benchmark": "Model 2",
+            }
+            for line in section.splitlines():
+                parts = [p.strip() for p in line.strip().strip("|").split("|")]
+                if len(parts) == 5 and parts[0] in names:
+                    latest.append({"period": "GW8", "model": names[parts[0]],
+                                   "correct": parts[1], "accuracy": parts[2],
+                                   "log_loss": parts[3], "brier": parts[4]})
+    if len(latest) != 4:
+        return {"type": "model_performance", "error": "Verified GW8 report missing or incomplete; refusing stale performance."}
+    return {"type": "model_performance", "source": gw8_source,
+            "historical_source": source,
+            "completed_period": "GW8 (10 matches), with GW6-GW7 historical comparison",
             "metrics": rows,
-            "current_gw8_status": "Forecasts frozen; GW8 results not included in this scorecard.",
-            "note": "Lower Log Loss and Brier are better. 20 matches is a small sample. Adaptive confidence has no prospective final-result evaluation yet."}
+            "latest_metrics": latest,
+            "note": "GW8 has completed and been evaluated. The 40/60 blend remains a provisional candidate, not a formally promoted champion. GW8 is only ten matches; no proven winner."}

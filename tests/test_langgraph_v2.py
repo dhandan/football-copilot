@@ -97,9 +97,9 @@ class AgentGraphTests(unittest.TestCase):
         def synthesizer(question, facts):
             captured.append(facts)
             if "champion" in question:
-                return ("GW8 frozen forecasts are not yet evaluated. "
-                        "GW6-GW7 40/60 provisional leader: 55% versus 40% for Model 2. "
-                        "Small sample of 20 matches; not formally promoted.")
+                return ("GW8 contains evaluated results: market only scored 40%, "
+                        "the provisional 40/60 blend and Model 2 both scored 30%. "
+                        "One gameweek is a small sample; formal promotion remains pending.")
             return "GW8 frozen forecasts: 10 fixtures, saved and not yet evaluated."
         conversation = Conversation(planner=planner, synthesizer=synthesizer)
         conversation.ask("Show GW8 forecasts", thread_id="followup")
@@ -107,7 +107,7 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("Previous turn", captured[-1])
         self.assertIn("GW8 frozen forecasts", captured[-1])
         self.assertIn("synthesis_accepted", result["trace"])
-        self.assertIn("55%", result["answer"])
+        self.assertIn("40%", result["answer"])
 
     def test_performance_uses_completed_gw8_scorecard(self):
         result = ask(

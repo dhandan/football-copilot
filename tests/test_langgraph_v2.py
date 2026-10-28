@@ -24,6 +24,31 @@ class AgentGraphTests(unittest.TestCase):
             self.assertIn(f"{row['HomeTeam']} vs {row['AwayTeam']}", result["answer"])
             self.assertIn(str(row["PredictedResult"]), result["answer"])
 
+    def test_two_team_form_comparison_uses_existing_tool(self):
+        from unittest.mock import patch
+        def fake_form(team, games):
+            return {"data": [{"Played": games, "Won": 3, "Drawn": 1,
+                              "Lost": 1, "Points": 10, "PointsPerGame": 2.0,
+                              "GoalsFor": 9, "GoalsAgainst": 4}]}
+        plan = lambda q: [
+            {"name": "form_summary", "arguments": {"team": "Liverpool", "games": 5}},
+            {"name": "form_summary", "arguments": {"team": "Arsenal", "games": 5}},
+        ]
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            result = ask("Compare Liverpool and Arsenal's last five games", planner=plan)
+        self.assertEqual(len(result["evidence"]), 2)
+        self.assertIn("Liverpool recent form", result["answer"])
+        self.assertIn("Arsenal recent form", result["answer"])
+        self.assertIn("DuckDB team_match_stats", result["answer"])
+
+    def test_form_schema_rejects_invalid_game_count(self):
+        from pydantic import ValidationError
+        from agent.langgraph_v2 import _Plan
+        with self.assertRaises(ValidationError):
+            _Plan.model_validate({"calls": [
+                {"name": "form_summary", "arguments": {"team": "Liverpool", "games": 100}}
+            ]})
+
     def test_multi_tool(self):
         result = ask("GW8 forecasts and H07?", planner=lambda q: [
             {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}},

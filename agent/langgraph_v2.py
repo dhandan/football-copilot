@@ -327,7 +327,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     f"Model 2 {a['correct']} ({a['accuracy']}), "
                     f"Log Loss {a['log_loss']}, Brier {a['brier']}. "
                     "Small sample of 20 matches: 40/60 is the provisional leading candidate, "
-                    "not yet formally promoted as operational champion and not proven superior. "
+                    "formal operational promotion remains pending; superiority is not established. "
                     f"Source: {result['source']}."
                 )
         facts = "\n\n".join(parts)

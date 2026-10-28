@@ -108,6 +108,19 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("synthesis_accepted", result["trace"])
         self.assertIn("55%", result["answer"])
 
+    def test_synthesis_rejects_reversed_performance_winner(self):
+        result = ask(
+            "Which model is performing best and why?",
+            planner=lambda q: [{"name": "model_performance", "arguments": {}}],
+            synthesizer=lambda q, facts: (
+                "Model 2 is the best performing model with 55% accuracy versus 40% "
+                "for the 40/60 blend across 20 matches. "
+                "This is a small sample and promotion remains provisional."
+            ),
+        )
+        self.assertIn("synthesis_rejected_grounding", result["trace"])
+        self.assertIn("40/60", result["answer"])
+
     def test_synthesis_rejects_denial_of_available_performance(self):
         from agent.langgraph_v2 import ask
         result = ask(

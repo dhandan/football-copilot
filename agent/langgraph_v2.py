@@ -130,15 +130,14 @@ def local_synthesizer(question: str, facts: str) -> str:
             {"role": "system", "content": (
                 "Answer using ONLY the supplied football evidence. Never invent results, "
                 "scores, teams, metrics, fixtures or sources. Explain comparisons in plain English. "
-                "Saved forecasts are NOT evaluated results. GW8 forecast accuracy is unknown until "
-                "the matches finish and results are evaluated. Do not claim model improvement "
-                "from the small GW6-GW7 sample. If comparing forecasts with historical "
-                "performance, explicitly state that forecasts are not yet evaluated. "
+                "A saved forecast is not itself an evaluated result. GW8 matches have now "
+                "finished and the supplied GW8 evaluation is authoritative. Do not describe "
+                "GW8 as unevaluated. Do not claim proven improvement from a small sample. "
                 "Do not say observed champion performance is unavailable when supplied. "
-                "For the supplied GW6-GW7 performance comparison, the 40/60 blend, NOT Model 2, "
-                "is the provisional leader: 55% vs 40% accuracy with lower Log Loss and Brier. "
-                "Model 2 is the original benchmark, NOT the winning model. "
-                "Describe the small 20-match sample and that formal promotion is unconfirmed. "
+                "Distinguish the historical GW6-GW7 40/60 leader from the latest GW8 "
+                "evaluation, where market-only leads accuracy and Log Loss. Model 2 remains "
+                "the original benchmark. The 40/60 blend is a provisional candidate, not "
+                "formally promoted. Attribute every metric to the right model and period. "
                 "Keep all figures exact and be concise."
             )},
             {"role": "user", "content": f"Question: {question}\nVerified evidence:\n{facts}"},

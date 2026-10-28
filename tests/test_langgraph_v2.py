@@ -52,6 +52,40 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("Did you mean: Man City?", result["answer"])
         self.assertIn("Tool execution failed: ValueError", result["answer"])
 
+    def test_manchester_city_alias_and_grounded_form(self):
+        from unittest.mock import patch
+        seen = []
+        def fake_form(team, games):
+            seen.append(team)
+            return {"data": [{"Played": 5, "Won": 1, "Drawn": 2, "Lost": 2,
+                              "Points": 5, "PointsPerGame": 1.0,
+                              "GoalsFor": 9, "GoalsAgainst": 10}]}
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            result = ask("Manchester City form", planner=lambda q: [
+                {"name": "form_summary", "arguments": {"team": "Manchester City", "games": 5}}
+            ], synthesizer=lambda q, facts: "Invented better performance.")
+        self.assertEqual(seen, ["Man City"])
+        self.assertIn("form_facts_preserved", result["trace"])
+        self.assertNotIn("Invented better", result["answer"])
+
+    def test_two_team_followup_restores_missing_team(self):
+        from unittest.mock import patch
+        def fake_form(team, games):
+            return {"data": [{"Played": games, "Won": 2, "Drawn": 1, "Lost": games - 3,
+                              "Points": 7, "PointsPerGame": 1.4,
+                              "GoalsFor": 5, "GoalsAgainst": 5}]}
+        def planner(q):
+            if "Current question:" in q:
+                return [{"name": "form_summary", "arguments": {"team": "Man City", "games": 10}}]
+            return [{"name": "form_summary", "arguments": {"team": "Man City", "games": 5}},
+                    {"name": "form_summary", "arguments": {"team": "Chelsea", "games": 5}}]
+        from agent.langgraph_v2 import Conversation
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            chat = Conversation(planner)
+            chat.ask("Compare Manchester City and Chelsea form", thread_id="pair")
+            result = chat.ask("How does their last 10 matches compare?", thread_id="pair")
+        self.assertEqual({x["arguments"]["team"] for x in result["evidence"]}, {"Man City", "Chelsea"})
+
     def test_form_schema_rejects_invalid_game_count(self):
         from pydantic import ValidationError
         from agent.langgraph_v2 import _Plan

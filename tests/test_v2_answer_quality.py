@@ -23,7 +23,7 @@ def assess(answer: str):
         "limits_claim": any(x in t for x in ("small sample", "too small", "limited sample", "insufficient evidence")),
         "provisional_status": any(x in t for x in ("provisional", "pending", "not yet formally", "not yet officially")),
         "does_not_claim_confirmed_promotion": not bool(re.search(
-            r"(officially|formally) (promoted|switched|adopted)|confirmed (as |the )?champion", t)),
+            r"(?<!not )(officially|formally) (promoted|switched|adopted)|confirmed (as |the )?champion", t)),
         "clean_rendering": "canvascanvas" not in t,
         "source": SOURCE.lower() in t or "gw7" in t,
     }
@@ -54,6 +54,12 @@ class AnswerQualityTests(unittest.TestCase):
         self.assertIn("limits_claim", failures)
         self.assertIn("clean_rendering", failures)
 
+    def test_negated_promotion_is_not_false_positive(self):
+        answer = ("40/60 provisional leader across 20 matches (55% versus 40%). "
+                  "Log Loss 0.9453 versus 1.0621; Brier 0.5615 versus 0.6490. "
+                  "Small sample; not formally promoted. Source: docs/gameweeks/GW07.md.")
+        self.assertEqual(assess(answer), (True, []))
+
     def test_current_agent_response_has_completed_gw8_evidence(self):
         result = ask(QUESTION, planner=lambda _: [
             {"name": "model_performance", "arguments": {}}
@@ -64,7 +70,7 @@ class AnswerQualityTests(unittest.TestCase):
         self.assertIn("adaptive 3/10 (30%)", answer)
         self.assertIn("provisional champion candidate", answer)
         self.assertIn("docs/gameweeks/GW08.md", answer)
-        self.assertNotIn("not formally promoted", answer)
+        self.assertIn("not formally promoted", answer)
 
 
 if __name__ == "__main__":

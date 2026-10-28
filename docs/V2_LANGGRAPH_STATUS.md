@@ -75,3 +75,9 @@ Enable **Use LangGraph V2** in the sidebar for experimental conversation testing
 **Next single action:** Inspect the repo's existing Model 2 evaluation process and its frozen GW8 inputs, without editing or running a replacement scoring method first. Give the user only the next necessary command after verification.
 
 **Primary longer-term objective:** Resume V2 grounded-answer quality work in issue #11 after the bounded weekly evaluation, retaining original Streamlit default. No extra paid services, no new backlogs or repeated master-plan discussions.
+
+## Incremental V2 form-tool extension — 28 October 2026
+
+**Committed:** `86b1fb0` adds the existing read-only `form_summary(team, games)` tool to V2's typed allow-list (1–10 completed matches); `1d41c13` adds isolated two-team orchestration and invalid-input tests. No model weights, frozen forecasts or default Streamlit routing changed. The view explicitly labels form as current DuckDB history, **not** a frozen pre-match feature snapshot.
+
+**Verification status:** Changes committed remotely; the new suite and local Ollama end-to-end test have **not** yet been executed on the Windows runtime. Prior 23/23 tests passed before this extension. The next single action is `git pull origin main` followed by `python -m unittest discover -s tests -v`. Then run one real two-team comparison in opt-in V2, observing actual tool selection, data coverage and CPU latency. Do not claim live capability until verified.

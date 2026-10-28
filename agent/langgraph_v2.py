@@ -30,6 +30,7 @@ ALLOWED = {
     "form_summary": form_summary,
 }
 MAX_TOOLS = 3
+TEAM_ALIASES = {'manchester city': 'Man City', 'manchester united': 'Man United'}
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -256,6 +257,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 except ValidationError:
                     continue
                 args = parsed.model_dump()
+                args["team"] = TEAM_ALIASES.get(args["team"].strip().lower(), args["team"].strip())
             elif args:
                 continue
             if {"name": name, "arguments": args} not in valid:
@@ -380,6 +382,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             prior = previous[0]
             synthesis_facts += ("\n\nPrevious turn (context, not newly evaluated): "
                       + prior["question"] + "\n" + prior["answer"][:900])
+        if any(item["tool"] == "form_summary" for item in state["evidence"]):
+            return {**save(facts), "trace": [*state["trace"], "form_facts_preserved"]}
         if synthesizer is None:
             return save(facts)
         # The LLM is not permitted to compress or replace fixture-by-fixture

@@ -672,6 +672,47 @@ def render_completed_gameweek(
     )
 
 
+    # Verified retrospective comparison is available for GW8 only.
+    # Do not display these historical figures as results for later gameweeks.
+    if int(gameweek) == 8 and str(season) == "2026/27":
+        st.markdown("### Forecast model comparison | GW8")
+        st.caption(
+            "Verified frozen-forecast scorecard, 10 completed matches. "
+            "Lower Log Loss and Brier are better. Source: docs/gameweeks/GW08.md."
+        )
+        st.dataframe(
+            pd.DataFrame([
+                {"Method": "Market only", "Role": "External benchmark",
+                 "Correct": "4/10", "Accuracy": "40%", "Log Loss": 1.1303, "Brier": 0.6918},
+                {"Method": "40/60 blend", "Role": "Provisional leader",
+                 "Correct": "3/10", "Accuracy": "30%", "Log Loss": 1.2021, "Brier": 0.7446},
+                {"Method": "Adaptive confidence", "Role": "Experimental challenger",
+                 "Correct": "3/10", "Accuracy": "30%", "Log Loss": 1.1981, "Brier": 0.7415},
+                {"Method": "Model 2", "Role": "Official frozen benchmark",
+                 "Correct": "3/10", "Accuracy": "30%", "Log Loss": 1.3439, "Brier": 0.8396},
+            ]),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.markdown("### Comparable prospective performance | GW6–GW8")
+        st.dataframe(
+            pd.DataFrame([
+                {"Method": "40/60 blend", "Correct": "14/30", "Accuracy": "46.7%",
+                 "Log Loss": 1.0309, "Brier": 0.6225},
+                {"Method": "Model 2", "Correct": "11/30", "Accuracy": "36.7%",
+                 "Log Loss": 1.1560, "Brier": 0.7125},
+            ]),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.info(
+            "40/60 is the leading provisional candidate over 30 comparable matches, "
+            "not a formally promoted production champion. Model 2 remains the official "
+            "frozen benchmark. GW8 alone favoured market-only; this is not proof of "
+            "persistent model superiority."
+        )
+        st.markdown("### Model 2 benchmark | GW8 detailed evaluation")
+
     # ==================================================
     # MAIN KPI CARDS
     # ==================================================
@@ -686,7 +727,7 @@ def render_completed_gameweek(
     metric_columns[
         0
     ].metric(
-        "1X2 Accuracy",
+        "Model 2 accuracy",
         f"{accuracy:.1f}%",
         (
             f"{accuracy - HISTORICAL_ACCURACY:+.2f}pp "
@@ -698,7 +739,7 @@ def render_completed_gameweek(
     metric_columns[
         1
     ].metric(
-        "Log Loss",
+        "Model 2 Log Loss",
         f"{log_loss:.4f}",
         (
             f"{log_loss - HISTORICAL_LOG_LOSS:+.4f}"
@@ -710,7 +751,7 @@ def render_completed_gameweek(
     metric_columns[
         2
     ].metric(
-        "Brier Score",
+        "Model 2 Brier",
         f"{brier:.4f}",
         (
             f"{brier - HISTORICAL_BRIER:+.4f}"
@@ -722,7 +763,7 @@ def render_completed_gameweek(
     metric_columns[
         3
     ].metric(
-        "Exact Scores",
+        "Model 2 exact scores",
         (
             f"{exact_scores}/{matches}"
         ),

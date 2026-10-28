@@ -320,16 +320,25 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     f"Brier {b['brier']} vs {a['brier']}. Source: {result['source']}."
                 )
             elif name == "model_performance":
-                match = {row["model"]: row for row in result["metrics"] if row["period"] == "GW6-GW7"}
-                a, b = match["Model 2"], match["40/60"]
+                recent = {row["model"]: row for row in result["latest_metrics"] if row["period"] == "GW8"}
+                old = {row["model"]: row for row in result["metrics"] if row["period"] == "GW6-GW7"}
+                a, b, c, d = (recent[k] for k in ("40/60", "Adaptive", "Model 2", "Market only"))
                 parts.append(
-                    f"GW6-GW7 (20 matches): 40/60 {b['correct']} ({b['accuracy']}), "
+                    f"GW8 (10 finished matches): 40/60 {a['correct']} ({a['accuracy']}), "
+                    f"Log Loss {a['log_loss']}, Brier {a['brier']}; "
+                    f"adaptive {b['correct']} ({b['accuracy']}), "
                     f"Log Loss {b['log_loss']}, Brier {b['brier']}; "
-                    f"Model 2 {a['correct']} ({a['accuracy']}), "
-                    f"Log Loss {a['log_loss']}, Brier {a['brier']}. "
-                    "Small sample of 20 matches: 40/60 is the provisional leading candidate, "
-                    "formal operational promotion remains pending; superiority is not established. "
-                    f"Source: {result['source']}."
+                    f"Model 2 {c['correct']} ({c['accuracy']}), "
+                    f"Log Loss {c['log_loss']}, Brier {c['brier']}; "
+                    f"market only {d['correct']} ({d['accuracy']}), "
+                    f"Log Loss {d['log_loss']}, Brier {d['brier']}. "
+                    "Market-only leads GW8 on accuracy and Log Loss. "
+                    "The 40/60 blend remains the provisional champion candidate, "
+                    "not formally promoted. One gameweek is a small sample. "
+                    f"Source: {result['source']}. "
+                    f"Historical GW6-GW7 (20 matches): 40/60 {old['40/60']['accuracy']} vs "
+                    f"Model 2 {old['Model 2']['accuracy']}. "
+                    f"Source: {result['historical_source']}."
                 )
         facts = "\n\n".join(parts)
         # Earlier answers are labelled context, not fresh tool evidence.

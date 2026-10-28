@@ -125,10 +125,9 @@ class AgentGraphTests(unittest.TestCase):
             "Which model is performing best so far and why?",
             planner=lambda q: [{"name": "model_performance", "arguments": {}}],
             synthesizer=lambda q, facts: (
-                "The 40/60 blend is the provisional leader with 55% accuracy, "
-                "Log Loss 0.9453 and Brier 0.5615, compared with Model 2 at "
-                "40% accuracy, Log Loss 1.0621 and Brier 0.6490. "
-                "This is a small 20-match sample; formal promotion remains pending."
+                "GW8: the 40/60 provisional candidate and adaptive each scored 30%, "
+                "while market only scored 40%. This is one gameweek, a small sample; "
+                "formal promotion remains pending."
             ),
         )
         self.assertIn("synthesis_accepted", result["trace"])
@@ -168,9 +167,10 @@ class AgentGraphTests(unittest.TestCase):
                 {"name": "model_performance", "arguments": {}},
             ],
             synthesizer=lambda q, facts: (
-                "GW8 contains 10 frozen forecasts. These are not yet evaluated. "
-                "GW6-GW7: 40/60 provisional leader 55%, Model 2 40%. "
-                "Small sample of 20 matches, not formally promoted."
+                "GW8 contains 10 saved forecasts and 10 completed results. "
+                "GW8: market only scored 40% while the 40/60 provisional candidate "
+                "and Model 2 both scored 30%. One gameweek is a small sample; "
+                "formal promotion remains pending."
             ),
         )
         self.assertIn("synthesis_accepted", result["trace"])

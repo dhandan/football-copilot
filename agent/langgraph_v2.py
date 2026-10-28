@@ -135,8 +135,10 @@ def local_synthesizer(question: str, facts: str) -> str:
                 "from the small GW6-GW7 sample. If comparing forecasts with historical "
                 "performance, explicitly state that forecasts are not yet evaluated. "
                 "Do not say observed champion performance is unavailable when supplied. "
-                "For model performance, explicitly identify the 40/60 provisional leader, "
-                "the small 20-match sample, and that formal operational promotion is not confirmed. "
+                "For the supplied GW6-GW7 performance comparison, the 40/60 blend, NOT Model 2, "
+                "is the provisional leader: 55% vs 40% accuracy with lower Log Loss and Brier. "
+                "Model 2 is the original benchmark, NOT the winning model. "
+                "Describe the small 20-match sample and that formal promotion is unconfirmed. "
                 "Keep all figures exact and be concise."
             )},
             {"role": "user", "content": f"Question: {question}\nVerified evidence:\n{facts}"},
@@ -165,6 +167,13 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
         # An answer about performance must contain the observed comparison, not
         # merely claim that the evidence is insufficient.
         if not ("55%" in candidate and "40%" in candidate):
+            return False
+        # Reject a reversed winner even when all mentioned numbers are genuine.
+        # The small local model has incorrectly called Model 2 the leader while
+        # attributing the 40/60 accuracy to it.
+        if re.search(r"\\bmodel\\s*2\\b.{0,80}\\b(best|better|leader|leading|highest.performing|outperform)", lower):
+            return False
+        if re.search(r"\\b(best|better|leader|leading|highest.performing)\\b.{0,50}\\bmodel\\s*2\\b", lower):
             return False
         # A valid answer must preserve both the provisional governance status
         # and the limited size of the prospective sample.

@@ -262,6 +262,28 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 continue
             if {"name": name, "arguments": args} not in valid:
                 valid.append({"name": name, "arguments": args})
+        # Resolve a missing second team in a two-team recent-form follow-up.
+        if (re.search(r"\\b(their|both|those)\\b", state["question"], re.I)
+                and any(c["name"] == "form_summary" for c in valid)):
+            prior = next((h["question"] for h in reversed(state.get("history", []))
+                          if re.search(r"\\bcompare\\b", h["question"], re.I)), "")
+            # Use earlier planner-validated team names carried in prior tool
+            # evidence when available; otherwise resolve explicit known names.
+            names = []
+            for label in ("Manchester City", "Manchester United", "Liverpool",
+                          "Arsenal", "Chelsea", "Man City", "Man United"):
+                if re.search(r"(?<!\\w)" + re.escape(label) + r"(?!\\w)", prior, re.I):
+                    canonical = TEAM_ALIASES.get(label.lower(), label)
+                    if canonical not in names:
+                        names.append(canonical)
+            if len(names) == 2:
+                games = next(c["arguments"]["games"] for c in valid
+                             if c["name"] == "form_summary")
+                for team in names:
+                    call = {"name": "form_summary",
+                            "arguments": {"team": team, "games": games}}
+                    if call not in valid and len(valid) < MAX_TOOLS:
+                        valid.append(call)
         # Narrow completeness check for a comparative follow-up. The small model
         # sometimes selects only forecasts even when asked for champion performance.
         # This does not force any tool for unrelated requests.

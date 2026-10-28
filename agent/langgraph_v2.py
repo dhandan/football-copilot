@@ -20,12 +20,14 @@ from agent.football_tools import (
     experiment_history,
     frozen_gameweek_predictions,
     model_performance,
+    form_summary,
 )
 
 ALLOWED = {
     "frozen_gameweek_predictions": frozen_gameweek_predictions,
     "experiment_history": experiment_history,
     "model_performance": model_performance,
+    "form_summary": form_summary,
 }
 MAX_TOOLS = 3
 
@@ -39,6 +41,11 @@ class _GWArgs(_Strict):
 
 class _H07Args(_Strict):
     experiment: Literal["H07"]
+
+
+class _FormArgs(_Strict):
+    team: str = Field(min_length=1, max_length=80)
+    games: int = Field(ge=1, le=10)
 
 
 class _EmptyArgs(_Strict):
@@ -55,13 +62,18 @@ class _HistoryCall(_Strict):
     arguments: _H07Args
 
 
+class _FormCall(_Strict):
+    name: Literal["form_summary"]
+    arguments: _FormArgs
+
+
 class _PerformanceCall(_Strict):
     name: Literal["model_performance"]
     arguments: _EmptyArgs
 
 
 _ToolCall = Annotated[
-    Union[_ForecastCall, _HistoryCall, _PerformanceCall],
+    Union[_ForecastCall, _HistoryCall, _PerformanceCall, _FormCall],
     Field(discriminator="name"),
 ]
 
@@ -89,7 +101,8 @@ def local_planner(question: str) -> list[dict]:
         "Return JSON only: an object with a 'calls' list, each item having "
         "'name' and 'arguments'. Allowed: frozen_gameweek_predictions "
         "(arguments: gameweek integer 1..38), experiment_history "
-        "(arguments: experiment='H07'), model_performance (arguments: {}). "
+        "(arguments: experiment='H07'), model_performance (arguments: {}), "
+        "form_summary (arguments: exact team name, games integer 1..10). "
         "The arguments object for model_performance MUST be empty {}. "
         "Never include champion, accuracy or any other parameter for model_performance. "
         "Choose every relevant tool for multi-part questions, up to three calls. "
@@ -237,6 +250,12 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 if args.get("experiment", "").upper() != "H07":
                     continue
                 args = {"experiment": "H07"}
+            elif name == "form_summary":
+                try:
+                    parsed = _FormArgs.model_validate(args)
+                except ValidationError:
+                    continue
+                args = parsed.model_dump()
             elif args:
                 continue
             if {"name": name, "arguments": args} not in valid:
@@ -318,6 +337,19 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     f"Model 2, Log Loss {b['log_loss']} vs {a['log_loss']}, "
                     f"Brier {b['brier']} vs {a['brier']}. Source: {result['source']}."
                 )
+            elif name == "form_summary":
+                rows = result.get("data", [])
+                if len(rows) != 1 or not isinstance(rows[0], dict) or not rows[0].get("Played"):
+                    parts.append(f"{item['arguments']['team']}: no completed-match form summary available.")
+                else:
+                    r = rows[0]
+                    parts.append(
+                        f"{item['arguments']['team']} recent form (last {r['Played']} matches): "
+                        f"{r['Won']} wins, {r['Drawn']} draws, {r['Lost']} losses; "
+                        f"{r['Points']} points, {r['PointsPerGame']} points per game, "
+                        f"{r['GoalsFor']} goals for, {r['GoalsAgainst']} against. "
+                        "Source: DuckDB team_match_stats (most recent matches; not a frozen pre-match snapshot)."
+                    )
             elif name == "model_performance":
                 recent = {row["model"]: row for row in result["latest_metrics"] if row["period"] == "GW8"}
                 old = {row["model"]: row for row in result["metrics"] if row["period"] == "GW6-GW7"}

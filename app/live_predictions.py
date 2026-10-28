@@ -1188,35 +1188,36 @@ def render_completed_gameweek(
     # ==================================================
 
     st.markdown(
-        "### What we're monitoring through GW5"
+        f"### Model 2 diagnostics: completed GW{gameweek}"
     )
 
-
     st.markdown(
-        """
-1. **xG compression**  
-   Model 2 may be pulling team-strength estimates too strongly towards league-average scoring levels.
+        f"""
+These are ongoing diagnostic questions, not confirmed model defects.
+
+1. **Expected-goals compression**  
+   Monitor whether predicted scoring levels are too close to the league average.
 
 2. **1-1 modal concentration**  
-   f"Across GW1 to GW{gameweek}, "
-   f"{modal_one_one_total} of {matches_evaluated} predictions "
-   "had 1-1 as the most likely individual scoreline, while "
-   f"{actual_one_one_total} of {matches_evaluated} actual matches "
-   "finished 1-1." 
+   In GW{gameweek}, {one_one_predictions} of {matches} Model 2 predictions had
+   1-1 as their most likely scoreline, compared with {actual_one_one}
+   actual 1-1 results. These figures cover this gameweek only.
 
-3. **Promoted-team pessimism**  
-   Coventry, Hull and Ipswich are being tracked separately to determine whether the cold-start priors are too conservative.
+3. **Promoted-team cold-start**  
+   Continue monitoring Coventry, Hull and Ipswich to assess whether
+   their initial strength estimates were overly conservative.
 
 4. **Upset calibration**  
-   Lower-probability outcomes will be monitored to determine whether surprising results represent normal football variance or evidence of systematic bias.
+   Monitor lower-probability outcomes across completed gameweeks rather
+   than drawing conclusions from a single result.
 """
     )
 
     st.info(
-        "Model 2 remains frozen as the official live benchmark "
-        "through the initial five-Gameweek monitoring period. "
-        "Challenger models may be developed and tested in parallel "
-        "without retrospectively changing the official predictions."
+        "Model 2 remains the frozen official benchmark for recorded forecasts. "
+        "The initial GW1–GW5 monitoring window has ended. "
+        "The 40/60 market blend is a provisional challenger, not formally "
+        "promoted. Retrospective changes to frozen predictions are prohibited."
     )
 
 

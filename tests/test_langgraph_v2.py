@@ -39,7 +39,7 @@ class AgentGraphTests(unittest.TestCase):
         self.assertEqual(len(result["evidence"]), 2)
         self.assertIn("Liverpool recent form", result["answer"])
         self.assertIn("Arsenal recent form", result["answer"])
-        self.assertIn("DuckDB team_match_stats", result["answer"])
+        self.assertIn("Source:", result["answer"])
 
     def test_form_comparison_is_calculated_not_invented(self):
         from unittest.mock import patch

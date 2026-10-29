@@ -123,6 +123,16 @@ class AgentGraphTests(unittest.TestCase):
         self.assertNotIn("nan", result["answer"].lower())
         self.assertIn("no completed 2026/27 matches", result["answer"])
 
+    def test_2026_27_form_reads_verified_results_without_legacy_database(self):
+        from agent.football_tools import _current_season_form
+        data = _current_season_form("Liverpool", 5)
+        self.assertEqual(data["season"], "2026/27")
+        self.assertIn("data/live/results", data["source"])
+        self.assertEqual(data["requested_games"], 5)
+        # The committed GW8 results record Liverpool 2-0 Brighton.
+        self.assertGreaterEqual(data["data"][0]["Played"], 1)
+        self.assertGreaterEqual(data["data"][0]["GoalsFor"], 2)
+
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch
         def invalid_team(team, games):

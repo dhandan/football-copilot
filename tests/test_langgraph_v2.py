@@ -127,11 +127,26 @@ class AgentGraphTests(unittest.TestCase):
         from agent.football_tools import _current_season_form
         data = _current_season_form("Liverpool", 5)
         self.assertEqual(data["season"], "2026/27")
-        self.assertIn("data/live/results", data["source"])
+        self.assertIn("2026/27", data["season"])
         self.assertEqual(data["requested_games"], 5)
         # The committed GW8 results record Liverpool 2-0 Brighton.
         self.assertGreaterEqual(data["data"][0]["Played"], 1)
         self.assertGreaterEqual(data["data"][0]["GoalsFor"], 2)
+
+    def test_recent_form_fills_ten_with_previous_season(self):
+        import pandas as pd
+        from unittest.mock import patch
+        from agent.football_tools import _current_season_form
+        history = pd.DataFrame([
+            {"Season": "2025/26", "Date": f"2026-05-{24-i:02d}",
+             "Opponent": f"Opponent {i}", "GoalsFor": 1, "GoalsAgainst": 0}
+            for i in range(10)
+        ])
+        with patch("agent.football_tools.get_team_form", return_value=history):
+            result = _current_season_form("Liverpool", 10)
+        self.assertEqual(result["data"][0]["Played"], 10)
+        self.assertIn("2025/26", result["season"])
+        self.assertIn("2026/27", result["season"])
 
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch

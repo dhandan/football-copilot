@@ -477,6 +477,41 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 + " Lower goals against is better; these are descriptive results, "
                   "not a forecast or causal explanation."
             ))
+        if len(forms) == 2 and forms[0][1].get("Played") == forms[1][1].get("Played"):
+            (a, x, season_a, req_a), (b, y, season_b, req_b) = forms
+            def fmt_stat(value):
+                n = float(value)
+                return str(int(n)) if n.is_integer() else f"{n:g}"
+            season_scope = season_a if season_a == season_b else f"{a}: {season_a}; {b}: {season_b}"
+            cols = [
+                ("Played", "Played"), ("Won", "Wins"), ("Drawn", "Draws"),
+                ("Lost", "Losses"), ("Points", "Points"),
+                ("PointsPerGame", "Points per game"),
+                ("GoalsFor", "Goals scored"), ("GoalsAgainst", "Goals conceded"),
+            ]
+            table = ["| Metric | " + a + " | " + b + " |", "|:--|--:|--:|"]
+            table += [f"| {label} | {fmt_stat(x[key])} | {fmt_stat(y[key])} |"
+                      for key, label in cols]
+            comparison = parts[0]
+            insight = comparison.split("\\n\\n", 1)[-1]
+            requested = max(req_a, req_b)
+            coverage = (f"**Coverage:** {fmt_stat(x['Played'])} of {requested} requested matches per team.\\n\\n"
+                        if x["Played"] < requested else "")
+            source_items = [
+                item["result"].get("source", "DuckDB team_match_stats")
+                for item in state["evidence"] if item["tool"] == "form_summary"
+            ]
+            sources = "; ".join(dict.fromkeys(source_items))
+            parts = [
+                f"### {a} vs {b} | Last {fmt_stat(x['Played'])} matches\\n"
+                f"*Seasons: {season_scope}*\\n\\n"
+                + coverage
+                + "**Key differences**\\n\\n" + insight + "\\n\\n"
+                + "**Head-to-head form stats**\\n\\n"
+                + "\\n".join(table) + "\\n\\n"
+                + f"**{a} recent form** and **{b} recent form** are compared above.\\n"
+                + f"*Source: {sources}. Completed Premier League results, not predictions.*"
+            ]
         facts = "\n\n".join(parts)
         # Earlier answers are labelled context, not fresh tool evidence.
         # This supports follow-ups even when the planner only fetches new data.

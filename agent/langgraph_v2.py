@@ -278,6 +278,33 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],
                     "trace": ["deterministic_form_route"]}
+        # Explicit model-quality questions are not requests for a team's recent form.
+        # Repair the two misroutes observed in the 13-turn live Qwen acceptance.
+        performance_intent = bool(re.search(
+            r"\b(champion|40/60|model performance|model 2)\b", q, re.I
+        ) and re.search(
+            r"\b(performed|performance|accuracy|accurate|log loss|brier)\b", q, re.I
+        ))
+        if performance_intent:
+            prior_forecast = any(
+                re.search(r"\b(?:GW|gameweek)\s*\d+\b", h["question"], re.I)
+                for h in state.get("history", [])[-2:]
+            )
+            comparison_followup = bool(re.search(
+                r"\b(how does that compare|compare with|compared with)\b", q, re.I
+            ))
+            if comparison_followup and prior_forecast:
+                gw = next((
+                    int(m.group(1)) for h in reversed(state.get("history", [])[-2:])
+                    if (m := re.search(r"\b(?:GW|gameweek)\s*(\d+)\b", h["question"], re.I))
+                ), None)
+                if gw and 1 <= gw <= 38:
+                    return {"plan": [
+                        {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": gw}},
+                        {"name": "model_performance", "arguments": {}}],
+                        "trace": ["deterministic_performance_followup_route"]}
+            return {"plan": [{"name": "model_performance", "arguments": {}}],
+                    "trace": ["deterministic_performance_route"]}
         try:
             previous = state.get("history", [])[-2:]
             context = "\n".join(

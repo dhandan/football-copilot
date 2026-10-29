@@ -414,12 +414,14 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             def number(value):
                 value = float(value)
                 return str(int(value)) if value.is_integer() else f"{value:g}"
+            labels = {"PointsPerGame": "points per game", "Points": "points",
+                      "GoalsFor": "goals scored", "GoalsAgainst": "goals conceded"}
             def edge(metric, higher=True):
                 left, right = float(x[metric]), float(y[metric])
                 if left == right:
-                    return f"Both teams have {number(left)} {metric.lower()}."
+                    return f"Both teams have {number(left)} {labels[metric]}."
                 winner = a if (left > right) == higher else b
-                return f"{winner} leads on {metric.lower()} by {number(abs(left-right))}."
+                return f"{winner} leads on {labels[metric]} by {number(abs(left-right))}."
             parts.insert(0, (
                 f"**Comparison: {a} vs {b} (last {number(x['Played'])} matches)**\n\n"
                 + edge("PointsPerGame") + " "

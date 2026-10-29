@@ -493,9 +493,9 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             table += [f"| {label} | {fmt_stat(x[key])} | {fmt_stat(y[key])} |"
                       for key, label in cols]
             comparison = parts[0]
-            insight = comparison.split("\\n\\n", 1)[-1]
+            insight = comparison.split("\n\n", 1)[-1]
             requested = max(req_a, req_b)
-            coverage = (f"**Coverage:** {fmt_stat(x['Played'])} of {requested} requested matches per team.\\n\\n"
+            coverage = (f"**Coverage:** {fmt_stat(x['Played'])} of {requested} requested matches per team.\n\n"
                         if x["Played"] < requested else "")
             source_items = [
                 item["result"].get("source", "DuckDB team_match_stats")
@@ -503,13 +503,13 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             ]
             sources = "; ".join(dict.fromkeys(source_items))
             parts = [
-                f"### {a} vs {b} | Last {fmt_stat(x['Played'])} matches\\n"
-                f"*Seasons: {season_scope}*\\n\\n"
+                f"### {a} vs {b} | Last {fmt_stat(x['Played'])} matches\n"
+                f"*Seasons: {season_scope}*\n\n"
                 + coverage
-                + "**Key differences**\\n\\n" + insight + "\\n\\n"
-                + "**Head-to-head form stats**\\n\\n"
-                + "\\n".join(table) + "\\n\\n"
-                + f"**{a} recent form** and **{b} recent form** are compared above.\\n"
+                + "**Key differences**\n\n" + insight + "\n\n"
+                + "**Head-to-head form stats**\n\n"
+                + "\n".join(table) + "\n\n"
+                + f"**{a} recent form** and **{b} recent form** are compared above.\n"
                 + f"*Source: {sources}. Completed Premier League results, not predictions.*"
             ]
         facts = "\n\n".join(parts)

@@ -449,7 +449,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 and all(all(k in row and row[k] is not None
                             for k in ("Played", "Points", "PointsPerGame",
                                       "GoalsFor", "GoalsAgainst"))
-                        for _, row in forms)):
+                        for _, row, _, _ in forms)):
             (a, x, season_a, requested_a), (b, y, season_b, requested_b) = forms
             season_label = season_a if season_a == season_b else f"{a}: {season_a}; {b}: {season_b}"
             requested = max(requested_a, requested_b)

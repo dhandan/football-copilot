@@ -239,11 +239,11 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             teams = names_in(prior_q)
             if len(teams) != 2:
                 teams = names_in(" ".join(h["question"] for h in reversed(state.get("history", []))))[:2]
-        requested = re.search(r"\b(?:last|past)\s+(\d+|five|ten)(?:\s+(?:matches|games))?\b", q, re.I)
+        requested = re.search(r"\b(?:last|past|those|these)\s+(\d+|five|ten)(?:\s+(?:matches|games))?\b", q, re.I)
         games = {"five": 5, "ten": 10}.get(requested.group(1).lower(), None) if requested else None
         if requested and games is None:
             games = int(requested.group(1))
-        is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|comparison|compare|conced\w*|last|past)\b", q, re.I))
+        is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|comparison|compare|conced\w*|last|past|those|these)\b", q, re.I))
         if len(teams) == 2 and games is not None and 1 <= games <= 30 and is_form:
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],

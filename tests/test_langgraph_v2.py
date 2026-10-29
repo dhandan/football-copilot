@@ -80,6 +80,35 @@ class AgentGraphTests(unittest.TestCase):
         self.assertNotIn("**Comparison:", result["answer"])
         self.assertIn("no completed-match form summary", result["answer"])
 
+    def test_explicit_two_team_form_bypasses_slow_planner(self):
+        from unittest.mock import patch
+        def fail_planner(_):
+            raise AssertionError("Ollama planner must not run for explicit two-team form")
+        def fake_form(team, games):
+            return {"data": [{"Played": games, "Won": 2, "Drawn": 1,
+                              "Lost": games - 3, "Points": 7,
+                              "PointsPerGame": round(7 / games, 2),
+                              "GoalsFor": 5, "GoalsAgainst": 3}]}
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            result = ask("Compare Liverpool and Arsenal's form over their last 5 matches",
+                         planner=fail_planner)
+        self.assertIn("deterministic_form_route", result["trace"])
+        self.assertEqual(len(result["evidence"]), 2)
+        self.assertIn("2026/27", result["answer"])
+
+    def test_current_season_form_data_does_not_fallback_to_historical(self):
+        from unittest.mock import patch
+        from agent import langgraph_v2
+        def fake_current_form(team, games, season=None):
+            self.assertEqual(season, "2026/27")
+            return {"data": [], "season": season}
+        with patch.object(langgraph_v2, "form_summary", fake_current_form), \
+             patch.dict(langgraph_v2.ALLOWED, {"form_summary": fake_current_form}):
+            result = ask("Compare Liverpool and Arsenal's last 5 matches",
+                         planner=lambda _: [])
+        self.assertIn("no completed 2026/27 matches", result["answer"])
+        self.assertNotIn("**Comparison:", result["answer"])
+
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch
         def invalid_team(team, games):

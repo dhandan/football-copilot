@@ -318,6 +318,18 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("No Liverpool versus Arsenal fixture", result["answer"])
         self.assertIn("No fixture forecast is inferred", result["answer"])
 
+    def test_explicit_three_source_question_keeps_all_tools(self):
+        result = ask(
+            "Compare the GW8 predictions, champion accuracy and H07 results",
+            planner=lambda _: (_ for _ in ()).throw(AssertionError("planner called")),
+        )
+        self.assertEqual({e["tool"] for e in result["evidence"]},
+                         {"frozen_gameweek_predictions", "model_performance",
+                          "experiment_history"})
+        self.assertEqual(len(result["evidence"]), 3)
+        self.assertIn("H07", result["answer"])
+        self.assertIn("GW8 frozen forecasts", result["answer"])
+
     def test_model_performance_intent_avoids_form_misroute(self):
         result = ask("How has the 40/60 champion performed so far?",
                      planner=lambda _: (_ for _ in ()).throw(AssertionError("planner called")))

@@ -22,6 +22,7 @@ from agent.football_tools import (
     frozen_gameweek_predictions,
     model_performance,
     form_summary,
+    next_meeting,
 )
 
 ALLOWED = {
@@ -29,6 +30,7 @@ ALLOWED = {
     "experiment_history": experiment_history,
     "model_performance": model_performance,
     "form_summary": form_summary,
+    "next_meeting": next_meeting,
 }
 MAX_TOOLS = 3
 TEAM_ALIASES = {'manchester city': 'Man City', 'manchester united': 'Man United'}
@@ -50,6 +52,11 @@ class _FormArgs(_Strict):
     games: int = Field(ge=1, le=30)
 
 
+class _MeetingArgs(_Strict):
+    team1: str = Field(min_length=1, max_length=80)
+    team2: str = Field(min_length=1, max_length=80)
+
+
 class _EmptyArgs(_Strict):
     pass
 
@@ -69,13 +76,18 @@ class _FormCall(_Strict):
     arguments: _FormArgs
 
 
+class _MeetingCall(_Strict):
+    name: Literal["next_meeting"]
+    arguments: _MeetingArgs
+
+
 class _PerformanceCall(_Strict):
     name: Literal["model_performance"]
     arguments: _EmptyArgs
 
 
 _ToolCall = Annotated[
-    Union[_ForecastCall, _HistoryCall, _PerformanceCall, _FormCall],
+    Union[_ForecastCall, _HistoryCall, _PerformanceCall, _FormCall, _MeetingCall],
     Field(discriminator="name"),
 ]
 
@@ -239,6 +251,12 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             teams = names_in(prior_q)
             if len(teams) != 2:
                 teams = names_in(" ".join(h["question"] for h in reversed(state.get("history", []))))[:2]
+        if re.search(r"\\b(when|date|next|upcoming)\\b", q, re.I) and re.search(
+            r"\\b(play|playing|meet|meeting|face|fixture)\\b", q, re.I
+        ) and len(teams) == 2:
+            return {"plan": [{"name": "next_meeting",
+                              "arguments": {"team1": teams[0], "team2": teams[1]}}],
+                    "trace": ["deterministic_next_meeting_route"]}
         requested = re.search(r"\b(?:last|past|those|these)\s+(\d+|five|ten)(?:\s+(?:matches|games))?\b", q, re.I)
         games = {"five": 5, "ten": 10}.get(requested.group(1).lower(), None) if requested else None
         if requested and games is None:
@@ -282,6 +300,22 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 if args.get("experiment", "").upper() != "H07":
                     continue
                 args = {"experiment": "H07"}
+            elif name == "next_meeting":
+                fixture = result.get("fixture")
+                if fixture:
+                    parts.append(
+                        f"**Next Premier League meeting: {fixture['HomeTeam']} vs "
+                        f"{fixture['AwayTeam']}**\\n\\n"
+                        f"Kick-off (UTC): {fixture['KickoffUTC']}. "
+                        f"Gameweek: {fixture['Gameweek']}. "
+                        f"Source: {result['source']} (live fixture schedule, subject to change)."
+                    )
+                else:
+                    parts.append(
+                        f"Unable to verify the next Premier League meeting. "
+                        f"{result.get('error') or result.get('note', '')} "
+                        f"Source: {result.get('source', 'FPL schedule')}."
+                    )
             elif name == "form_summary":
                 try:
                     parsed = _FormArgs.model_validate(args)

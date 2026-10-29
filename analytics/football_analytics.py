@@ -351,7 +351,7 @@ def get_team_form(team, games=10):
 # Recent form summary
 # --------------------------------------------------
 
-def get_form_summary(team, games=10):
+def get_form_summary(team, games=10, season=None):
     """
     Summarise a team's performance over its
     most recent number of matches.
@@ -397,6 +397,7 @@ def get_form_summary(team, games=10):
             SELECT *
             FROM team_match_stats
             WHERE Team = ?
+              AND (? IS NULL OR Season = ?)
             ORDER BY Date DESC
             LIMIT ?
         )
@@ -406,6 +407,8 @@ def get_form_summary(team, games=10):
         query,
         [
             team,
+            season,
+            season,
             games
         ]
     ).fetchdf()

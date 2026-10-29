@@ -399,15 +399,15 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     return str(int(n)) if n.is_integer() else f"{n:g}"
                 rows = result.get("data", [])
                 if len(rows) != 1 or not isinstance(rows[0], dict) or not rows[0].get("Played"):
-                    parts.append(f"{item['arguments']['team']}: no completed 2026/27 matches available in the local DuckDB database. Current-season form cannot be verified; historical form has not been substituted.")
+                    parts.append(f"{item['arguments']['team']}: no completed 2026/27 matches available in verified local gameweek results. Current-season form cannot be verified; historical form has not been substituted.")
                 else:
                     r = rows[0]
                     parts.append(
                         f"**{item['arguments']['team']} recent form | 2026/27 | last {fmt(r['Played'])} matches**\n"
-                        f"{fmt(r['Won'])} wins, {fmt(r['Drawn'])} draws, {fmt(r['Lost'])} losses; "
+                        f"{fmt(r['Won'])} W, {fmt(r['Drawn'])} D, {fmt(r['Lost'])} L; "
                         f"{fmt(r['Points'])} points, {fmt(r['PointsPerGame'])} points per game, "
                         f"{fmt(r['GoalsFor'])} goals for, {fmt(r['GoalsAgainst'])} against. "
-                        "Source: DuckDB team_match_stats (most recent matches; not a frozen pre-match snapshot)."
+                        f"Source: {result.get('source', 'DuckDB team_match_stats')} (completed results, not frozen forecasts)."
                     )
             elif name == "model_performance":
                 recent = {row["model"]: row for row in result["latest_metrics"] if row["period"] == "GW8"}

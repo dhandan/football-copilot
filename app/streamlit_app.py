@@ -3319,13 +3319,16 @@ with st.sidebar:
     use_langgraph_v2 = st.toggle(
         "Use LangGraph V2",
         value=False,
-        help="Experimental: only GW forecasts, H07 and model-performance tools. "
+        help="Experimental: GW forecasts, model performance, H07 and recent team-form comparisons. "
              "Switch off for the established Football Copilot.",
     )
 
     if use_langgraph_v2:
-        st.caption("Local Qwen planner with conversation state and optional answer synthesis. "
-                   "Other historical/team questions are not supported in this mode.")
+        st.success("Active mode: LangGraph V2 (experimental)")
+        st.caption("Simple two-team recent-form questions use deterministic Python/DuckDB routing. "
+                   "Other supported questions may invoke local Qwen.")
+    else:
+        st.warning("Active mode: Original Copilot (Qwen 4B; CPU inference may be slow)")
 
     st.markdown(
         "### AI"
@@ -3334,7 +3337,7 @@ with st.sidebar:
 
     st.write(
         f"**Model:** "
-        f"{MODEL}"
+        f"{'Qwen planner where needed; no LLM for recognised form comparisons' if use_langgraph_v2 else MODEL}"
     )
 
 

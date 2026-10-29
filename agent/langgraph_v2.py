@@ -395,6 +395,40 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     f"Model 2 {old['Model 2']['accuracy']}. "
                     f"Source: {result['historical_source']}."
                 )
+        # Deterministic comparison: no language-model inference about winners.
+        forms = []
+        for item in state["evidence"]:
+            if item["tool"] != "form_summary" or "error" in item["result"]:
+                continue
+            rows = item["result"].get("data", [])
+            if len(rows) == 1 and isinstance(rows[0], dict):
+                forms.append((item["arguments"]["team"], rows[0]))
+        if (len(forms) == 2
+                and forms[0][0] != forms[1][0]
+                and forms[0][1].get("Played") == forms[1][1].get("Played")
+                and all(all(k in row and row[k] is not None
+                            for k in ("Played", "Points", "PointsPerGame",
+                                      "GoalsFor", "GoalsAgainst"))
+                        for _, row in forms)):
+            (a, x), (b, y) = forms
+            def number(value):
+                value = float(value)
+                return str(int(value)) if value.is_integer() else f"{value:g}"
+            def edge(metric, higher=True):
+                left, right = float(x[metric]), float(y[metric])
+                if left == right:
+                    return f"Both teams have {number(left)} {metric.lower()}."
+                winner = a if (left > right) == higher else b
+                return f"{winner} leads on {metric.lower()} by {number(abs(left-right))}."
+            parts.insert(0, (
+                f"**Comparison: {a} vs {b} (last {number(x['Played'])} matches)**\\n\\n"
+                + edge("PointsPerGame") + " "
+                + edge("Points") + " "
+                + edge("GoalsFor") + " "
+                + edge("GoalsAgainst", higher=False)
+                + " Lower goals against is better; these are descriptive results, "
+                  "not a forecast or causal explanation."
+            ))
         facts = "\n\n".join(parts)
         # Earlier answers are labelled context, not fresh tool evidence.
         # This supports follow-ups even when the planner only fetches new data.

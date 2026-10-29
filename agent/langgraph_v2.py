@@ -605,12 +605,18 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 fixture_message = f"Frozen GW{mixed[0]['arguments']['gameweek']} forecast unavailable: {forecast['error']}."
             elif len(matching) == 1:
                 fixture = matching[0]
+                raw_blend = fixture.get("ShadowPredictedResult")
+                blend_pick = {
+                    "H": fixture["HomeTeam"],
+                    "D": "Draw",
+                    "A": fixture["AwayTeam"],
+                }.get(raw_blend, raw_blend or "not available")
                 fixture_message = (
                     f"**Frozen GW{forecast['gameweek']} forecast:** "
                     f"{fixture['HomeTeam']} vs {fixture['AwayTeam']}. "
                     f"Model 2 selection: **{fixture.get('PredictedResult', 'unavailable')}**. "
                     f"40/60 provisional blend selection: "
-                    f"**{fixture.get('ShadowPredictedResult') or 'not available'}**. "
+                    f"**{blend_pick}**. "
                     "This saved pre-match prediction is not an explanation of recent form."
                 )
             else:

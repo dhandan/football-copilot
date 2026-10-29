@@ -222,7 +222,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         # This skips a potentially slow local Ollama planner and uses read-only tools.
         q = state["question"]
         prior_q = next((h["question"] for h in reversed(state.get("history", []))
-                        if re.search(r"\b(compare|versus|vs)\b", h["question"], re.I)), "")
+                        if re.search(r"\b(compare|versus|vs|which of)\b", h["question"], re.I)), "")
         team_names = ("Manchester City", "Manchester United", "Liverpool",
                       "Arsenal", "Chelsea", "Man City", "Man United")
         def names_in(sentence):
@@ -234,14 +234,16 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         found.append(team)
             return found
         teams = names_in(q)
-        followup = bool(re.search(r"\b(their|both|those|that comparison)\b", q, re.I))
+        followup = bool(re.search(r"\b(their|both|those|that comparison|who|which|defensiv|better)\b", q, re.I))
         if len(teams) != 2 and followup:
             teams = names_in(prior_q)
+            if len(teams) != 2:
+                teams = names_in(" ".join(h["question"] for h in reversed(state.get("history", []))))[:2]
         requested = re.search(r"\b(?:last|past)\s+(\d+|five|ten)\s+(?:matches|games)\b", q, re.I)
         games = {"five": 5, "ten": 10}.get(requested.group(1).lower(), None) if requested else None
         if requested and games is None:
             games = int(requested.group(1))
-        is_form = bool(re.search(r"\b(form|matches|games|defensiv|comparison|compare)\b", q, re.I))
+        is_form = bool(re.search(r"\b(form|matches|games|defensiv\w*|comparison|compare|conced\w*)\b", q, re.I))
         if len(teams) == 2 and games is not None and 1 <= games <= 10 and is_form:
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],
@@ -502,6 +504,26 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 for item in state["evidence"] if item["tool"] == "form_summary"
             ]
             sources = "; ".join(dict.fromkeys(source_items))
+            defence_focus = bool(re.search(r"\\b(defens\\w*|conced\\w*|clean sheets?)\\b", state["question"], re.I))
+            if defence_focus:
+                conceded_a, conceded_b = int(x["GoalsAgainst"]), int(y["GoalsAgainst"])
+                if conceded_a == conceded_b:
+                    headline = (f"**Neither team has the defensive edge.** Both conceded "
+                                f"{conceded_a} goals across {int(x['Played'])} matches.")
+                else:
+                    better = a if conceded_a < conceded_b else b
+                    worse = b if better == a else a
+                    low, high = sorted((conceded_a, conceded_b))
+                    headline = (f"**{better} have been defensively stronger.** "
+                                f"They conceded **{low} goals**, compared with "
+                                f"**{high} for {worse}**, a difference of **{high - low}** "
+                                f"across {int(x['Played'])} matches.")
+                insight = headline
+                cols = [("Played", "Played"), ("GoalsAgainst", "Goals conceded")]
+                table = ["| Defensive metric | " + a + " | " + b + " |",
+                         "|:--|--:|--:|"]
+                table += [f"| {label} | {fmt_stat(x[key])} | {fmt_stat(y[key])} |"
+                          for key, label in cols]
             parts = [
                 f"### {a} vs {b} | Last {fmt_stat(x['Played'])} matches\n"
                 f"*Seasons: {season_scope}*\n\n"

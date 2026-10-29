@@ -318,6 +318,26 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("No Liverpool versus Arsenal fixture", result["answer"])
         self.assertIn("No fixture forecast is inferred", result["answer"])
 
+    def test_model_performance_intent_avoids_form_misroute(self):
+        result = ask("How has the 40/60 champion performed so far?",
+                     planner=lambda _: (_ for _ in ()).throw(AssertionError("planner called")))
+        self.assertEqual([e["tool"] for e in result["evidence"]], ["model_performance"])
+        self.assertIn("GW8 (10 finished matches)", result["answer"])
+
+    def test_performance_followup_recovers_previous_frozen_gameweek(self):
+        from agent.langgraph_v2 import Conversation
+        chat = Conversation(planner=lambda _: [
+            {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": 8}}
+        ])
+        chat.ask("Show me the full GW8 predictions, not just a summary",
+                 thread_id="performance-context")
+        answer = chat.ask("How does that compare with the champion's recent performance?",
+                          thread_id="performance-context")
+        self.assertEqual([e["tool"] for e in answer["evidence"]],
+                         ["frozen_gameweek_predictions", "model_performance"])
+        self.assertIn("55%", answer["answer"])
+        self.assertIn("40%", answer["answer"])
+
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch
         def invalid_team(team, games):

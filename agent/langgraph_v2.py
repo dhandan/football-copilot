@@ -234,17 +234,17 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         found.append(team)
             return found
         teams = names_in(q)
-        followup = bool(re.search(r"\b(their|both|those|that comparison|who|which|defensiv|better)\b", q, re.I))
+        followup = bool(re.search(r"\b(their|both|those|that comparison|who|which|better)\b", q, re.I) or re.search(r"\b(?:what about|how about|and over|over the last|last \d+|defen[sc]\w*)\b", q, re.I))
         if len(teams) != 2 and followup:
             teams = names_in(prior_q)
             if len(teams) != 2:
                 teams = names_in(" ".join(h["question"] for h in reversed(state.get("history", []))))[:2]
-        requested = re.search(r"\b(?:last|past)\s+(\d+|five|ten)\s+(?:matches|games)\b", q, re.I)
+        requested = re.search(r"\b(?:last|past)\s+(\d+|five|ten)(?:\s+(?:matches|games))?\b", q, re.I)
         games = {"five": 5, "ten": 10}.get(requested.group(1).lower(), None) if requested else None
         if requested and games is None:
             games = int(requested.group(1))
-        is_form = bool(re.search(r"\b(form|matches|games|defens\w*|comparison|compare|conced\w*)\b", q, re.I))
-        if len(teams) == 2 and games is not None and 1 <= games <= 10 and is_form:
+        is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|comparison|compare|conced\w*|last|past)\b", q, re.I))
+        if len(teams) == 2 and games is not None and 1 <= games <= 30 and is_form:
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],
                     "trace": ["deterministic_form_route"]}
@@ -504,7 +504,10 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 for item in state["evidence"] if item["tool"] == "form_summary"
             ]
             sources = "; ".join(dict.fromkeys(source_items))
+            recent_questions = [h["question"] for h in state.get("history", [])[-3:]]
             defence_focus = bool(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", state["question"], re.I))
+            if not defence_focus and re.search(r"\b(?:what about|how about|over the last|last \d+)\b", state["question"], re.I):
+                defence_focus = any(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", earlier, re.I) for earlier in reversed(recent_questions))
             if defence_focus:
                 conceded_a, conceded_b = int(x["GoalsAgainst"]), int(y["GoalsAgainst"])
                 if conceded_a == conceded_b:

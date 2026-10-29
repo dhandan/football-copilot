@@ -126,7 +126,7 @@ def evaluate(live=False):
             print(f"{name} turn {index+1}: {'PASS' if ok else 'FAIL'} "
                   f"{elapsed:.2f}s trace={trace}", flush=True)
     print(f"LATENCY: mean={sum(durations)/len(durations):.2f}s max={max(durations):.2f}s", flush=True)
-    print(f"RESULT: {passed}/{total} passed 
+    print(f"RESULT: {passed}/{total} passed "
           f"({'live Qwen' if live else 'offline'})", flush=True)
     return passed == total
 

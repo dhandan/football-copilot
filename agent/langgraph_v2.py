@@ -280,6 +280,20 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     "trace": ["deterministic_form_route"]}
         # Explicit model-quality questions are not requests for a team's recent form.
         # Repair the two misroutes observed in the 13-turn live Qwen acceptance.
+        # Compose explicit forecasting, performance and experiment requests before
+        # applying single-topic performance shortcuts.  Three read-only tools max.
+        mentioned_gw = re.search(r"\b(?:GW|gameweek)\s*(\d{1,2})\b", q, re.I)
+        asks_forecasts = bool(re.search(r"\b(forecast|prediction)\w*\b", q, re.I))
+        asks_performance = bool(re.search(r"\b(champion|40/60|model performance|accuracy)\b", q, re.I))
+        asks_h07 = bool(re.search(r"\bH07\b", q, re.I))
+        if mentioned_gw and asks_forecasts and asks_performance and asks_h07:
+            gw = int(mentioned_gw.group(1))
+            if 1 <= gw <= 38:
+                return {"plan": [
+                    {"name": "frozen_gameweek_predictions", "arguments": {"gameweek": gw}},
+                    {"name": "model_performance", "arguments": {}},
+                    {"name": "experiment_history", "arguments": {"experiment": "H07"}}],
+                    "trace": ["deterministic_explicit_multi_source_route"]}
         performance_intent = bool(re.search(
             r"\b(champion|40/60|model performance|model 2)\b", q, re.I
         ) and re.search(

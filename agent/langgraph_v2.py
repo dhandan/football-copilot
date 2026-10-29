@@ -47,7 +47,7 @@ class _H07Args(_Strict):
 
 class _FormArgs(_Strict):
     team: str = Field(min_length=1, max_length=80)
-    games: int = Field(ge=1, le=10)
+    games: int = Field(ge=1, le=30)
 
 
 class _EmptyArgs(_Strict):

@@ -384,7 +384,9 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         parts = []
         for item in state["evidence"]:
             result, name = item["result"], item["tool"]
-            if "error" in result:
+            if "error" in result and name == "next_meeting":
+                parts.append(f"Unable to verify the next Premier League meeting. {result['error']} Source: {result.get('source', 'FPL schedule')}.")
+            elif "error" in result:
                 parts.append(f"{name}: {result['error']}")
             elif name == "frozen_gameweek_predictions":
                 rows = result["data"]

@@ -246,7 +246,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         found.append(team)
             return found
         teams = names_in(q)
-        followup = bool(re.search(r"\b(their|both|those|that comparison|who|which|better)\b", q, re.I) or re.search(r"\b(?:what about|how about|and over|over the last|last \d+|defen[sc]\w*)\b", q, re.I))
+        followup = bool(re.search(r"\b(their|both|those|that comparison|who|which|better|they|each other)\b", q, re.I) or re.search(r"\b(?:what about|how about|and over|over the last|last \d+|defen[sc]\w*)\b", q, re.I))
         if len(teams) != 2 and followup:
             teams = names_in(prior_q)
             if len(teams) != 2:
@@ -305,7 +305,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 if fixture:
                     parts.append(
                         f"**Next Premier League meeting: {fixture['HomeTeam']} vs "
-                        f"{fixture['AwayTeam']}**\\n\\n"
+                        f"{fixture['AwayTeam']}**\n\n"
                         f"Kick-off (UTC): {fixture['KickoffUTC']}. "
                         f"Gameweek: {fixture['Gameweek']}. "
                         f"Source: {result['source']} (live fixture schedule, subject to change)."

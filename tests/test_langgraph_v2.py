@@ -78,7 +78,7 @@ class AgentGraphTests(unittest.TestCase):
                 {"name": "form_summary", "arguments": {"team": "Chelsea", "games": 5}},
             ])
         self.assertNotIn("**Comparison:", result["answer"])
-        self.assertIn("no completed-match form summary", result["answer"])
+        self.assertIn("no completed 2026/27 matches", result["answer"])
 
     def test_explicit_two_team_form_bypasses_slow_planner(self):
         from unittest.mock import patch

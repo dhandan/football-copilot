@@ -403,7 +403,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 else:
                     r = rows[0]
                     parts.append(
-                        f"**{item['arguments']['team']} recent form | 2026/27 | last {fmt(r['Played'])} matches**\n"
+                        f"**{item['arguments']['team']} recent form | {result.get('season', 'season unspecified')} | last {fmt(r['Played'])} matches**\n"
                         f"{fmt(r['Won'])} W, {fmt(r['Drawn'])} D, {fmt(r['Lost'])} L; "
                         f"{fmt(r['Points'])} points, {fmt(r['PointsPerGame'])} points per game, "
                         f"{fmt(r['GoalsFor'])} goals for, {fmt(r['GoalsAgainst'])} against. "
@@ -442,7 +442,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                             for k in ("Played", "Points", "PointsPerGame",
                                       "GoalsFor", "GoalsAgainst"))
                     and rows[0]["Played"] > 0):
-                forms.append((item["arguments"]["team"], rows[0]))
+                forms.append((item["arguments"]["team"], rows[0], item["result"].get("season", "2026/27"), item["arguments"]["games"]))
         if (len(forms) == 2
                 and forms[0][0] != forms[1][0]
                 and forms[0][1].get("Played") == forms[1][1].get("Played")
@@ -450,7 +450,11 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                             for k in ("Played", "Points", "PointsPerGame",
                                       "GoalsFor", "GoalsAgainst"))
                         for _, row in forms)):
-            (a, x), (b, y) = forms
+            (a, x, season_a, requested_a), (b, y, season_b, requested_b) = forms
+            season_label = season_a if season_a == season_b else f"{a}: {season_a}; {b}: {season_b}"
+            requested = max(requested_a, requested_b)
+            coverage = (f"Only {int(x['Played'])} of {requested} requested matches are available. "
+                        if int(x["Played"]) < requested else "")
             def number(value):
                 value = float(value)
                 return str(int(value)) if value.is_integer() else f"{value:g}"
@@ -465,8 +469,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     return f"{winner} conceded {number(abs(left-right))} fewer goals."
                 return f"{winner} leads on {labels[metric]} by {number(abs(left-right))}."
             parts.insert(0, (
-                f"**Comparison: {a} vs {b} (2026/27, last {number(x['Played'])} matches)**\n\n"
-                + edge("PointsPerGame") + " "
+                f"**Comparison: {a} vs {b} ({season_label}, last {number(x['Played'])} completed matches)**\n\n"
+                + coverage + edge("PointsPerGame") + " "
                 + edge("Points") + " "
                 + edge("GoalsFor") + " "
                 + edge("GoalsAgainst", higher=False)

@@ -301,21 +301,10 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     continue
                 args = {"experiment": "H07"}
             elif name == "next_meeting":
-                fixture = result.get("fixture")
-                if fixture:
-                    parts.append(
-                        f"**Next Premier League meeting: {fixture['HomeTeam']} vs "
-                        f"{fixture['AwayTeam']}**\n\n"
-                        f"Kick-off (UTC): {fixture['KickoffUTC']}. "
-                        f"Gameweek: {fixture['Gameweek']}. "
-                        f"Source: {result['source']} (live fixture schedule, subject to change)."
-                    )
-                else:
-                    parts.append(
-                        f"Unable to verify the next Premier League meeting. "
-                        f"{result.get('error') or result.get('note', '')} "
-                        f"Source: {result.get('source', 'FPL schedule')}."
-                    )
+                try:
+                    args = _MeetingArgs.model_validate(args).model_dump()
+                except ValidationError:
+                    continue
             elif name == "form_summary":
                 try:
                     parsed = _FormArgs.model_validate(args)
@@ -429,6 +418,22 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     f"Model 2, Log Loss {b['log_loss']} vs {a['log_loss']}, "
                     f"Brier {b['brier']} vs {a['brier']}. Source: {result['source']}."
                 )
+            elif name == "next_meeting":
+                fixture = result.get("fixture")
+                if fixture:
+                    parts.append(
+                        f"**Next Premier League meeting: {fixture['HomeTeam']} vs "
+                        f"{fixture['AwayTeam']}**\\n\\n"
+                        f"Kick-off (UTC): {fixture['KickoffUTC']}. "
+                        f"Gameweek: {fixture['Gameweek']}. "
+                        f"Source: {result['source']} (live fixture schedule, subject to change)."
+                    )
+                else:
+                    parts.append(
+                        f"Unable to verify the next Premier League meeting. "
+                        f"{result.get('error') or result.get('note', '')} "
+                        f"Source: {result.get('source', 'FPL schedule')}."
+                    )
             elif name == "form_summary":
                 def fmt(value):
                     n = float(value)
@@ -580,6 +585,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             prior = previous[0]
             synthesis_facts += ("\n\nPrevious turn (context, not newly evaluated): "
                       + prior["question"] + "\n" + prior["answer"][:900])
+        if any(item["tool"] == "next_meeting" for item in state["evidence"]):
+            return {**save(facts), "trace": [*state["trace"], "fixture_facts_preserved"]}
         if any(item["tool"] == "form_summary" for item in state["evidence"]):
             return {**save(facts), "trace": [*state["trace"], "form_facts_preserved"]}
         if synthesizer is None:

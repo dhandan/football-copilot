@@ -95,18 +95,33 @@ def _current_season_form(team: str, games: int):
             if team == home or team == away:
                 gf, ga = (int(hg), int(ag)) if team == home else (int(ag), int(hg))
                 all_matches.append((str(row["FixtureDate"]), gf, ga, key))
+    # Fill an incomplete current-season window using completed 2025/26 matches.
+    # Historical analytics data is read-only and must precede 2026/27 results.
+    if len(all_matches) < games:
+        try:
+            historical = get_team_form(team, games)
+            for _, row in historical.iterrows():
+                if str(row["Season"]) != "2025/26":
+                    continue
+                gf, ga = int(row["GoalsFor"]), int(row["GoalsAgainst"])
+                date = str(row["Date"])[:10]
+                all_matches.append((date, gf, ga, ("2025/26", date, str(row["Opponent"]))))
+        except ValueError:
+            # Newly promoted sides may not have a 2025/26 Premier League record.
+            pass
     all_matches.sort(key=lambda item: (item[0], item[3]), reverse=True)
     matches = all_matches[:games]
     if not matches:
         return {"type": "form_summary", "season": "2026/27",
                 "source": "data/live/results/2026_27_gw??_results.csv",
                 "requested_games": games, "data": []}
+    seasons = sorted({"2025/26" if m[0] < "2026-07-01" else "2026/27" for m in matches}, reverse=True)
     wins = sum(gf > ga for _, gf, ga, _ in matches)
     draws = sum(gf == ga for _, gf, ga, _ in matches)
     losses = len(matches) - wins - draws
     points = 3 * wins + draws
-    return {"type": "form_summary", "season": "2026/27",
-            "source": "data/live/results/2026_27_gw??_results.csv",
+    return {"type": "form_summary", "season": ", ".join(seasons),
+            "source": "verified 2026/27 gameweek results snapshots and 2025/26 DuckDB team_match_stats",
             "requested_games": games,
             "data": [{"Played": len(matches), "Won": wins, "Drawn": draws,
                       "Lost": losses, "Points": points,

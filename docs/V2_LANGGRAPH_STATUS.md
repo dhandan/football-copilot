@@ -125,3 +125,6 @@ User requested a much clearer information hierarchy rather than repetitive parag
 
 ### Defensive intent / conversational follow-up correction — 29 October 2026
 User's live V2 session showed generic eight-stat comparisons even for explicit defensive questions, then one-team-only fallback after repeated requests. Fix added intent-specific defensive answer using goals conceded, restricted defensive table, and improved restoration of two-team context from earlier user turns without calling Qwen for recognised recent-form requests. Both 'defence' and 'defensively' wording targeted. Regression test added for successive defensive follow-ups. **Not yet locally verified.** No forecast changes.
+
+### Variable-window conversational defence follow-ups — 29 October 2026
+Live V2 demonstrated correct defensive 10-match comparison but failures for 'what about over the last 15 matches?' (returned 10) and 'what about over the last 5' (single-team form). Updated deterministic planner to handle follow-up phrasing, inherit two-team context, support 1–30 matches through FormArgs validation and retain defensive focus on continuation. Added 15/5 follow-up regression test. **Pending local tests and Streamlit check.** Verified current-season results plus historical DB remain read-only; GW forecasts unchanged.

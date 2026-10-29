@@ -178,6 +178,36 @@ class AgentGraphTests(unittest.TestCase):
             self.assertIn("13 for Liverpool", response["answer"])
             self.assertNotIn("**Key differences**\\n\\nArsenal leads on points", response["answer"])
 
+    def test_fifteen_match_defensive_followup_retains_two_teams(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+        def fake_form(team, games):
+            return {"season": "2026/27, 2025/26",
+                    "source": "verified results",
+                    "data": [{"Played": games, "Won": 5, "Drawn": 3,
+                              "Lost": games - 8, "Points": 18,
+                              "PointsPerGame": round(18 / games, 2),
+                              "GoalsFor": 16,
+                              "GoalsAgainst": 13 if team == "Liverpool" else 6}]}
+        def fail_planner(_):
+            raise AssertionError("Follow-up should bypass LLM")
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            chat = Conversation(planner=fail_planner)
+            chat.ask("Compare Liverpool and Arsenal over their last 10 matches",
+                     thread_id="15follow")
+            chat.ask("Who has been defensively better over those 10 matches?",
+                     thread_id="15follow")
+            fifteen = chat.ask("what about over the last 15 matches???",
+                               thread_id="15follow")
+            five = chat.ask("what about over the last 5",
+                            thread_id="15follow")
+        for answer, games in ((fifteen, 15), (five, 5)):
+            self.assertEqual({item["arguments"]["team"] for item in answer["evidence"]},
+                             {"Liverpool", "Arsenal"})
+            self.assertEqual({item["arguments"]["games"] for item in answer["evidence"]},
+                             {games})
+            self.assertIn("Arsenal have been defensively stronger", answer["answer"])
+
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch
         def invalid_team(team, games):

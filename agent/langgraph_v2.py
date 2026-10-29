@@ -6,6 +6,7 @@ No model writes, hidden retries, paid providers, or answer-generation LLM loop.
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 from typing import Annotated, Callable, Literal, TypedDict, Union
@@ -435,7 +436,12 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             if item["tool"] != "form_summary" or "error" in item["result"]:
                 continue
             rows = item["result"].get("data", [])
-            if len(rows) == 1 and isinstance(rows[0], dict):
+            if (len(rows) == 1 and isinstance(rows[0], dict)
+                    and all(isinstance(rows[0].get(k), (int, float))
+                            and math.isfinite(float(rows[0][k]))
+                            for k in ("Played", "Points", "PointsPerGame",
+                                      "GoalsFor", "GoalsAgainst"))
+                    and rows[0]["Played"] > 0):
                 forms.append((item["arguments"]["team"], rows[0]))
         if (len(forms) == 2
                 and forms[0][0] != forms[1][0]

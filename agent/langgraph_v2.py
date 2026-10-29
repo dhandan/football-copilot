@@ -262,6 +262,18 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         if requested and games is None:
             games = int(requested.group(1))
         is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|comparison|compare|conced\w*|last|past|those|these)\b", q, re.I))
+        gw_match = re.search(r"\\b(?:GW|gameweek)\\s*(\\d{1,2})\\b", q, re.I)
+        forecast_intent = bool(re.search(r"\\b(forecast|prediction|predicted)\\w*\\b", q, re.I))
+        if (len(teams) == 2 and games is not None and 1 <= games <= 30
+                and is_form and gw_match and forecast_intent):
+            gw = int(gw_match.group(1))
+            if 1 <= gw <= 38:
+                return {"plan": [
+                    {"name": "form_summary", "arguments": {"team": team, "games": games}}
+                    for team in teams
+                ] + [{"name": "frozen_gameweek_predictions",
+                       "arguments": {"gameweek": gw}}],
+                        "trace": ["deterministic_multi_tool_form_forecast_route"]}
         if len(teams) == 2 and games is not None and 1 <= games <= 30 and is_form:
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],
@@ -577,6 +589,48 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 + "\n".join(table) + "\n\n"
                 + f"**{a} recent form** and **{b} recent form** are compared above.\n"
                 + f"*Source: {sources}. Completed Premier League results, not predictions.*"
+            ]
+        # A three-tool response should answer the requested fixture, not dump ten unrelated forecasts.
+        mixed = [e for e in state["evidence"] if e["tool"] == "frozen_gameweek_predictions"]
+        if len(forms) == 2 and len(mixed) == 1:
+            (a, x, sa, req_a), (b, y, sb, req_b) = forms
+            forecast = mixed[0]["result"]
+            fixtures = forecast.get("data", [])
+            matching = [f for f in fixtures
+                        if {f.get("HomeTeam"), f.get("AwayTeam")} == {a, b}]
+            def display_num(n):
+                n = float(n)
+                return str(int(n)) if n.is_integer() else f"{n:g}"
+            if "error" in forecast:
+                fixture_message = f"Frozen GW{mixed[0]['arguments']['gameweek']} forecast unavailable: {forecast['error']}."
+            elif len(matching) == 1:
+                fixture = matching[0]
+                fixture_message = (
+                    f"**Frozen GW{forecast['gameweek']} forecast:** "
+                    f"{fixture['HomeTeam']} vs {fixture['AwayTeam']}. "
+                    f"Model 2 selection: **{fixture.get('PredictedResult', 'unavailable')}**. "
+                    f"40/60 provisional blend selection: "
+                    f"**{fixture.get('ShadowPredictedResult') or 'not available'}**. "
+                    "This saved pre-match prediction is not an explanation of recent form."
+                )
+            else:
+                fixture_message = (
+                    f"**No {a} versus {b} fixture** appears in the frozen "
+                    f"GW{forecast.get('gameweek', mixed[0]['arguments']['gameweek'])} "
+                    "snapshot. No fixture forecast is inferred."
+                )
+            parts = [
+                f"### {a} vs {b}: recent form and frozen forecast\\n\\n"
+                f"**Recent completed league matches:** last {display_num(x['Played'])} "
+                f"for {a} and {display_num(y['Played'])} for {b}.\\n\\n"
+                f"| Metric | {a} | {b} |\\n|---|---:|---:|\\n"
+                f"| Points per game | {display_num(x['PointsPerGame'])} | {display_num(y['PointsPerGame'])} |\\n"
+                f"| Goals scored | {display_num(x['GoalsFor'])} | {display_num(y['GoalsFor'])} |\\n"
+                f"| Goals conceded | {display_num(x['GoalsAgainst'])} | {display_num(y['GoalsAgainst'])} |\\n\\n"
+                + fixture_message + "\\n\\n"
+                + f"*Form seasons: {sa if sa == sb else sa + '; ' + sb}. "
+                f"Form source: {state['evidence'][0]['result'].get('source', 'historical data')}. "
+                f"Forecast source: {forecast.get('source', 'unavailable')}.*"
             ]
         facts = "\n\n".join(parts)
         # Earlier answers are labelled context, not fresh tool evidence.

@@ -425,7 +425,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 if fixture:
                     parts.append(
                         f"**Next Premier League meeting: {fixture['HomeTeam']} vs "
-                        f"{fixture['AwayTeam']}**\\n\\n"
+                        f"{fixture['AwayTeam']}**\n\n"
                         f"Kick-off (UTC): {fixture['KickoffUTC']}. "
                         f"Gameweek: {fixture['Gameweek']}. "
                         f"Source: {result['source']} (live fixture schedule, subject to change)."

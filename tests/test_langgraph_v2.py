@@ -230,6 +230,22 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("fixture-test-source", result["answer"])
         self.assertNotIn("GW1 frozen forecasts", result["answer"])
 
+    def test_next_meeting_unavailable_is_honest(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+        with patch.dict("agent.langgraph_v2.ALLOWED", {
+            "next_meeting": lambda **kwargs: {
+                "fixture": None, "source": "FPL schedule",
+                "error": "Fixture schedule unavailable (Timeout)."
+            }}):
+            chat = Conversation(planner=lambda _: [])
+            chat.ask("Compare Liverpool and Arsenal over their last 10 matches",
+                     thread_id="missing-fixture")
+            result = chat.ask("when are they playing each other next?",
+                              thread_id="missing-fixture")
+        self.assertIn("Unable to verify", result["answer"])
+        self.assertNotIn("GW1 frozen forecasts", result["answer"])
+
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch
         def invalid_team(team, games):

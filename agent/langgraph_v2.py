@@ -217,6 +217,34 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         # Actual tool permissions remain read-only regardless of this check.
         if re.search(r"\b(delete|erase|wipe|remove|overwrite|retrain|drop|destroy)\b", state["question"], re.I):
             return {"plan": [], "trace": ["rejected_destructive_intent"]}
+        # Fast, bounded deterministic route for clearly identified two-team form.
+        # This skips a potentially slow local Ollama planner and uses read-only tools.
+        q = state["question"]
+        prior_q = next((h["question"] for h in reversed(state.get("history", []))
+                        if re.search(r"\\b(compare|versus|vs)\\b", h["question"], re.I)), "")
+        team_names = ("Manchester City", "Manchester United", "Liverpool",
+                      "Arsenal", "Chelsea", "Man City", "Man United")
+        def names_in(sentence):
+            found = []
+            for label in team_names:
+                if re.search(r"(?<!\\w)" + re.escape(label) + r"(?!\\w)", sentence, re.I):
+                    team = TEAM_ALIASES.get(label.lower(), label)
+                    if team not in found:
+                        found.append(team)
+            return found
+        teams = names_in(q)
+        followup = bool(re.search(r"\\b(their|both|those|that comparison)\\b", q, re.I))
+        if len(teams) != 2 and followup:
+            teams = names_in(prior_q)
+        requested = re.search(r"\\b(?:last|past)\\s+(\\d+|five|ten)\\s+(?:matches|games)\\b", q, re.I)
+        games = {"five": 5, "ten": 10}.get(requested.group(1).lower(), None) if requested else None
+        if requested and games is None:
+            games = int(requested.group(1))
+        is_form = bool(re.search(r"\\b(form|matches|games|defensiv|comparison|compare)\\b", q, re.I))
+        if len(teams) == 2 and games is not None and 1 <= games <= 10 and is_form:
+            return {"plan": [{"name": "form_summary",
+                               "arguments": {"team": team, "games": games}} for team in teams],
+                    "trace": ["deterministic_form_route"]}
         try:
             previous = state.get("history", [])[-2:]
             context = "\n".join(
@@ -374,7 +402,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 else:
                     r = rows[0]
                     parts.append(
-                        f"**{item['arguments']['team']} | 2026/27 | last {fmt(r['Played'])} matches**\\n"
+                        f"**{item['arguments']['team']} recent form | 2026/27 | last {fmt(r['Played'])} matches**\n"
                         f"{fmt(r['Won'])} wins, {fmt(r['Drawn'])} draws, {fmt(r['Lost'])} losses; "
                         f"{fmt(r['Points'])} points, {fmt(r['PointsPerGame'])} points per game, "
                         f"{fmt(r['GoalsFor'])} goals for, {fmt(r['GoalsAgainst'])} against. "
@@ -431,7 +459,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     return f"{winner} conceded {number(abs(left-right))} fewer goals."
                 return f"{winner} leads on {labels[metric]} by {number(abs(left-right))}."
             parts.insert(0, (
-                f"**2026/27 comparison: {a} vs {b} (last {number(x['Played'])} matches)**\n\n"
+                f"**Comparison: {a} vs {b} (2026/27, last {number(x['Played'])} matches)**\n\n"
                 + edge("PointsPerGame") + " "
                 + edge("Points") + " "
                 + edge("GoalsFor") + " "

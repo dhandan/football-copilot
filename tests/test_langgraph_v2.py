@@ -275,6 +275,28 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("immutable fixture test", result["answer"])
         self.assertNotIn("GW9 frozen forecasts (10 fixtures)", result["answer"])
 
+    def test_real_gw8_chelsea_tottenham_multi_tool(self):
+        from unittest.mock import patch
+        from agent.football_tools import frozen_gameweek_predictions
+        def fake_form(team, games):
+            return {"season": "2026/27", "source": "test form results",
+                    "data": [{"Played": games, "Won": 2, "Drawn": 1, "Lost": 2,
+                              "Points": 7, "PointsPerGame": 1.4,
+                              "GoalsFor": 6, "GoalsAgainst": 5}]}
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            result = ask(
+                "Compare Chelsea and Tottenham's last 5 matches with the GW8 frozen prediction",
+                planner=lambda _: (_ for _ in ()).throw(AssertionError("planner called")),
+            )
+        self.assertEqual([e["tool"] for e in result["evidence"]],
+                         ["form_summary", "form_summary", "frozen_gameweek_predictions"])
+        fixture = next(row for row in frozen_gameweek_predictions(8)["data"]
+                       if {row["HomeTeam"], row["AwayTeam"]} == {"Chelsea", "Tottenham"})
+        self.assertIn("Chelsea vs Tottenham", result["answer"])
+        self.assertIn(str(fixture["PredictedResult"]), result["answer"])
+        self.assertNotIn("No Chelsea versus Tottenham fixture", result["answer"])
+        self.assertNotIn("GW8 frozen forecasts (10 fixtures)", result["answer"])
+
     def test_multi_tool_refuses_to_infer_missing_fixture(self):
         from unittest.mock import patch
         def fake_form(team, games):

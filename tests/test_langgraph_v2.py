@@ -246,6 +246,54 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("Unable to verify", result["answer"])
         self.assertNotIn("GW1 frozen forecasts", result["answer"])
 
+    def test_multi_tool_form_and_frozen_fixture_is_grounded(self):
+        from unittest.mock import patch
+        def fake_form(team, games):
+            return {"type": "form_summary", "season": "2026/27",
+                    "source": "verified completed results",
+                    "data": [{"Played": games, "Won": 3, "Drawn": 1, "Lost": 1,
+                              "Points": 10, "PointsPerGame": 2,
+                              "GoalsFor": 8 if team == "Liverpool" else 7,
+                              "GoalsAgainst": 4}]}
+        def fake_forecast(gameweek):
+            return {"gameweek": gameweek, "source": "immutable fixture test",
+                    "data": [{"HomeTeam": "Arsenal", "AwayTeam": "Liverpool",
+                              "PredictedResult": "Arsenal",
+                              "ShadowPredictedResult": "Liverpool"}]}
+        with patch.dict("agent.langgraph_v2.ALLOWED", {
+            "form_summary": fake_form,
+            "frozen_gameweek_predictions": fake_forecast,
+        }):
+            result = ask(
+                "Compare Liverpool and Arsenal's last 5 matches and the GW9 frozen prediction",
+                planner=lambda _: (_ for _ in ()).throw(AssertionError("slow planner called")),
+            )
+        self.assertEqual([e["tool"] for e in result["evidence"]],
+                         ["form_summary", "form_summary", "frozen_gameweek_predictions"])
+        self.assertIn("Model 2 selection: **Arsenal**", result["answer"])
+        self.assertIn("40/60 provisional blend selection: **Liverpool**", result["answer"])
+        self.assertIn("immutable fixture test", result["answer"])
+        self.assertNotIn("GW9 frozen forecasts (10 fixtures)", result["answer"])
+
+    def test_multi_tool_refuses_to_infer_missing_fixture(self):
+        from unittest.mock import patch
+        def fake_form(team, games):
+            return {"season": "2026/27", "source": "verified results",
+                    "data": [{"Played": games, "Won": 2, "Drawn": 2, "Lost": 1,
+                              "Points": 8, "PointsPerGame": 1.6,
+                              "GoalsFor": 5, "GoalsAgainst": 5}]}
+        with patch.dict("agent.langgraph_v2.ALLOWED", {
+            "form_summary": fake_form,
+            "frozen_gameweek_predictions": lambda gameweek: {
+                "gameweek": gameweek, "source": "frozen sample",
+                "data": [{"HomeTeam": "Chelsea", "AwayTeam": "Arsenal",
+                          "PredictedResult": "Chelsea"}]},
+        }):
+            result = ask("Compare Liverpool and Arsenal last 5 matches with GW8 predictions",
+                         planner=lambda _: [])
+        self.assertIn("No Liverpool versus Arsenal fixture", result["answer"])
+        self.assertIn("No fixture forecast is inferred", result["answer"])
+
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch
         def invalid_team(team, games):

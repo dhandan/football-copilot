@@ -294,6 +294,8 @@ class AgentGraphTests(unittest.TestCase):
                        if {row["HomeTeam"], row["AwayTeam"]} == {"Chelsea", "Tottenham"})
         self.assertIn("Chelsea vs Tottenham", result["answer"])
         self.assertIn(str(fixture["PredictedResult"]), result["answer"])
+        self.assertIn("40/60 provisional blend selection: **Chelsea**", result["answer"])
+        self.assertNotIn("blend selection: **H**", result["answer"])
         self.assertNotIn("No Chelsea versus Tottenham fixture", result["answer"])
         self.assertNotIn("GW8 frozen forecasts (10 fixtures)", result["answer"])
 

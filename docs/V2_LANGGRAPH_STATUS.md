@@ -161,3 +161,10 @@ User's local run at `fe4b25d` produced 42/44 passes; existing `test_conversation
 
 ### Second live Qwen acceptance and explicit multi-source repair — 29 October 2026
 User's rerun improved to **12/13 live PASS**, mean **11.42 s**, maximum **40.49 s** (previous 11/13, mean 9.05 s, maximum 50.31 s). Both prior misroutes were repaired. The remaining `multi_source` question, 'Compare the GW8 predictions, champion accuracy and H07 results', was intercepted by the performance-only shortcut, yielding only `model_performance`. Added a narrow explicit three-source route ahead of the single-topic shortcut, invoking immutable GW8 forecast, performance and H07 history (three-tool cap); regression added (`fb1d1a8`, `b5eb86a`). **Local test and live Qwen rerun pending.** The improved acceptance does not establish better average latency, and synthesis rejections continue to fall back to factual tool output. No forecast/data writes or model changes; existing issue #11 remains In Progress.
+
+
+### Live V2 acceptance milestone — 29 October 2026
+
+**User-verified:** 45/45 local unit tests passed. The 13-turn conversational suite passed **13/13 with local Qwen** following the explicit multi-source tool-selection fix. Average live end-to-end latency was **10.85 seconds**, maximum **40.20 seconds**. The three-source question correctly called `frozen_gameweek_predictions`, `model_performance`, and `experiment_history`. Several generated synthesis attempts were rejected by grounding validation, and the deterministic tool-backed fallback preserved the evidence. The offline 13/13 baseline remains separately verified. This is a **focused acceptance milestone**, not proof of general reliability or readiness to promote the default chatbot.
+
+**Still outstanding within #11:** grounded synthesis quality without frequent rejected responses, realistic latency profiling/improvements, README demo and trade-offs, and explicit promotion-readiness assessment. Keep V2 opt-in, £0 recurring spend and forecast governance unchanged.

@@ -33,7 +33,7 @@ ALLOWED = {
     "next_meeting": next_meeting,
 }
 MAX_TOOLS = 3
-TEAM_ALIASES = {'manchester city': 'Man City', 'manchester united': 'Man United'}
+TEAM_ALIASES = {'manchester city': 'Man City', 'manchester united': 'Man United', 'spurs': 'Tottenham'}
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -236,7 +236,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         prior_q = next((h["question"] for h in reversed(state.get("history", []))
                         if re.search(r"\b(compare|versus|vs|which of)\b", h["question"], re.I)), "")
         team_names = ("Manchester City", "Manchester United", "Liverpool",
-                      "Arsenal", "Chelsea", "Man City", "Man United")
+                      "Arsenal", "Chelsea", "Tottenham", "Spurs", "Man City", "Man United")
         def names_in(sentence):
             found = []
             for label in team_names:
@@ -337,7 +337,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             # evidence when available; otherwise resolve explicit known names.
             names = []
             for label in ("Manchester City", "Manchester United", "Liverpool",
-                          "Arsenal", "Chelsea", "Man City", "Man United"):
+                          "Arsenal", "Chelsea", "Tottenham", "Spurs", "Man City", "Man United"):
                 if re.search(r"(?<!\w)" + re.escape(label) + r"(?!\w)", prior, re.I):
                     canonical = TEAM_ALIASES.get(label.lower(), label)
                     if canonical not in names:

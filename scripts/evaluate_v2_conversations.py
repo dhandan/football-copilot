@@ -34,6 +34,20 @@ SCENARIOS = [
           P("model_performance"), P("experiment_history", experiment="H07")],
          ("fixture_rows", "performance", "h07")),
     ]),
+    ("cross_season_defensive_followup", [
+        ("Compare Liverpool and Arsenal over their last 10 matches",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)], ("form_pair",)),
+        ("Who has been defensively better over those 10 matches?",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)], ("form_pair", "defence")),
+        ("What about over the last 15 matches?",
+         [P("form_summary", team="Liverpool", games=15),
+          P("form_summary", team="Arsenal", games=15)], ("form_pair", "defence")),
+        ("What about over the last 5?",
+         [P("form_summary", team="Liverpool", games=5),
+          P("form_summary", team="Arsenal", games=5)], ("form_pair", "defence")),
+    ]),
     ("out_of_scope", [
         ("Can you tell me today's weather in London?", [], ("unsupported",)),
     ]),
@@ -45,6 +59,7 @@ SCENARIOS = [
 def evaluate(live=False):
     total = sum(len(turns) for _, turns in SCENARIOS)
     passed = 0
+    durations = []
     for name, turns in SCENARIOS:
         # Offline fixed plans still exercise the LangGraph checkpoint and real tools.
         turn_index = [0]
@@ -78,6 +93,22 @@ def evaluate(live=False):
                     ok &= "55%" in answer and "40%" in answer
                 if "h07" in checks:
                     ok &= "H07" in answer and any(word in answer.lower() for word in ("parked", "rejected", "underperformed", "did not outperform"))
+                if "form_pair" in checks:
+                    form = [e for e in result["evidence"] if e["tool"] == "form_summary"]
+                    ok &= len(form) == 2
+                    if len(form) == 2:
+                        ok &= all(e["result"].get("data") and
+                                  e["result"]["data"][0].get("Played") == e["arguments"]["games"]
+                                  for e in form)
+                        ok &= all(e["result"].get("source") for e in form)
+                        if "defence" in checks and all(e["result"].get("data") for e in form):
+                            a, b = (e["result"]["data"][0]["GoalsAgainst"] for e in form)
+                            expected_winner = ("Neither team" if a == b else
+                                               form[0]["arguments"]["team"] if a < b else
+                                               form[1]["arguments"]["team"])
+                            ok &= expected_winner in answer
+                            ok &= str(abs(a - b)) in answer or a == b
+                            ok &= "Goals conceded" in answer
                 if "unsupported" in checks:
                     ok &= not result["evidence"]
                 if "rejected" in checks:
@@ -91,9 +122,11 @@ def evaluate(live=False):
                 print(f"  DIAGNOSTIC answer={answer[:600]!r}" if "answer" in locals() else "  DIAGNOSTIC no answer", flush=True)
             passed += bool(ok)
             elapsed = time.perf_counter() - start
+            durations.append(elapsed)
             print(f"{name} turn {index+1}: {'PASS' if ok else 'FAIL'} "
                   f"{elapsed:.2f}s trace={trace}", flush=True)
-    print(f"RESULT: {passed}/{total} passed "
+    print(f"LATENCY: mean={sum(durations)/len(durations):.2f}s max={max(durations):.2f}s", flush=True)
+    print(f"RESULT: {passed}/{total} passed 
           f"({'live Qwen' if live else 'offline'})", flush=True)
     return passed == total
 

@@ -504,7 +504,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 for item in state["evidence"] if item["tool"] == "form_summary"
             ]
             sources = "; ".join(dict.fromkeys(source_items))
-            defence_focus = bool(re.search(r"\\b(defens\\w*|conced\\w*|clean sheets?)\\b", state["question"], re.I))
+            defence_focus = bool(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", state["question"], re.I))
             if defence_focus:
                 conceded_a, conceded_b = int(x["GoalsAgainst"]), int(y["GoalsAgainst"])
                 if conceded_a == conceded_b:

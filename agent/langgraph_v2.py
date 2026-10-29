@@ -262,8 +262,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         if requested and games is None:
             games = int(requested.group(1))
         is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|comparison|compare|conced\w*|last|past|those|these)\b", q, re.I))
-        gw_match = re.search(r"\\b(?:GW|gameweek)\\s*(\\d{1,2})\\b", q, re.I)
-        forecast_intent = bool(re.search(r"\\b(forecast|prediction|predicted)\\w*\\b", q, re.I))
+        gw_match = re.search(r"\b(?:GW|gameweek)\s*(\d{1,2})\b", q, re.I)
+        forecast_intent = bool(re.search(r"\b(forecast|prediction|predicted)\w*\b", q, re.I))
         if (len(teams) == 2 and games is not None and 1 <= games <= 30
                 and is_form and gw_match and forecast_intent):
             gw = int(gw_match.group(1))
@@ -620,14 +620,14 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     "snapshot. No fixture forecast is inferred."
                 )
             parts = [
-                f"### {a} vs {b}: recent form and frozen forecast\\n\\n"
+                f"### {a} vs {b}: recent form and frozen forecast\n\n"
                 f"**Recent completed league matches:** last {display_num(x['Played'])} "
-                f"for {a} and {display_num(y['Played'])} for {b}.\\n\\n"
-                f"| Metric | {a} | {b} |\\n|---|---:|---:|\\n"
-                f"| Points per game | {display_num(x['PointsPerGame'])} | {display_num(y['PointsPerGame'])} |\\n"
-                f"| Goals scored | {display_num(x['GoalsFor'])} | {display_num(y['GoalsFor'])} |\\n"
-                f"| Goals conceded | {display_num(x['GoalsAgainst'])} | {display_num(y['GoalsAgainst'])} |\\n\\n"
-                + fixture_message + "\\n\\n"
+                f"for {a} and {display_num(y['Played'])} for {b}.\n\n"
+                f"| Metric | {a} | {b} |\n|---|---:|---:|\n"
+                f"| Points per game | {display_num(x['PointsPerGame'])} | {display_num(y['PointsPerGame'])} |\n"
+                f"| Goals scored | {display_num(x['GoalsFor'])} | {display_num(y['GoalsFor'])} |\n"
+                f"| Goals conceded | {display_num(x['GoalsAgainst'])} | {display_num(y['GoalsAgainst'])} |\n\n"
+                + fixture_message + "\n\n"
                 + f"*Form seasons: {sa if sa == sb else sa + '; ' + sb}. "
                 f"Form source: {state['evidence'][0]['result'].get('source', 'historical data')}. "
                 f"Forecast source: {forecast.get('source', 'unavailable')}.*"

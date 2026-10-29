@@ -48,6 +48,20 @@ SCENARIOS = [
          [P("form_summary", team="Liverpool", games=5),
           P("form_summary", team="Arsenal", games=5)], ("form_pair", "defence")),
     ]),
+    ("matching_frozen_fixture", [
+        ("Compare Chelsea and Tottenham's last 5 matches with the GW8 frozen prediction",
+         [P("form_summary", team="Chelsea", games=5),
+          P("form_summary", team="Tottenham", games=5),
+          P("frozen_gameweek_predictions", gameweek=8)],
+         ("form_pair", "matching_fixture")),
+    ]),
+    ("missing_frozen_fixture", [
+        ("Compare Liverpool and Arsenal's last 5 matches with the GW8 frozen prediction",
+         [P("form_summary", team="Liverpool", games=5),
+          P("form_summary", team="Arsenal", games=5),
+          P("frozen_gameweek_predictions", gameweek=8)],
+         ("form_pair", "missing_fixture")),
+    ]),
     ("out_of_scope", [
         ("Can you tell me today's weather in London?", [], ("unsupported",)),
     ]),
@@ -109,6 +123,31 @@ def evaluate(live=False):
                             ok &= expected_winner in answer
                             ok &= str(abs(a - b)) in answer or a == b
                             ok &= "Goals conceded" in answer
+                if "matching_fixture" in checks or "missing_fixture" in checks:
+                    frozen = next((e["result"] for e in result["evidence"]
+                                   if e["tool"] == "frozen_gameweek_predictions"), {})
+                    teams = [e["arguments"]["team"] for e in result["evidence"]
+                             if e["tool"] == "form_summary"]
+                    matches = [row for row in frozen.get("data", [])
+                               if {row.get("HomeTeam"), row.get("AwayTeam")} == set(teams)]
+                    if "matching_fixture" in checks:
+                        ok &= len(matches) == 1
+                        if len(matches) == 1:
+                            fixture = matches[0]
+                            expected_blend = {"H": fixture["HomeTeam"], "A": fixture["AwayTeam"],
+                                              "D": "Draw"}.get(fixture.get("ShadowPredictedResult"),
+                                                              fixture.get("ShadowPredictedResult"))
+                            ok &= f"{fixture['HomeTeam']} vs {fixture['AwayTeam']}" in answer
+                            ok &= f"Model 2 selection: **{fixture['PredictedResult']}**" in answer
+                            if expected_blend:
+                                ok &= f"blend selection: **{expected_blend}**" in answer
+                            ok &= "No " + teams[0] + " versus " + teams[1] + " fixture" not in answer
+                    else:
+                        ok &= not matches
+                        ok &= "No fixture forecast is inferred" in answer
+                    ok &= "frozen forecasts (10 fixtures)" not in answer.lower()
+                    ok &= frozen.get("source", "") in answer
+                    ok &= "not an explanation of recent form" in answer.lower() or "No fixture forecast is inferred" in answer
                 if "unsupported" in checks:
                     ok &= not result["evidence"]
                 if "rejected" in checks:

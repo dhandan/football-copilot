@@ -293,7 +293,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             comparison_followup = bool(re.search(
                 r"\b(how does that compare|compare with|compared with)\b", q, re.I
             ))
-            if comparison_followup and prior_forecast:
+            if comparison_followup and prior_forecast and "recent performance" in q.lower():
                 gw = next((
                     int(m.group(1)) for h in reversed(state.get("history", [])[-2:])
                     if (m := re.search(r"\b(?:GW|gameweek)\s*(\d+)\b", h["question"], re.I))

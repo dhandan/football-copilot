@@ -285,7 +285,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         ) and re.search(
             r"\b(performed|performance|accuracy|accurate|log loss|brier)\b", q, re.I
         ))
-        if performance_intent:
+        if performance_intent and not (re.search(r"\bhow does that compare\b", q, re.I) and "recent performance" not in q.lower()):
             prior_forecast = any(
                 re.search(r"\b(?:GW|gameweek)\s*\d+\b", h["question"], re.I)
                 for h in state.get("history", [])[-2:]

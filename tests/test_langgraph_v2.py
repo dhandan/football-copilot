@@ -59,8 +59,8 @@ class AgentGraphTests(unittest.TestCase):
                 {"name": "form_summary", "arguments": {"team": "Chelsea", "games": 5}},
             ], synthesizer=lambda *_: "Chelsea is better, without evidence.")
         answer = result["answer"]
-        self.assertIn("Man City leads on pointspergame by 0.8", answer)
-        self.assertIn("Man City leads on goalsagainst by 4", answer)
+        self.assertIn("Man City leads on points per game by 0.8", answer)
+        self.assertIn("Man City leads on goals conceded by 4", answer)
         self.assertNotIn("Chelsea is better", answer)
         self.assertIn("form_facts_preserved", result["trace"])
 

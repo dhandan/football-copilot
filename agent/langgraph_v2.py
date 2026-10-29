@@ -309,7 +309,10 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         for call in state["plan"]:
             name = call["name"]
             try:
-                result = ALLOWED[name](**call["arguments"])
+                if name == "form_summary" and ALLOWED[name] is form_summary:
+                    result = ALLOWED[name](**call["arguments"], season="2026/27")
+                else:
+                    result = ALLOWED[name](**call["arguments"])
             except Exception as exc:
                 result = {"error": f"Tool execution failed: {type(exc).__name__}: {exc}" if isinstance(exc, ValueError) else f"Tool execution failed: {type(exc).__name__}"}
             evidence.append({"tool": name, "arguments": call["arguments"], "result": result})
@@ -367,11 +370,11 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     return str(int(n)) if n.is_integer() else f"{n:g}"
                 rows = result.get("data", [])
                 if len(rows) != 1 or not isinstance(rows[0], dict) or not rows[0].get("Played"):
-                    parts.append(f"{item['arguments']['team']}: no completed-match form summary available.")
+                    parts.append(f"{item['arguments']['team']}: no completed 2026/27 matches available in the local DuckDB database. Current-season form cannot be verified; historical form has not been substituted.")
                 else:
                     r = rows[0]
                     parts.append(
-                        f"{item['arguments']['team']} recent form (last {fmt(r['Played'])} matches): "
+                        f"**{item['arguments']['team']} | 2026/27 | last {fmt(r['Played'])} matches**\\n"
                         f"{fmt(r['Won'])} wins, {fmt(r['Drawn'])} draws, {fmt(r['Lost'])} losses; "
                         f"{fmt(r['Points'])} points, {fmt(r['PointsPerGame'])} points per game, "
                         f"{fmt(r['GoalsFor'])} goals for, {fmt(r['GoalsAgainst'])} against. "
@@ -428,7 +431,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     return f"{winner} conceded {number(abs(left-right))} fewer goals."
                 return f"{winner} leads on {labels[metric]} by {number(abs(left-right))}."
             parts.insert(0, (
-                f"**Comparison: {a} vs {b} (last {number(x['Played'])} matches)**\n\n"
+                f"**2026/27 comparison: {a} vs {b} (last {number(x['Played'])} matches)**\n\n"
                 + edge("PointsPerGame") + " "
                 + edge("Points") + " "
                 + edge("GoalsFor") + " "

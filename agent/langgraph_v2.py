@@ -243,7 +243,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         games = {"five": 5, "ten": 10}.get(requested.group(1).lower(), None) if requested else None
         if requested and games is None:
             games = int(requested.group(1))
-        is_form = bool(re.search(r"\b(form|matches|games|defensiv\w*|comparison|compare|conced\w*)\b", q, re.I))
+        is_form = bool(re.search(r"\b(form|matches|games|defens\w*|comparison|compare|conced\w*)\b", q, re.I))
         if len(teams) == 2 and games is not None and 1 <= games <= 10 and is_form:
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],

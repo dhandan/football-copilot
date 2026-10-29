@@ -122,3 +122,6 @@ User clarified that 'last 10 matches' means the last ten completed league matche
 
 ### V2 comparison presentation improvement — 29 October 2026
 User requested a much clearer information hierarchy rather than repetitive paragraph-form output. Latest change replaces paired full prose summaries in V2 responses with an insight-first summary, clearly stated season coverage, compact two-column per-team Markdown table (matches, W/D/L, points, PPG, GF/GA) and one source line. Deterministic calculations and raw evidence unchanged; no added model calls. Regression assertions added for rendered table. **Pending local tests and Streamlit visual confirmation.**
+
+### Defensive intent / conversational follow-up correction — 29 October 2026
+User's live V2 session showed generic eight-stat comparisons even for explicit defensive questions, then one-team-only fallback after repeated requests. Fix added intent-specific defensive answer using goals conceded, restricted defensive table, and improved restoration of two-team context from earlier user turns without calling Qwen for recognised recent-form requests. Both 'defence' and 'defensively' wording targeted. Regression test added for successive defensive follow-ups. **Not yet locally verified.** No forecast changes.

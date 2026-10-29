@@ -424,3 +424,49 @@ def model_performance():
             "metrics": rows,
             "latest_metrics": latest,
             "note": "GW8 has completed and been evaluated. The 40/60 blend remains a provisional candidate, not a formally promoted champion. GW8 is only ten matches; no proven winner."}
+
+
+def next_meeting(team1: str, team2: str):
+    """Find the next scheduled league meeting from live official FPL fixtures."""
+    from datetime import datetime, timezone
+    import requests
+
+    url = "https://fantasy.premierleague.com/api/fixtures/"
+    try:
+        fixtures_response = requests.get(url, timeout=12)
+        fixtures_response.raise_for_status()
+        bootstrap_response = requests.get(
+            "https://fantasy.premierleague.com/api/bootstrap-static/", timeout=12
+        )
+        bootstrap_response.raise_for_status()
+        fixtures = fixtures_response.json()
+        names = {int(t["id"]): t["name"] for t in bootstrap_response.json()["teams"]}
+        aliases = {
+            "man city": "manchester city", "man united": "manchester united",
+            "tottenham": "tottenham hotspur", "spurs": "tottenham hotspur",
+            "nott'm forest": "nottingham forest",
+            "brighton": "brighton and hove albion",
+        }
+        def norm(s):
+            return "".join(c for c in aliases.get(s.lower(), s.lower()) if c.isalnum())
+        target = {norm(team1), norm(team2)}
+        now = datetime.now(timezone.utc)
+        upcoming = []
+        for fixture in fixtures:
+            if fixture.get("finished") or not fixture.get("kickoff_time"):
+                continue
+            kickoff = datetime.fromisoformat(fixture["kickoff_time"].replace("Z", "+00:00"))
+            home = names[int(fixture["team_h"])]
+            away = names[int(fixture["team_a"])]
+            if kickoff > now and {norm(home), norm(away)} == target:
+                upcoming.append((kickoff, home, away, fixture.get("event")))
+        if not upcoming:
+            return {"type": "next_meeting", "source": url, "fixture": None,
+                    "note": "No future league meeting was found in the current FPL schedule."}
+        kickoff, home, away, gw = min(upcoming)
+        return {"type": "next_meeting", "source": url,
+                "fixture": {"HomeTeam": home, "AwayTeam": away,
+                            "KickoffUTC": kickoff.isoformat(), "Gameweek": gw}}
+    except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+        return {"type": "next_meeting", "source": url, "fixture": None,
+                "error": f"Fixture schedule unavailable ({type(exc).__name__})."}

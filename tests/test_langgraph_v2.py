@@ -41,6 +41,45 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("Arsenal recent form", result["answer"])
         self.assertIn("DuckDB team_match_stats", result["answer"])
 
+    def test_form_comparison_is_calculated_not_invented(self):
+        from unittest.mock import patch
+        values = {
+            "Man City": {"Played": 5, "Won": 2, "Drawn": 2, "Lost": 1,
+                         "Points": 8, "PointsPerGame": 1.6, "GoalsFor": 11,
+                         "GoalsAgainst": 6},
+            "Chelsea": {"Played": 5, "Won": 1, "Drawn": 1, "Lost": 3,
+                        "Points": 4, "PointsPerGame": 0.8, "GoalsFor": 5,
+                        "GoalsAgainst": 10},
+        }
+        def fake_form(team, games):
+            return {"data": [values[team]]}
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            result = ask("Compare Manchester City and Chelsea", planner=lambda _: [
+                {"name": "form_summary", "arguments": {"team": "Man City", "games": 5}},
+                {"name": "form_summary", "arguments": {"team": "Chelsea", "games": 5}},
+            ], synthesizer=lambda *_: "Chelsea is better, without evidence.")
+        answer = result["answer"]
+        self.assertIn("Man City leads on pointspergame by 0.8", answer)
+        self.assertIn("Man City leads on goalsagainst by 4", answer)
+        self.assertNotIn("Chelsea is better", answer)
+        self.assertIn("form_facts_preserved", result["trace"])
+
+    def test_form_comparison_does_not_claim_lead_without_two_valid_rows(self):
+        from unittest.mock import patch
+        def fake_form(team, games):
+            if team == "Chelsea":
+                return {"data": []}
+            return {"data": [{"Played": 5, "Won": 2, "Drawn": 1, "Lost": 2,
+                              "Points": 7, "PointsPerGame": 1.4,
+                              "GoalsFor": 6, "GoalsAgainst": 5}]}
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            result = ask("Compare Man City and Chelsea", planner=lambda _: [
+                {"name": "form_summary", "arguments": {"team": "Man City", "games": 5}},
+                {"name": "form_summary", "arguments": {"team": "Chelsea", "games": 5}},
+            ])
+        self.assertNotIn("**Comparison:", result["answer"])
+        self.assertIn("no completed-match form summary", result["answer"])
+
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch
         def invalid_team(team, games):

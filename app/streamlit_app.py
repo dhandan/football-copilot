@@ -3692,6 +3692,7 @@ if prompt:
 
             try:
 
+                print(f"[football-route] {'V2' if use_langgraph_v2 else 'ORIGINAL_QWEN4B'} | question={prompt[:100]!r}", flush=True)
                 if use_langgraph_v2:
                     from agent.langgraph_v2 import Conversation, local_synthesizer
                     if "langgraph_v2_conversation" not in st.session_state:

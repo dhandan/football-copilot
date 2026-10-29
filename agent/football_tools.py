@@ -62,6 +62,59 @@ def recent_form(
     }
 
 
+def _current_season_form(team: str, games: int):
+    """Read verified 2026/27 result snapshots without modifying DuckDB or forecasts."""
+    from pathlib import Path
+    import pandas as pd
+
+    folder = Path(__file__).resolve().parent.parent / "data/live/results"
+    files = sorted(folder.glob("2026_27_gw??_results.csv"))
+    all_matches = []
+    seen = set()
+    for file in files:
+        frame = pd.read_csv(file)
+        required = {"Season", "FixtureId", "FixtureDate", "HomeTeam", "AwayTeam",
+                    "Status", "ActualHomeGoals", "ActualAwayGoals"}
+        if not required.issubset(frame.columns):
+            continue
+        if len(frame) != 10 or (frame["Status"] != "FINISHED").any():
+            continue
+        if frame[["FixtureId", "FixtureDate"]].duplicated().any():
+            continue
+        if not (frame["Season"] == "2026/27").all():
+            continue
+        for _, row in frame.iterrows():
+            key = (str(row["FixtureDate"]), str(row["HomeTeam"]), str(row["AwayTeam"]))
+            if key in seen:
+                continue
+            seen.add(key)
+            home, away = str(row["HomeTeam"]), str(row["AwayTeam"])
+            hg, ag = row["ActualHomeGoals"], row["ActualAwayGoals"]
+            if pd.isna(hg) or pd.isna(ag) or int(hg) < 0 or int(ag) < 0:
+                continue
+            if team == home or team == away:
+                gf, ga = (int(hg), int(ag)) if team == home else (int(ag), int(hg))
+                all_matches.append((str(row["FixtureDate"]), gf, ga, key))
+    all_matches.sort(key=lambda item: (item[0], item[3]), reverse=True)
+    matches = all_matches[:games]
+    if not matches:
+        return {"type": "form_summary", "season": "2026/27",
+                "source": "data/live/results/2026_27_gw??_results.csv",
+                "requested_games": games, "data": []}
+    wins = sum(gf > ga for _, gf, ga, _ in matches)
+    draws = sum(gf == ga for _, gf, ga, _ in matches)
+    losses = len(matches) - wins - draws
+    points = 3 * wins + draws
+    return {"type": "form_summary", "season": "2026/27",
+            "source": "data/live/results/2026_27_gw??_results.csv",
+            "requested_games": games,
+            "data": [{"Played": len(matches), "Won": wins, "Drawn": draws,
+                      "Lost": losses, "Points": points,
+                      "PointsPerGame": round(points / len(matches), 2),
+                      "GoalsFor": sum(m[1] for m in matches),
+                      "GoalsAgainst": sum(m[2] for m in matches)}]}
+
+
 def form_summary(
     team: str,
     games: int = 10,
@@ -70,6 +123,9 @@ def form_summary(
     """
     Summarise a team's recent performance.
     """
+
+    if season == "2026/27":
+        return _current_season_form(team, games)
 
     result = get_form_summary(
         team,

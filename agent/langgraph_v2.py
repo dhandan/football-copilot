@@ -362,16 +362,19 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     f"Brier {b['brier']} vs {a['brier']}. Source: {result['source']}."
                 )
             elif name == "form_summary":
+                def fmt(value):
+                    n = float(value)
+                    return str(int(n)) if n.is_integer() else f"{n:g}"
                 rows = result.get("data", [])
                 if len(rows) != 1 or not isinstance(rows[0], dict) or not rows[0].get("Played"):
                     parts.append(f"{item['arguments']['team']}: no completed-match form summary available.")
                 else:
                     r = rows[0]
                     parts.append(
-                        f"{item['arguments']['team']} recent form (last {r['Played']} matches): "
-                        f"{r['Won']} wins, {r['Drawn']} draws, {r['Lost']} losses; "
-                        f"{r['Points']} points, {r['PointsPerGame']} points per game, "
-                        f"{r['GoalsFor']} goals for, {r['GoalsAgainst']} against. "
+                        f"{item['arguments']['team']} recent form (last {fmt(r['Played'])} matches): "
+                        f"{fmt(r['Won'])} wins, {fmt(r['Drawn'])} draws, {fmt(r['Lost'])} losses; "
+                        f"{fmt(r['Points'])} points, {fmt(r['PointsPerGame'])} points per game, "
+                        f"{fmt(r['GoalsFor'])} goals for, {fmt(r['GoalsAgainst'])} against. "
                         "Source: DuckDB team_match_stats (most recent matches; not a frozen pre-match snapshot)."
                     )
             elif name == "model_performance":
@@ -421,6 +424,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 if left == right:
                     return f"Both teams have {number(left)} {labels[metric]}."
                 winner = a if (left > right) == higher else b
+                if metric == "GoalsAgainst":
+                    return f"{winner} conceded {number(abs(left-right))} fewer goals."
                 return f"{winner} leads on {labels[metric]} by {number(abs(left-right))}."
             parts.insert(0, (
                 f"**Comparison: {a} vs {b} (last {number(x['Played'])} matches)**\n\n"

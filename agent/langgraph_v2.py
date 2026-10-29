@@ -221,26 +221,26 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         # This skips a potentially slow local Ollama planner and uses read-only tools.
         q = state["question"]
         prior_q = next((h["question"] for h in reversed(state.get("history", []))
-                        if re.search(r"\\b(compare|versus|vs)\\b", h["question"], re.I)), "")
+                        if re.search(r"\b(compare|versus|vs)\b", h["question"], re.I)), "")
         team_names = ("Manchester City", "Manchester United", "Liverpool",
                       "Arsenal", "Chelsea", "Man City", "Man United")
         def names_in(sentence):
             found = []
             for label in team_names:
-                if re.search(r"(?<!\\w)" + re.escape(label) + r"(?!\\w)", sentence, re.I):
+                if re.search(r"(?<!\w)" + re.escape(label) + r"(?!\w)", sentence, re.I):
                     team = TEAM_ALIASES.get(label.lower(), label)
                     if team not in found:
                         found.append(team)
             return found
         teams = names_in(q)
-        followup = bool(re.search(r"\\b(their|both|those|that comparison)\\b", q, re.I))
+        followup = bool(re.search(r"\b(their|both|those|that comparison)\b", q, re.I))
         if len(teams) != 2 and followup:
             teams = names_in(prior_q)
-        requested = re.search(r"\\b(?:last|past)\\s+(\\d+|five|ten)\\s+(?:matches|games)\\b", q, re.I)
+        requested = re.search(r"\b(?:last|past)\s+(\d+|five|ten)\s+(?:matches|games)\b", q, re.I)
         games = {"five": 5, "ten": 10}.get(requested.group(1).lower(), None) if requested else None
         if requested and games is None:
             games = int(requested.group(1))
-        is_form = bool(re.search(r"\\b(form|matches|games|defensiv|comparison|compare)\\b", q, re.I))
+        is_form = bool(re.search(r"\b(form|matches|games|defensiv|comparison|compare)\b", q, re.I))
         if len(teams) == 2 and games is not None and 1 <= games <= 10 and is_form:
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],

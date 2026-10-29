@@ -151,6 +151,33 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("2025/26", result["season"])
         self.assertIn("2026/27", result["season"])
 
+    def test_defensive_question_answers_defence_not_generic_form(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+        def fake_form(team, games):
+            return {"data": [{"Played": games, "Won": 4, "Drawn": 0,
+                              "Lost": games - 4, "Points": 12,
+                              "PointsPerGame": 1.2,
+                              "GoalsFor": 14,
+                              "GoalsAgainst": 13 if team == "Liverpool" else 6}]}
+        def no_llm(_):
+            raise AssertionError("Unambiguous defensive follow-up must not invoke Qwen")
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            chat = Conversation(planner=lambda _: [
+                {"name": "form_summary", "arguments": {"team": "Liverpool", "games": 10}},
+                {"name": "form_summary", "arguments": {"team": "Arsenal", "games": 10}}],
+                )
+            chat.ask("Compare Liverpool and Arsenal's last 10 matches", thread_id="defence")
+            result = chat.ask("who has been defensively better over the last 10 matches",
+                              thread_id="defence")
+            again = chat.ask("i asked specifically on defence who has been better in the last 10 matches????",
+                             thread_id="defence")
+        for response in (result, again):
+            self.assertEqual(len(response["evidence"]), 2)
+            self.assertIn("Arsenal have been defensively stronger", response["answer"])
+            self.assertIn("13 for Liverpool", response["answer"])
+            self.assertNotIn("**Key differences**\\n\\nArsenal leads on points", response["answer"])
+
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch
         def invalid_team(team, games):

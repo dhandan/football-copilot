@@ -421,7 +421,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 winner = a if (left > right) == higher else b
                 return f"{winner} leads on {metric.lower()} by {number(abs(left-right))}."
             parts.insert(0, (
-                f"**Comparison: {a} vs {b} (last {number(x['Played'])} matches)**\\n\\n"
+                f"**Comparison: {a} vs {b} (last {number(x['Played'])} matches)**\n\n"
                 + edge("PointsPerGame") + " "
                 + edge("Points") + " "
                 + edge("GoalsFor") + " "

@@ -208,6 +208,28 @@ class AgentGraphTests(unittest.TestCase):
                              {games})
             self.assertIn("Arsenal have been defensively stronger", answer["answer"])
 
+    def test_next_meeting_context_uses_schedule_not_forecasts(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+        def fail_planner(_):
+            raise AssertionError("Fixture questions should bypass Qwen")
+        def fake_meeting(team1, team2):
+            self.assertEqual({team1, team2}, {"Liverpool", "Arsenal"})
+            return {"fixture": {"HomeTeam": "Liverpool", "AwayTeam": "Arsenal",
+                                "KickoffUTC": "2026-11-01T16:00:00+00:00",
+                                "Gameweek": 9},
+                    "source": "fixture-test-source"}
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"next_meeting": fake_meeting}):
+            chat = Conversation(planner=fail_planner)
+            chat.ask("Compare Liverpool and Arsenal over their last 10 matches",
+                     thread_id="fixture-followup")
+            result = chat.ask("when are they playing each other next?",
+                              thread_id="fixture-followup")
+        self.assertEqual([e["tool"] for e in result["evidence"]], ["next_meeting"])
+        self.assertIn("Liverpool vs Arsenal", result["answer"])
+        self.assertIn("fixture-test-source", result["answer"])
+        self.assertNotIn("GW1 frozen forecasts", result["answer"])
+
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch
         def invalid_team(team, games):

@@ -109,6 +109,20 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("no completed 2026/27 matches", result["answer"])
         self.assertNotIn("**Comparison:", result["answer"])
 
+    def test_zero_match_nan_form_does_not_create_comparison(self):
+        from unittest.mock import patch
+        def empty_form(team, games):
+            return {"data": [{"Played": 0, "Points": None,
+                              "PointsPerGame": float("nan"),
+                              "GoalsFor": float("nan"),
+                              "GoalsAgainst": float("nan")}]}
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": empty_form}):
+            result = ask("Compare Liverpool and Arsenal's last 5 matches",
+                         planner=lambda _: [])
+        self.assertNotIn("**Comparison:", result["answer"])
+        self.assertNotIn("nan", result["answer"].lower())
+        self.assertIn("no completed 2026/27 matches", result["answer"])
+
     def test_form_validation_error_is_explained(self):
         from unittest.mock import patch
         def invalid_team(team, games):

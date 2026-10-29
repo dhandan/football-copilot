@@ -251,8 +251,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             teams = names_in(prior_q)
             if len(teams) != 2:
                 teams = names_in(" ".join(h["question"] for h in reversed(state.get("history", []))))[:2]
-        if re.search(r"\\b(when|date|next|upcoming)\\b", q, re.I) and re.search(
-            r"\\b(play|playing|meet|meeting|face|fixture)\\b", q, re.I
+        if re.search(r"\b(when|date|next|upcoming)\b", q, re.I) and re.search(
+            r"\b(play|playing|meet|meeting|face|fixture)\b", q, re.I
         ) and len(teams) == 2:
             return {"plan": [{"name": "next_meeting",
                               "arguments": {"team1": teams[0], "team2": teams[1]}}],

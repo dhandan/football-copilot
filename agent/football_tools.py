@@ -65,6 +65,7 @@ def recent_form(
 def form_summary(
     team: str,
     games: int = 10,
+    season: str = None,
 ):
     """
     Summarise a team's recent performance.
@@ -72,12 +73,14 @@ def form_summary(
 
     result = get_form_summary(
         team,
-        games
+        games,
+        season=season,
     )
 
     return {
         "type":
             "form_summary",
+        "season": season or "all available seasons",
 
         "data":
             result.to_dict(

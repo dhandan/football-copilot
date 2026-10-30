@@ -223,7 +223,7 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
 def _grounding_diagnostics(candidate: str, facts: str, is_performance: bool) -> list[str]:
     """Explain rejection causes for local evaluation only; never alter acceptance."""
     reasons = []
-    number = r"(?<![A-Za-z0-9])\\d+(?:\\.\\d+)?%?"
+    number = r"(?<![A-Za-z0-9])\d+(?:\.\d+)?%?"
     unexpected = sorted(set(re.findall(number, candidate)) - set(re.findall(number, facts)))
     if unexpected:
         reasons.append("unsupported_numeric_tokens=" + ",".join(unexpected[:12]))
@@ -241,11 +241,11 @@ def _grounding_diagnostics(candidate: str, facts: str, is_performance: bool) -> 
         if not any(x in lower for x in ("provisional", "not formally promoted", "not officially promoted", "pending promotion")):
             reasons.append("provisional_status_missing")
         if not (any(x in lower for x in ("small sample", "limited sample", "only 20", "20 matches", "20 fixtures", "insufficient evidence", "one gameweek", "ten matches", "10 matches"))
-                or re.search(r"\\b(?:small|limited)\\s+\\d+[- ]match\\s+sample\\b", lower)):
+                or re.search(r"\b(?:small|limited)\s+\d+[- ]match\s+sample\b", lower)):
             reasons.append("sample_size_caveat_missing")
         if any(x in lower for x in ("not explicitly stated", "no clear information", "does not provide clear information", "performance is unknown")):
             reasons.append("evidence_dismissed")
-        if re.search(r"\\bmodel\\s*2\\s+(?:is|was|remains|has been)\\s+(?:the\\s+)?(?:best|better|leader|leading|highest.performing|top.performing)", lower) or re.search(r"\\b(?:best|leading|top.performing)\\s+model\\s+is\\s+model\\s*2\\b", lower):
+        if re.search(r"\bmodel\s*2\s+(?:is|was|remains|has been)\s+(?:the\s+)?(?:best|better|leader|leading|highest.performing|top.performing)", lower) or re.search(r"\b(?:best|leading|top.performing)\s+model\s+is\s+model\s*2\b", lower):
             reasons.append("unsupported_model2_lead_claim")
     return reasons
 

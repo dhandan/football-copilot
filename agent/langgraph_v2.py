@@ -209,7 +209,7 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
             return False
         # A broad performance question needs the historical comparison too.
         # A GW8-specific question can legitimately focus on its own scorecard.
-        if question and not re.search(r"\\b(?:GW|gameweek)\\s*8\\b", question, re.I):
+        if question and re.search(r"\bhow\s+has\b.*\bperformed\b.*\bso\s+far\b", question, re.I):
             if "55%" not in candidate or "40%" not in candidate:
                 return False
         # Reject explicit claims that Model 2 leads. Do not reject statements
@@ -264,7 +264,7 @@ def _grounding_diagnostics(candidate: str, facts: str, is_performance: bool, que
                 reasons.append("required_performance_comparison_missing")
         elif "55%" not in candidate or "40%" not in candidate:
             reasons.append("required_performance_comparison_missing")
-        if question and not re.search(r"\\b(?:GW|gameweek)\\s*8\\b", question, re.I):
+        if question and re.search(r"\bhow\s+has\b.*\bperformed\b.*\bso\s+far\b", question, re.I):
             if "55%" not in candidate or "40%" not in candidate:
                 reasons.append("historical_performance_comparison_missing")
         if not any(x in lower for x in ("provisional", "not formally promoted", "not officially promoted", "pending promotion")):

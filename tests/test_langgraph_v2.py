@@ -5,6 +5,32 @@ from agent.langgraph_v2 import ask
 
 
 class AgentGraphTests(unittest.TestCase):
+    def test_facts_first_evaluation_skips_synthesizer(self):
+        from unittest.mock import patch
+        invoked = []
+        with patch.dict("os.environ", {"FOOTBALL_V2_FACTS_FIRST": "1"}):
+            result = ask(
+                "How has the 40/60 champion performed so far?",
+                planner=lambda _: [{"name": "model_performance", "arguments": {}}],
+                synthesizer=lambda *_: invoked.append(True) or "Invalid rewritten answer",
+            )
+        self.assertEqual(invoked, [])
+        self.assertIn("facts_first_evaluation", result["trace"])
+        self.assertIn("Historical GW6-GW7", result["answer"])
+        self.assertIn("GW8 (10 finished matches)", result["answer"])
+
+    def test_facts_first_is_opt_in(self):
+        from unittest.mock import patch
+        invoked = []
+        with patch.dict("os.environ", {"FOOTBALL_V2_FACTS_FIRST": "0"}):
+            result = ask(
+                "How has the 40/60 champion performed so far?",
+                planner=lambda _: [{"name": "model_performance", "arguments": {}}],
+                synthesizer=lambda *_: invoked.append(True) or "Unverified answer",
+            )
+        self.assertEqual(invoked, [True])
+        self.assertIn("synthesis_rejected_grounding", result["trace"])
+
     def test_h07_experiment(self):
         result = ask("Why was H07 rejected?", planner=lambda q: [
             {"name": "experiment_history", "arguments": {"experiment": "H07"}}

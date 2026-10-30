@@ -46,6 +46,8 @@ The purpose is not simply to publish predictions. It is to understand where the 
 ## Gameweek journal and operating checklist
 
 - [Mandatory Gameweek release and sprint checklist](gameweeks/OPERATING_CHECKLIST.md)
+- [GW09: official pre-match freeze and evaluation pending](gameweeks/GW09.md)
+- [GW08: completed post-match evaluation and GW9 decision](gameweeks/GW08.md)
 - [GW07: completed post-match evaluation and GW8 decisions](gameweeks/GW07.md)
 - [GW06: completed first prospective challenger evaluation](gameweeks/GW06.md)
 - [GW05: completed five-Gameweek checkpoint](gameweeks/GW05.md)

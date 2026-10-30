@@ -590,6 +590,37 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 recent = {row["model"]: row for row in result["latest_metrics"] if row["period"] == "GW8"}
                 old = {row["model"]: row for row in result["metrics"] if row["period"] == "GW6-GW7"}
                 a, b, c, d = (recent[k] for k in ("40/60", "Adaptive", "Model 2", "Market only"))
+                if os.getenv("FOOTBALL_V2_FACTS_FIRST") == "1":
+                    rows = [
+                        ("40/60 blend", a), ("Model 2", c),
+                        ("Market-only", d), ("Adaptive", b),
+                    ]
+                    table = [
+                        "| Model | Correct | Accuracy | Log Loss | Brier |",
+                        "|---|---:|---:|---:|---:|",
+                    ]
+                    table.extend(
+                        f"| {name} | {row['correct']} | {row['accuracy']} | "
+                        f"{row['log_loss']} | {row['brier']} |"
+                        for name, row in rows
+                    )
+                    parts.append(
+                        "**Summary:** The 40/60 blend matched Model 2 on GW8 "
+                        "accuracy and recorded lower (better) Log Loss and Brier. "
+                        "Market-only led GW8 on accuracy and Log Loss. "
+                        "The blend remains a provisional candidate, not formally promoted.\n\n"
+                        "**GW8 (10 finished matches)**\n\n"
+                        + "\n".join(table)
+                        + "\n\n**Historical GW6-GW7 (20 matches):** "
+                        + f"40/60 {old['40/60']['accuracy']} vs "
+                        + f"Model 2 {old['Model 2']['accuracy']} accuracy. "
+                        + "This is a separate earlier evaluation, not a GW8 result.\n\n"
+                        + "**Limitations:** One gameweek is a small sample. "
+                        + "No formal promotion decision has been made.\n\n"
+                        + f"**Sources:** {result['source']}; "
+                        + f"{result['historical_source']}."
+                    )
+                    continue
                 parts.append(
                     f"GW8 (10 finished matches): 40/60 {a['correct']} ({a['accuracy']}), "
                     f"Log Loss {a['log_loss']}, Brier {a['brier']}; "

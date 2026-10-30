@@ -781,6 +781,14 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             return {**save(facts), "trace": [*state["trace"], "forecast_rows_preserved"]}
         if any("error" in item["result"] for item in state["evidence"]):
             return {**save(facts), "trace": [*state["trace"], "synthesis_skipped_tool_error"]}
+        # Opt-in comparison: deterministic, sourced evaluation takes precedence
+        # over slow, frequently rejected small-model paraphrases. No change to
+        # default behaviour, other tools or frozen forecast outputs.
+        if os.getenv("FOOTBALL_V2_FACTS_FIRST") == "1" and any(
+            item["tool"] in ("model_performance", "experiment_history")
+            for item in state["evidence"]
+        ):
+            return {**save(facts), "trace": [*state["trace"], "facts_first_evaluation"]}
         try:
             candidate = synthesizer(state["question"], synthesis_facts)
             tools = {item["tool"] for item in state["evidence"]}

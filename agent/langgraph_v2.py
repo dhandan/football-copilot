@@ -176,7 +176,7 @@ def local_synthesizer(question: str, facts: str) -> str:
     return _Answer.model_validate_json(result.message.content).answer
 
 
-def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: bool) -> bool:
+def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: bool, question: str = "") -> bool:
     """Conservative numeric guard; reject novel numbers and unsupported evaluation claims."""
     number = r"(?<![A-Za-z0-9])\d+(?:\.\d+)?%?"
     known = set(re.findall(number, facts))
@@ -207,6 +207,11 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
                 return False
         elif not ("55%" in candidate and "40%" in candidate):
             return False
+        # A broad performance question needs the historical comparison too.
+        # A GW8-specific question can legitimately focus on its own scorecard.
+        if question and not re.search(r"\\b(?:GW|gameweek)\\s*8\\b", question, re.I):
+            if "55%" not in candidate or "40%" not in candidate:
+                return False
         # Reject explicit claims that Model 2 leads. Do not reject statements
         # such as "40/60 is better than Model 2".
         if re.search(r"\bmodel\s*2\s+(?:is|was|remains|has been)\s+(?:the\s+)?(?:best|better|leader|leading|highest.performing|top.performing)", lower):
@@ -233,7 +238,7 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
     return True
 
 
-def _grounding_diagnostics(candidate: str, facts: str, is_performance: bool) -> list[str]:
+def _grounding_diagnostics(candidate: str, facts: str, is_performance: bool, question: str = "") -> list[str]:
     """Explain rejection causes for local evaluation only; never alter acceptance."""
     reasons = []
     number = r"(?<![A-Za-z0-9])\d+(?:\.\d+)?%?"
@@ -259,6 +264,9 @@ def _grounding_diagnostics(candidate: str, facts: str, is_performance: bool) -> 
                 reasons.append("required_performance_comparison_missing")
         elif "55%" not in candidate or "40%" not in candidate:
             reasons.append("required_performance_comparison_missing")
+        if question and not re.search(r"\\b(?:GW|gameweek)\\s*8\\b", question, re.I):
+            if "55%" not in candidate or "40%" not in candidate:
+                reasons.append("historical_performance_comparison_missing")
         if not any(x in lower for x in ("provisional", "not formally promoted", "not officially promoted", "pending promotion")):
             reasons.append("provisional_status_missing")
         if not (any(x in lower for x in ("small sample", "limited sample", "only 20", "20 matches", "20 fixtures", "insufficient evidence", "one gameweek", "ten matches", "10 matches"))
@@ -757,9 +765,9 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             has_forecast_context = "frozen forecasts" in synthesis_facts.lower()
             if not _grounded(candidate, synthesis_facts,
                              "frozen_gameweek_predictions" in tools or has_forecast_context,
-                             "model_performance" in tools):
+                             "model_performance" in tools, state["question"]):
                 if os.getenv("FOOTBALL_AGENT_DEBUG") == "1":
-                    reasons = _grounding_diagnostics(candidate, synthesis_facts, "model_performance" in tools)
+                    reasons = _grounding_diagnostics(candidate, synthesis_facts, "model_performance" in tools, state["question"])
                     print("[synthesis rejected]", repr(candidate[:1200]))
                     print("[grounding diagnostics]", reasons or ["temporal_distinction_or_other_guard"])
                 return {**save(facts), "trace": [*state["trace"], "synthesis_rejected_grounding"]}

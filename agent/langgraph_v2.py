@@ -165,7 +165,19 @@ def local_synthesizer(question: str, facts: str) -> str:
                 "evaluation, where market-only leads accuracy and Log Loss. Model 2 remains "
                 "the original benchmark. The 40/60 blend is a provisional candidate, not "
                 "formally promoted. Attribute every metric to the right model and period. "
-                "Keep all figures exact and be concise."
+                "Keep all figures exact and be concise. "
+                "Before finalising your answer, preserve these evidence obligations: "
+                "(1) If discussing GW8 performance, explicitly say one gameweek "
+                "is a small sample and that the 40/60 blend is provisional, not "
+                "formally promoted. "
+                "(2) If the question asks how a model has performed 'so far', "
+                "include both the GW6-GW7 historical 55% versus 40% comparison "
+                "and the GW8 completed results from the evidence. "
+                "(3) If H07 evidence is supplied, explicitly state that H07 was "
+                "parked because it did not outperform the Model 2 benchmark. "
+                "(4) State that higher Log Loss is worse, not better. "
+                "Only use figures actually present in Verified evidence; "
+                "if required evidence is absent, do not invent it."
             )},
             {"role": "user", "content": f"Question: {question}\nVerified evidence:\n{facts}"},
         ],

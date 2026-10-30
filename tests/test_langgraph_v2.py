@@ -547,6 +547,29 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("synthesis_rejected_grounding", result["trace"])
         self.assertIn("55%", result["answer"])
 
+    def test_recent_champion_followup_requires_historical_accuracy(self):
+        result = ask(
+            "How does that compare with the champion's recent performance?",
+            planner=lambda q: [{"name": "model_performance", "arguments": {}}],
+            synthesizer=lambda q, facts: (
+                "The provisional 40/60 blend and Model 2 both had 30% accuracy "
+                "in GW8. One gameweek is a small sample."
+            ),
+        )
+        self.assertIn("synthesis_rejected_grounding", result["trace"])
+
+    def test_reject_historical_accuracy_as_55_percent_advantage(self):
+        result = ask(
+            "How does that compare with the champion's recent performance?",
+            planner=lambda q: [{"name": "model_performance", "arguments": {}}],
+            synthesizer=lambda q, facts: (
+                "Historically, 40/60 outperformed Model 2 by 55% in accuracy, "
+                "compared with 40% for Model 2. In GW8 both recorded 30%. "
+                "The blend is provisional and one gameweek is a small sample."
+            ),
+        )
+        self.assertIn("synthesis_rejected_grounding", result["trace"])
+
     def test_synthesis_rejects_reversed_performance_winner(self):
         result = ask(
             "Which model is performing best and why?",

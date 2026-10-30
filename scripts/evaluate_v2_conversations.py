@@ -80,12 +80,32 @@ def evaluate(live=False):
         def fixed_planner(_):
             index = turn_index[0]
             return turns[index][1]
+        # Measure the two local LLM stages independently without changing
+        # the agent, its tool selection or its grounding behaviour.
+        stage = {"planning": 0.0, "synthesis": 0.0, "synthesis_calls": 0}
+
+        def timed_planner(question):
+            started = time.perf_counter()
+            try:
+                return local_planner(question)
+            finally:
+                stage["planning"] += time.perf_counter() - started
+
+        def timed_synthesizer(question, facts):
+            started = time.perf_counter()
+            stage["synthesis_calls"] += 1
+            try:
+                return local_synthesizer(question, facts)
+            finally:
+                stage["synthesis"] += time.perf_counter() - started
+
         conversation = Conversation(
-            planner=local_planner if live else fixed_planner,
-            synthesizer=local_synthesizer if live else None,
+            planner=timed_planner if live else fixed_planner,
+            synthesizer=timed_synthesizer if live else None,
         )
         for index, (question, expected, checks) in enumerate(turns):
             turn_index[0] = index
+            stage.update(planning=0.0, synthesis=0.0, synthesis_calls=0)
             start = time.perf_counter()
             try:
                 result = conversation.ask(question, thread_id=name)
@@ -162,8 +182,20 @@ def evaluate(live=False):
             passed += bool(ok)
             elapsed = time.perf_counter() - start
             durations.append(elapsed)
+            # Remaining time includes graph overhead and real tool execution;
+            # it is not claimed as exclusive tool latency.
+            other = max(0.0, elapsed - stage["planning"] - stage["synthesis"])
+            synthesis_outcome = (
+                "accepted" if "synthesis_accepted" in trace else
+                "rejected_or_failed" if stage["synthesis_calls"] else
+                "not_attempted"
+            )
             print(f"{name} turn {index+1}: {'PASS' if ok else 'FAIL'} "
-                  f"{elapsed:.2f}s trace={trace}", flush=True)
+                  f"{elapsed:.2f}s "
+                  f"stages=planner:{stage['planning']:.2f}s,"
+                  f"synth:{stage['synthesis']:.2f}s,"
+                  f"tools+graph:{other:.2f}s "
+                  f"synthesis={synthesis_outcome} trace={trace}", flush=True)
     print(f"LATENCY: mean={sum(durations)/len(durations):.2f}s max={max(durations):.2f}s", flush=True)
     print(f"RESULT: {passed}/{total} passed "
           f"({'live Qwen' if live else 'offline'})", flush=True)

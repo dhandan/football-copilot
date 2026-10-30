@@ -220,6 +220,36 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
     return True
 
 
+def _grounding_diagnostics(candidate: str, facts: str, is_performance: bool) -> list[str]:
+    """Explain rejection causes for local evaluation only; never alter acceptance."""
+    reasons = []
+    number = r"(?<![A-Za-z0-9])\\d+(?:\\.\\d+)?%?"
+    unexpected = sorted(set(re.findall(number, candidate)) - set(re.findall(number, facts)))
+    if unexpected:
+        reasons.append("unsupported_numeric_tokens=" + ",".join(unexpected[:12]))
+    lower = candidate.lower()
+    if "H07 parked:" in facts and (
+        "h07" not in lower or not any(
+            x in lower for x in ("parked", "rejected", "did not outperform", "underperformed")
+        )
+    ):
+        reasons.append("h07_status_missing")
+    if is_performance:
+        expected = ("30%", "40%") if "GW8 (10 finished matches)" in facts else ("55%", "40%")
+        if any(x not in candidate for x in expected):
+            reasons.append("required_performance_comparison_missing")
+        if not any(x in lower for x in ("provisional", "not formally promoted", "not officially promoted", "pending promotion")):
+            reasons.append("provisional_status_missing")
+        if not (any(x in lower for x in ("small sample", "limited sample", "only 20", "20 matches", "20 fixtures", "insufficient evidence", "one gameweek", "ten matches", "10 matches"))
+                or re.search(r"\\b(?:small|limited)\\s+\\d+[- ]match\\s+sample\\b", lower)):
+            reasons.append("sample_size_caveat_missing")
+        if any(x in lower for x in ("not explicitly stated", "no clear information", "does not provide clear information", "performance is unknown")):
+            reasons.append("evidence_dismissed")
+        if re.search(r"\\bmodel\\s*2\\s+(?:is|was|remains|has been)\\s+(?:the\\s+)?(?:best|better|leader|leading|highest.performing|top.performing)", lower) or re.search(r"\\b(?:best|leading|top.performing)\\s+model\\s+is\\s+model\\s*2\\b", lower):
+            reasons.append("unsupported_model2_lead_claim")
+    return reasons
+
+
 def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointer=None, synthesizer: Callable[[str, str], str] | None = None):
     def plan(state: AgentState):
         # Narrow guard against clearly non-football questions which the small
@@ -708,7 +738,9 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                              "frozen_gameweek_predictions" in tools or has_forecast_context,
                              "model_performance" in tools):
                 if os.getenv("FOOTBALL_AGENT_DEBUG") == "1":
+                    reasons = _grounding_diagnostics(candidate, synthesis_facts, "model_performance" in tools)
                     print("[synthesis rejected]", repr(candidate[:1200]))
+                    print("[grounding diagnostics]", reasons or ["temporal_distinction_or_other_guard"])
                 return {**save(facts), "trace": [*state["trace"], "synthesis_rejected_grounding"]}
             return {**save(candidate), "trace": [*state["trace"], "synthesis_accepted"]}
         except (ReadTimeout, TimeoutError, ValueError, TypeError) as exc:

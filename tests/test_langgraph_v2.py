@@ -19,6 +19,24 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("Historical GW6-GW7", result["answer"])
         self.assertIn("GW8 (10 finished matches)", result["answer"])
 
+    def test_facts_first_performance_is_readable_and_sourced(self):
+        from unittest.mock import patch
+        with patch.dict("os.environ", {"FOOTBALL_V2_FACTS_FIRST": "1"}):
+            result = ask(
+                "How has the 40/60 champion performed so far?",
+                planner=lambda _: [{"name": "model_performance", "arguments": {}}],
+                synthesizer=lambda *_: self.fail("Synthesis must not run"),
+            )
+        answer = result["answer"]
+        self.assertIn("**Summary:**", answer)
+        self.assertIn("| Model | Correct | Accuracy | Log Loss | Brier |", answer)
+        self.assertIn("| 40/60 blend |", answer)
+        self.assertIn("| Market-only |", answer)
+        self.assertIn("Historical GW6-GW7", answer)
+        self.assertIn("One gameweek is a small sample", answer)
+        self.assertIn("docs/gameweeks/GW08.md", answer)
+        self.assertIn("docs/gameweeks/GW07.md", answer)
+
     def test_facts_first_is_opt_in(self):
         from unittest.mock import patch
         invoked = []

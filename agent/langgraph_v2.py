@@ -192,7 +192,20 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
         lower = candidate.lower()
         # An answer about performance must contain the observed comparison, not
         # merely claim that the evidence is insufficient.
-        if not (("30%" in candidate and "40%" in candidate) if "GW8 (10 finished matches)" in facts else ("55%" in candidate and "40%" in candidate)):
+        # GW8 answers need a meaningful observed comparison, not a mandatory
+        # mention of the market's 40% when the question concerns other models.
+        # Require the observed 30% and two named competitors; retain the
+        # older GW6-GW7 55%-versus-40% requirement for historical-only facts.
+        if "GW8 (10 finished matches)" in facts:
+            competitor_count = sum(
+                bool(re.search(pattern, lower))
+                for pattern in (
+                    r"40/60", r"model\s*2", r"adaptiv\w*", r"market[ -]only"
+                )
+            )
+            if "30%" not in candidate or competitor_count < 2:
+                return False
+        elif not ("55%" in candidate and "40%" in candidate):
             return False
         # Reject explicit claims that Model 2 leads. Do not reject statements
         # such as "40/60 is better than Model 2".
@@ -235,8 +248,16 @@ def _grounding_diagnostics(candidate: str, facts: str, is_performance: bool) -> 
     ):
         reasons.append("h07_status_missing")
     if is_performance:
-        expected = ("30%", "40%") if "GW8 (10 finished matches)" in facts else ("55%", "40%")
-        if any(x not in candidate for x in expected):
+        if "GW8 (10 finished matches)" in facts:
+            competitor_count = sum(
+                bool(re.search(pattern, lower))
+                for pattern in (
+                    r"40/60", r"model\s*2", r"adaptiv\w*", r"market[ -]only"
+                )
+            )
+            if "30%" not in candidate or competitor_count < 2:
+                reasons.append("required_performance_comparison_missing")
+        elif "55%" not in candidate or "40%" not in candidate:
             reasons.append("required_performance_comparison_missing")
         if not any(x in lower for x in ("provisional", "not formally promoted", "not officially promoted", "pending promotion")):
             reasons.append("provisional_status_missing")

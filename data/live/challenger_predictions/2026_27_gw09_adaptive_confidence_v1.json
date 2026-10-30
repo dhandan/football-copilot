@@ -1,0 +1,13 @@
+{
+  "version": "AdaptiveMarketConfidence_v1.0",
+  "gameweek": 9,
+  "status": "ProspectiveChallenger",
+  "frozen_utc": "2026-10-30T11:09:25.355790+00:00",
+  "original_registration": "2026-10-23T09:43:21.823146+00:00",
+  "rule": "market_weight=clip(0.60-0.60*(max_market_probability-0.50),0.20,0.90)",
+  "model_source": "data\\live\\predictions\\2026_27_gw09_predictions.csv",
+  "market_source": "data\\live\\market\\2026_27_gw09_opening_market_official_20261030_105148.csv",
+  "model_source_commit": "eec859c",
+  "fixtures": 10,
+  "note": "Unchanged registered GW8 formula applied to frozen GW9 sources before kickoff. Not promoted."
+}

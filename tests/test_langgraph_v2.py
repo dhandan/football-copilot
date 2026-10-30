@@ -511,6 +511,30 @@ class AgentGraphTests(unittest.TestCase):
         )
         self.assertIn("synthesis_accepted", result["trace"])
 
+    def test_gw8_synthesis_accepts_comparison_without_unrelated_market_accuracy(self):
+        result = ask(
+            "Compare the GW8 40/60 blend and Model 2",
+            planner=lambda q: [{"name": "model_performance", "arguments": {}}],
+            synthesizer=lambda q, facts: (
+                "The provisional 40/60 blend and Model 2 each achieved 30% "
+                "accuracy in GW8, but the blend had a lower Log Loss of "
+                "1.2021 compared with Model 2 at 1.3439. "
+                "One gameweek is a small sample, so neither is formally promoted."
+            ),
+        )
+        self.assertIn("synthesis_accepted", result["trace"])
+
+    def test_gw8_synthesis_rejects_single_model_claim_without_comparison(self):
+        result = ask(
+            "Compare GW8 performance",
+            planner=lambda q: [{"name": "model_performance", "arguments": {}}],
+            synthesizer=lambda q, facts: (
+                "Model 2 achieved 30% accuracy in GW8. "
+                "The model remains provisional. One gameweek is a small sample."
+            ),
+        )
+        self.assertIn("synthesis_rejected_grounding", result["trace"])
+
     def test_synthesis_rejects_reversed_performance_winner(self):
         result = ask(
             "Which model is performing best and why?",

@@ -221,9 +221,15 @@ def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: boo
             return False
         # A broad performance question needs the historical comparison too.
         # A GW8-specific question can legitimately focus on its own scorecard.
-        if question and re.search(r"\bhow\s+has\b.*\bperformed\b.*\bso\s+far\b", question, re.I):
+        if question and (re.search(r"\bhow\s+has\b.*\bperformed\b.*\bso\s+far\b", question, re.I) or re.search(r"\bchampion.{0,35}\brecent performance\b", question, re.I)):
             if "55%" not in candidate or "40%" not in candidate:
                 return False
+        # Do not confuse a historical 55% accuracy level with a 55-point advantage.
+        if re.search(r"\b(?:outperform\w*|beat|better|improv\w*)\b.{0,50}\bby\s+55%", lower):
+            return False
+        # Market-only had LOWER (better), not higher, GW8 Log Loss.
+        if re.search(r"market[ -]only.{0,75}\bhigher\b.{0,30}\blog loss", lower):
+            return False
         # Reject explicit claims that Model 2 leads. Do not reject statements
         # such as "40/60 is better than Model 2".
         if re.search(r"\bmodel\s*2\s+(?:is|was|remains|has been)\s+(?:the\s+)?(?:best|better|leader|leading|highest.performing|top.performing)", lower):
@@ -276,9 +282,13 @@ def _grounding_diagnostics(candidate: str, facts: str, is_performance: bool, que
                 reasons.append("required_performance_comparison_missing")
         elif "55%" not in candidate or "40%" not in candidate:
             reasons.append("required_performance_comparison_missing")
-        if question and re.search(r"\bhow\s+has\b.*\bperformed\b.*\bso\s+far\b", question, re.I):
+        if question and (re.search(r"\bhow\s+has\b.*\bperformed\b.*\bso\s+far\b", question, re.I) or re.search(r"\bchampion.{0,35}\brecent performance\b", question, re.I)):
             if "55%" not in candidate or "40%" not in candidate:
                 reasons.append("historical_performance_comparison_missing")
+        if re.search(r"\b(?:outperform\w*|beat|better|improv\w*)\b.{0,50}\bby\s+55%", lower):
+            reasons.append("historical_55pct_misread_as_advantage")
+        if re.search(r"market[ -]only.{0,75}\bhigher\b.{0,30}\blog loss", lower):
+            reasons.append("market_log_loss_direction_reversed")
         if not any(x in lower for x in ("provisional", "not formally promoted", "not officially promoted", "pending promotion")):
             reasons.append("provisional_status_missing")
         if not (any(x in lower for x in ("small sample", "limited sample", "only 20", "20 matches", "20 fixtures", "insufficient evidence", "one gameweek", "ten matches", "10 matches"))

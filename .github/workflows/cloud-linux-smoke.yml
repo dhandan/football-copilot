@@ -1,6 +1,13 @@
 name: Cloud Linux smoke test (issue 9)
 
 on:
+  push:
+    branches: [feature/issue9-cloud-readiness-audit]
+    paths:
+      - ".github/workflows/cloud-linux-smoke.yml"
+      - "requirements-cloud.txt"
+      - "scripts/audit_cloud_readiness.py"
+      - "tests/test_cloud_readiness_audit.py"
   pull_request:
     branches: [main]
     paths:

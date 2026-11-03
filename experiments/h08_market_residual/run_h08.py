@@ -183,7 +183,7 @@ def main():
         market_p = holdout[PROB_COLS].to_numpy(dtype=float)
         baseline = scores(holdout["FTR"].to_numpy(), market_p)
         model = scores(holdout["FTR"].to_numpy(), model_p)
-        print(f"\nOUT-OF-TIME {season} | matches={len(holdout)}")
+        print(f"\nCHRONOLOGICAL TEST {season} | matches={len(holdout)}")
         print(f"Market:   {baseline}")
         print(f"Residual: {model}")
         for k in range(len(holdout)):
@@ -198,14 +198,14 @@ def main():
     residual_p = pooled[[f"Residual_{v}" for v in ("H", "D", "A")]].to_numpy()
     baseline = scores(pooled["FTR"].to_numpy(), base_p)
     model = scores(pooled["FTR"].to_numpy(), residual_p)
-    print("\nPOOLED untouched 2024/25 + 2025/26")
+    print("\nPOOLED CHRONOLOGICAL 2024/25 + 2025/26 (NOT pristine holdouts)")
     print("Market  ", baseline)
     print("Residual", model)
     improvement = (baseline["log_loss"] - model["log_loss"]) / baseline["log_loss"]
     print(f"Relative Log Loss improvement: {improvement:.2%}")
     print("NOTE: 40/60 comparison requires matched historical Model 2 forecasts;"
           " never substitute prospective GW6-GW9 results.")
-    print("NO promotion: scorecard is exploratory research until independent review.")
+    print("NO promotion: earlier project experiments examined these seasons; this is exploratory chronological evidence, not untouched confirmation.")
     if args.write:
         OUTPUT.parent.mkdir(parents=True, exist_ok=True)
         pooled.to_csv(OUTPUT, index=False)

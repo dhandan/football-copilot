@@ -1,0 +1,11 @@
+ResultTimestamp,Season,Gameweek,FixtureId,FixtureDate,HomeTeam,AwayTeam,APIHomeTeam,APIAwayTeam,Status,ActualHomeGoals,ActualAwayGoals,ActualScore,ActualResult,ActualResultCode,APIWinner,LastUpdated,VerificationSource
+2026-11-03T00:00:00+00:00,2026/27,9,84,2026-10-31,Chelsea,Man United,,,FINISHED,2,0,2-0,Chelsea,H,,,Cross-checked published results; not football-data.org ingestion
+2026-11-03T00:00:00+00:00,2026/27,9,82,2026-10-31,Bournemouth,Leeds,,,FINISHED,2,0,2-0,Bournemouth,H,,,Cross-checked published results; not football-data.org ingestion
+2026-11-03T00:00:00+00:00,2026/27,9,83,2026-10-31,Brentford,Nott'm Forest,,,FINISHED,2,0,2-0,Brentford,H,,,Cross-checked published results; not football-data.org ingestion
+2026-11-03T00:00:00+00:00,2026/27,9,85,2026-10-31,Coventry City,Sunderland,,,FINISHED,3,1,3-1,Coventry City,H,,,Cross-checked published results; not football-data.org ingestion
+2026-11-03T00:00:00+00:00,2026/27,9,86,2026-10-31,Hull City,Ipswich,,,FINISHED,2,2,2-2,Draw,D,,,Cross-checked published results; not football-data.org ingestion
+2026-11-03T00:00:00+00:00,2026/27,9,88,2026-10-31,Man City,Brighton,,,FINISHED,0,1,0-1,Brighton,A,,,Cross-checked published results; not football-data.org ingestion
+2026-11-03T00:00:00+00:00,2026/27,9,90,2026-10-31,Tottenham,Crystal Palace,,,FINISHED,2,0,2-0,Tottenham,H,,,Cross-checked published results; not football-data.org ingestion
+2026-11-03T00:00:00+00:00,2026/27,9,81,2026-10-31,Aston Villa,Fulham,,,FINISHED,1,1,1-1,Draw,D,,,Cross-checked published results; not football-data.org ingestion
+2026-11-03T00:00:00+00:00,2026/27,9,87,2026-11-01,Liverpool,Arsenal,,,FINISHED,0,1,0-1,Arsenal,A,,,Cross-checked published results; not football-data.org ingestion
+2026-11-03T00:00:00+00:00,2026/27,9,89,2026-11-02,Newcastle,Everton,,,FINISHED,0,1,0-1,Everton,A,,,Cross-checked published results; not football-data.org ingestion

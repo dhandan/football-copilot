@@ -159,8 +159,12 @@ def main():
     required = set(TRAIN + (TUNE,) + TEST)
     if required - set(df["Season"]):
         raise ValueError(f"Missing required seasons: {sorted(required - set(df['Season']))}")
-    if any(counts[s] < 200 for s in required):
-        raise ValueError("Inadequate seasonal overlap (<200): check market/feature join")
+    # v3 deliberately excludes early fixtures without 20 prior matches per team.
+    # The first season therefore has fewer eligible observations than later ones.
+    # Audit identities and require adequate training/tuning/test coverage instead
+    # of applying an arbitrary per-season 200-match minimum.
+    if counts.loc[list(TRAIN)].sum() < 400 or counts[TUNE] < 200 or any(counts[s] < 200 for s in TEST):
+        raise ValueError("Insufficient train, tuning or chronological test coverage")
     if args.audit_only:
         return
 

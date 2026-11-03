@@ -1,0 +1,5 @@
+Gameweek,Approach,Matches,Correct,Accuracy,LogLoss,MulticlassBrier
+9,Model2_v1.0,10,5,0.500000,0.99357217,0.59298703
+9,Market_only_GW9,10,5,0.500000,1.01573360,0.60720375
+9,Model2_OpeningMarket_40_60_v1.0,10,5,0.500000,1.00307461,0.59924581
+9,AdaptiveMarketConfidence_v1.0,10,5,0.500000,1.00226735,0.59881078

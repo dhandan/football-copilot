@@ -5,11 +5,18 @@
 **Original purpose:** Build real AI and analytics engineering capability through a working Football Copilot application. The prediction model remains valuable but is no longer the sole focus. All new work must meet a **£0 ongoing cost** constraint, reusing local Qwen/Ollama, Streamlit, DuckDB and open-source code.
 
 1. **V2 [AI agent orchestration and offline evaluation, #11](https://github.com/dhandan/football-copilot/issues/11): primary near-term development.** Start from existing deterministic routing and tools. Deliver a meaningful multi-tool question, bounded orchestration, grounded responses and lightweight tests. Do not introduce LangGraph merely for appearances.
-2. **V3 [Portable local runtime and interchangeable LLM configuration, #12](https://github.com/dhandan/football-copilot/issues/12): next, after V2 MVP.** Lightweight reproducibility and Docker where useful. Existing [£0 public demo, #9](https://github.com/dhandan/football-copilot/issues/9) stays a separate lower-priority product item.
+2. **V3 [Portable local runtime and interchangeable LLM configuration, #12](https://github.com/dhandan/football-copilot/issues/12): next, after V2 MVP.** Lightweight reproducibility and Docker where useful. Existing [private £0 on-demand cloud plan, #9](https://github.com/dhandan/football-copilot/issues/9) now supersedes the former public-live-demo scope; private authentication and quota gates are required before cloud inference.
 3. **Weekly model optimisation:** GW freeze, compare champion/challenger against identical final results, make a weekly keep/improve/release decision. No repeated rejected experiments, no forced releases or extended hold. GW8 40/60 and adaptive forecasts remain immutable.
 4. **V4 FPL Copilot: parked.** No active development or new ticket.
 
 **Side-project operating principle:** One AI engineering build task at a time; weekly prediction evaluation alongside it. Prefer short practical increments, no admin-heavy ceremonies, no paid APIs or hosting.
+
+## Latest checkpoint: GW9 completed, GW10 prepared (3 November 2026)
+
+- [GW9 verified results and four-way retrospective](gameweeks/GW09.md): all four frozen approaches scored **5/10** on GW9 accuracy; Model 2 had the lowest GW9 Log Loss (**0.9936**) and Brier (**0.5930**). Results independently cross-checked; official ingestion parity still outstanding.
+- **Comparable GW6–GW9 (40 fixtures):** fixed 40/60 **19/40**, mean Log Loss **1.0239**, Brier **0.6167**; Model 2 **16/40**, **1.1154**, **0.6826**. Small-sample provisional evidence, **not** formal production promotion.
+- [GW10 schedule, prospective freeze checklist and bounded diagnostics](gameweeks/GW10.md): first kickoff Fri **6 November 20:00 GMT**; target T-24h Thu **5 November 20:00 GMT**. Maintain the four existing model/market approaches; no new weight tuning or frozen GW9 edits.
+- Four-way [summary](../data/live/evaluations/2026_27_gw09_four_way_summary.csv) and [fixture-level metrics](../data/live/evaluations/2026_27_gw09_four_way_fixture_scores.csv) are committed. Full-season tracker and standard local evaluator parity remain open.
 
 ## 2026/27 Premier League Live Prediction Experiment
 

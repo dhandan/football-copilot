@@ -1,0 +1,14 @@
+{
+  "version": "AdaptiveMarketConfidence_v1.0",
+  "gameweek": 10,
+  "status": "ProspectiveChallenger",
+  "frozen_utc": "2026-11-06T09:47:16.815065+00:00",
+  "original_registration": "2026-10-23T09:43:21.823146+00:00",
+  "rule": "market_weight=clip(0.60-0.60*(max_market_probability-0.50),0.20,0.90)",
+  "model_source": "data/live/predictions/2026_27_gw10_predictions.csv",
+  "market_source": "data/live/market/2026_27_gw10_opening_market_official_20261106_094022.csv",
+  "model_sha256": "aee25c8183deba9192d6117c192f1305449cb4f02de347b20b3af9d1aea0b6e2",
+  "market_sha256": "ffcc77899e14ed0e6d7d7cf04acbde5f6b94ed47c0a05dce7d9be6ac03dad3d3",
+  "fixtures": 10,
+  "note": "Unchanged registered formula. GW10 late-capture exception. Not promoted."
+}

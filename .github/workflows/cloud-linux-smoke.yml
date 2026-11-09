@@ -8,6 +8,10 @@ on:
       - "requirements-cloud.txt"
       - "scripts/audit_cloud_readiness.py"
       - "tests/test_cloud_readiness_audit.py"
+      - "agent/groq_v2.py"
+      - "agent/langgraph_v2.py"
+      - "app/streamlit_app.py"
+      - "tests/test_groq_v2.py"
   pull_request:
     branches: [main]
     paths:
@@ -15,6 +19,10 @@ on:
       - "requirements-cloud.txt"
       - "scripts/audit_cloud_readiness.py"
       - "tests/test_cloud_readiness_audit.py"
+      - "agent/groq_v2.py"
+      - "agent/langgraph_v2.py"
+      - "app/streamlit_app.py"
+      - "tests/test_groq_v2.py"
 
 permissions:
   contents: read

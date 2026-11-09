@@ -120,10 +120,23 @@ def _current_season_form(team: str, games: int):
     draws = sum(gf == ga for _, gf, ga, _ in matches)
     losses = len(matches) - wins - draws
     points = 3 * wins + draws
+    # Scoreline patterns are facts, not claims about *causes* of defending.
+    # Matches are sorted most recent first. The previous-five split is only
+    # available when the requested window contains at least ten actual games.
+    defensive_breakdown = {
+        "CleanSheets": sum(ga == 0 for _, _, ga, _ in matches),
+        "Conceded2Plus": sum(ga >= 2 for _, _, ga, _ in matches),
+    }
+    if len(matches) >= 10:
+        defensive_breakdown.update({
+            "ConcededRecent5": sum(m[2] for m in matches[:5]),
+            "ConcededPrevious5": sum(m[2] for m in matches[5:10]),
+        })
     return {"type": "form_summary", "season": ", ".join(seasons),
             "source": "verified 2026/27 gameweek results snapshots and 2025/26 DuckDB team_match_stats",
             "requested_games": games,
-            "data": [{"Played": len(matches), "Won": wins, "Drawn": draws,
+            "data": [{**defensive_breakdown,
+                      "Played": len(matches), "Won": wins, "Drawn": draws,
                       "Lost": losses, "Points": points,
                       "PointsPerGame": round(points / len(matches), 2),
                       "GoalsFor": sum(m[1] for m in matches),

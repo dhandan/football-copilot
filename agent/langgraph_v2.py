@@ -591,9 +591,16 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 metrics = result["historical_2025_26"]
                 a, b = metrics["Model 2"], metrics["H07 xG+xA"]
                 parts.append(
-                    f"H07 parked: 2025/26 accuracy {b['accuracy_pct']}% vs {a['accuracy_pct']}% "
-                    f"Model 2, Log Loss {b['log_loss']} vs {a['log_loss']}, "
-                    f"Brier {b['brier']} vs {a['brier']}. Source: {result['source']}."
+                    f"H07 parked: the xG+xA experiment was not promoted because it "
+                    f"did not outperform the frozen Model 2 benchmark on 2025/26 "
+                    f"historical validation. H07 accuracy was {b['accuracy_pct']}% "
+                    f"versus {a['accuracy_pct']}% for Model 2; "
+                    f"Log Loss was {b['log_loss']} versus {a['log_loss']} and "
+                    f"Brier was {b['brier']} versus {a['brier']}. "
+                    f"Both probability error scores were higher (worse) for H07. "
+                    f"No deployable improvement was established. "
+                    f"This historical experiment is not a GW8 prospective result. "
+                    f"Source: {result['source']}."
                 )
             elif name == "next_meeting":
                 fixture = result.get("fixture")

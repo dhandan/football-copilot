@@ -61,11 +61,34 @@ class DefensiveWhyTests(unittest.TestCase):
             chat = Conversation(planner=no_llm)
             chat.ask("Compare Liverpool and Arsenal over their last 10 matches",
                      thread_id="why-followup")
+            chat.ask("Who has been defensively better over those 10 matches?",
+                     thread_id="why-followup")
             result = chat.ask("Why is that?", thread_id="why-followup")
         self.assertEqual(len(result["evidence"]), 2)
         self.assertEqual({r["arguments"]["games"] for r in result["evidence"]}, {10})
-        self.assertIn("4 clean sheets", result["answer"])
+        self.assertIn("1 clean sheets versus 4", result["answer"])
         self.assertIn("not proof of why", result["answer"])
+
+    def test_real_readonly_result_data_has_computed_defensive_patterns(self):
+        from agent.football_tools import form_summary
+        from agent.langgraph_v2 import ask
+        arsenal = form_summary("Arsenal", 10, season="2026/27")
+        liverpool = form_summary("Liverpool", 10, season="2026/27")
+        self.assertEqual(arsenal["data"][0]["Played"], 10)
+        self.assertEqual(liverpool["data"][0]["Played"], 10)
+        for team_result in (arsenal, liverpool):
+            data = team_result["data"][0]
+            self.assertGreaterEqual(data["CleanSheets"], 0)
+            self.assertLessEqual(data["CleanSheets"], 10)
+            self.assertGreaterEqual(data["Conceded2Plus"], 0)
+            self.assertEqual(data["ConcededRecent5"] + data["ConcededPrevious5"],
+                             data["GoalsAgainst"])
+        answer = ask("Why is Arsenal defensively stronger than Liverpool over their last 10 matches?",
+                     planner=lambda _: self.fail("Should use the deterministic comparison route"))
+        self.assertIn("descriptive patterns", answer["answer"])
+        self.assertIn("clean sheets", answer["answer"])
+        self.assertIn("Source:", answer["answer"])
+        self.assertIn("2026/27", answer["answer"])
 
     def test_why_does_not_invent_match_breakdown_when_missing(self):
         l = {"Played": 10, "GoalsAgainst": 14}

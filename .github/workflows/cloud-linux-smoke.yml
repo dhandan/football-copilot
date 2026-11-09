@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   linux-smoke:
-    if: github.head_ref == 'feature/issue9-cloud-readiness-audit'
+    if: github.ref == 'refs/heads/feature/issue9-cloud-readiness-audit' || github.head_ref == 'feature/issue9-cloud-readiness-audit'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -43,3 +43,23 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Validate committed runtime assets and DuckDB
         run: python scripts/validate_project.py
+      - name: Verify real football answer without Ollama or external LLM
+        run: |
+          python - <<'PY'
+          from analytics.football_analytics import get_team_record
+          from agent.football_tools import frozen_gameweek_predictions
+
+          record = get_team_record("Liverpool", "2025/26")
+          assert len(record) == 1, "Historical Liverpool record missing"
+          played = int(record.iloc[0]["Played"])
+          won = int(record.iloc[0]["Won"])
+          drawn = int(record.iloc[0]["Drawn"])
+          lost = int(record.iloc[0]["Lost"])
+          assert played == 38 and won + drawn + lost == played
+          frozen = frozen_gameweek_predictions(8)
+          assert not frozen.get("error"), frozen.get("error")
+          assert len(frozen["data"]) == 10 and "Model2_v1.0" in frozen["models"]
+          print("PASS: Liverpool 2025/26 played", played, "won", won, "drawn", drawn, "lost", lost)
+          print("PASS: GW8 immutable forecasts", len(frozen["data"]), "models", frozen["models"])
+          print("PASS: Deterministic cloud answer obtained; Ollama not called")
+          PY

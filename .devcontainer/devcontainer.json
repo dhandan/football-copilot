@@ -1,0 +1,23 @@
+{
+  "name": "Football Copilot V2 private preview",
+  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+  "postCreateCommand": "python -m pip install --disable-pip-version-check -r requirements-cloud.txt",
+  "postAttachCommand": "bash .devcontainer/start-preview.sh",
+  "forwardPorts": [
+    8501
+  ],
+  "portsAttributes": {
+    "8501": {
+      "label": "Football Copilot V2 PRIVATE preview",
+      "onAutoForward": "notify"
+    }
+  },
+  "containerEnv": {
+    "FOOTBALL_GROQ_ENABLED": "1",
+    "FOOTBALL_GROQ_FREE_PLAN_CONFIRMED": "1",
+    "FOOTBALL_GROQ_ZDR_CONFIRMED": "1",
+    "FOOTBALL_GROQ_MODEL": "openai/gpt-oss-20b",
+    "FOOTBALL_AGENT_DEBUG": "0",
+    "FOOTBALL_V2_FACTS_FIRST": "0"
+  }
+}

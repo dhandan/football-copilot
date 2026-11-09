@@ -65,6 +65,7 @@ class GroqV2SafetyTests(unittest.TestCase):
         self.assertEqual(kw["timeout"],(3.0,12.0))
         self.assertFalse(kw["allow_redirects"])
         self.assertEqual(kw["json"]["model"],"openai/gpt-oss-20b")
+        self.assertEqual(kw["json"]["response_format"],{"type":"json_object"})
         self.assertEqual(kw["json"]["max_completion_tokens"],320)
         self.assertFalse(kw["json"]["stream"])
         self.assertNotIn("synthetic-not-a-real-key",repr(kw["json"]))

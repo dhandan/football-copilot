@@ -128,6 +128,27 @@ class GroqV2SafetyTests(unittest.TestCase):
                     self.assertNotIn("GROQ_API_KEY", str(caught.exception))
                     post.assert_called_once()
 
+    def test_400_error_code_allowlist_never_discloses_provider_message(self):
+        for code, category in (
+            ("json_validate_failed", groq_v2.GroqBadRequestJsonValidation),
+            ("structured_generation_failed", groq_v2.GroqBadRequestJsonValidation),
+            ("context_length_exceeded", groq_v2.GroqBadRequestContext),
+            ("unexpected_code", groq_v2.GroqBadRequest),
+        ):
+            with self.subTest(code=code):
+                reply = Mock(status_code=400)
+                reply.json.return_value = {
+                    "error": {"code": code,
+                              "message": "SECRET_USER_PROMPT_DO_NOT_EXPOSE",
+                              "failed_generation": "PRIVATE_TOOL_EVIDENCE"}
+                }
+                with patch("requests.post", return_value=reply) as post:
+                    with self.assertRaises(category) as caught:
+                        groq_v2.groq_synthesizer("Why?", "Verified facts.")
+                self.assertNotIn("SECRET_USER_PROMPT_DO_NOT_EXPOSE", str(caught.exception))
+                self.assertNotIn("PRIVATE_TOOL_EVIDENCE", str(caught.exception))
+                post.assert_called_once()
+
     def test_response_and_contract_errors_remain_safe(self):
         with patch("requests.post", return_value=Mock(
                 status_code=200, json=lambda: {"choices": []})):

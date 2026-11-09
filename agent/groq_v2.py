@@ -37,6 +37,40 @@ class GroqUnavailable(ValueError):
     """Safe, non-sensitive failure recognised by the existing V2 graph."""
 
 
+# Exception class names are the ONLY remote failure detail recorded by the
+# existing V2 trace.  Never inspect, print or propagate provider error bodies.
+class GroqBadRequest(GroqUnavailable):
+    """Provider returned HTTP 400 (request format or model rejection)."""
+
+
+class GroqAuthenticationRejected(GroqUnavailable):
+    """Provider returned HTTP 401 or 403; credentials/access were rejected."""
+
+
+class GroqRateLimited(GroqUnavailable):
+    """Provider returned HTTP 429; no retry or paid fallback permitted."""
+
+
+class GroqProviderRejected(GroqUnavailable):
+    """Other HTTP error, including payment-required or server errors."""
+
+
+class GroqTransportFailed(GroqUnavailable):
+    """Network failure or timeout, without original exception details."""
+
+
+class GroqResponseInvalid(GroqUnavailable):
+    """Successful HTTP response contained missing/unusable content."""
+
+
+class GroqPlannerContractInvalid(GroqUnavailable):
+    """Returned JSON did not match the allow-listed plan schema."""
+
+
+class GroqAnswerContractInvalid(GroqUnavailable):
+    """Returned JSON did not match the strict grounded answer schema."""
+
+
 def groq_enabled() -> bool:
     return os.getenv("FOOTBALL_GROQ_ENABLED") == "1"
 
@@ -89,17 +123,21 @@ def _chat(system: str, user: str, response_format: dict) -> str:
             allow_redirects=False,
         )
     except requests.exceptions.RequestException:
-        raise GroqUnavailable("Groq request timed out or failed") from None
+        raise GroqTransportFailed("Groq request timed out or failed") from None
+    if reply.status_code == 400:
+        raise GroqBadRequest("Groq request rejected (HTTP 400)") from None
+    if reply.status_code in (401, 403):
+        raise GroqAuthenticationRejected("Groq authentication or access denied") from None
     if reply.status_code == 429:
-        raise GroqUnavailable("Groq Free plan rate limit reached") from None
+        raise GroqRateLimited("Groq Free plan rate limit reached") from None
     if reply.status_code != 200:
-        raise GroqUnavailable("Groq request rejected by provider") from None
+        raise GroqProviderRejected("Groq request rejected by provider") from None
     try:
         text = reply.json()["choices"][0]["message"]["content"]
     except (ValueError, KeyError, TypeError, IndexError):
-        raise GroqUnavailable("Groq response did not contain a valid answer") from None
+        raise GroqResponseInvalid("Groq response did not contain a valid answer") from None
     if not isinstance(text, str) or not text.strip() or len(text) > 6000:
-        raise GroqUnavailable("Groq returned an invalid answer length")
+        raise GroqResponseInvalid("Groq returned an invalid answer length")
     return text
 
 
@@ -124,7 +162,7 @@ def groq_planner(question: str) -> list[dict]:
     try:
         parsed = _Plan.model_validate_json(text)
     except ValueError:
-        raise GroqUnavailable("Groq planner output failed tool contract") from None
+        raise GroqPlannerContractInvalid("Groq planner output failed tool contract") from None
     return [call.model_dump() for call in parsed.calls]
 
 
@@ -165,4 +203,4 @@ def groq_synthesizer(question: str, facts: str) -> str:
     try:
         return _Answer.model_validate_json(text).answer
     except ValueError:
-        raise GroqUnavailable("Groq answer failed response contract") from None
+        raise GroqAnswerContractInvalid("Groq answer failed response contract") from None

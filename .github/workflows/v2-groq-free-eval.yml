@@ -1,6 +1,6 @@
 name: V2 Groq Free single-run live evaluation
 
-# Explicit one-off diagnostic rerun, 9 Nov 2026: classify failed syntheses.
+# Explicit one-off JSON-object response-format comparison, 9 Nov 2026.
 # Runs only on exact experimental branch, never on pull requests or a schedule.
 # No PR secrets, no deployment; user confirmed Free plan, ZDR and private key.
 on:

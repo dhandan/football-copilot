@@ -50,7 +50,7 @@ class DefensiveWhyTests(unittest.TestCase):
         self.assertEqual({r["arguments"]["team"] for r in result["evidence"]},
                          {"Arsenal", "Liverpool"})
         self.assertTrue(all(r["arguments"]["games"] == 10 for r in result["evidence"]))
-        self.assertIn("4 clean sheets versus 1", result["answer"])
+        self.assertIn("Liverpool kept 1 clean sheet versus 4 for Arsenal", result["answer"])
         self.assertIn("13", result["answer"])
         self.assertIn("not proof of why", result["answer"])
 

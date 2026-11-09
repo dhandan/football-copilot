@@ -12,6 +12,8 @@ on:
       - "agent/langgraph_v2.py"
       - "app/streamlit_app.py"
       - "tests/test_groq_v2.py"
+      - "scripts/evaluate_v2_conversations.py"
+      - "docs/V2_GROQ_EXPERIMENT_2026_11_09.md"
   pull_request:
     branches: [main]
     paths:
@@ -23,6 +25,8 @@ on:
       - "agent/langgraph_v2.py"
       - "app/streamlit_app.py"
       - "tests/test_groq_v2.py"
+      - "scripts/evaluate_v2_conversations.py"
+      - "docs/V2_GROQ_EXPERIMENT_2026_11_09.md"
 
 permissions:
   contents: read

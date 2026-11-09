@@ -1,0 +1,233 @@
+{
+  "baseline": {
+    "n": 1100,
+    "correct": 594,
+    "accuracy_pct": 54.0,
+    "logloss": 0.97607,
+    "brier": 0.58104,
+    "draw_picks": 0
+  },
+  "stage1_mae": {
+    "2022/23": {
+      "SOT_H": 1.878,
+      "SOT_A": 1.839,
+      "NONTARGET_H": 3.188,
+      "NONTARGET_A": 2.852,
+      "CORN_H": 2.343,
+      "CORN_A": 2.107
+    },
+    "2023/24": {
+      "SOT_H": 2.048,
+      "SOT_A": 1.761,
+      "NONTARGET_H": 3.433,
+      "NONTARGET_A": 3.035,
+      "CORN_H": 2.54,
+      "CORN_A": 2.146
+    },
+    "2024/25": {
+      "SOT_H": 1.846,
+      "SOT_A": 1.651,
+      "NONTARGET_H": 3.059,
+      "NONTARGET_A": 2.979,
+      "CORN_H": 2.388,
+      "CORN_A": 2.19
+    },
+    "2025/26": {
+      "SOT_H": 1.816,
+      "SOT_A": 1.635,
+      "NONTARGET_H": 2.898,
+      "NONTARGET_A": 2.702,
+      "CORN_H": 2.132,
+      "CORN_A": 2.122
+    }
+  },
+  "year_standalone": {
+    "2023/24": {
+      "ordinal": {
+        "n": 360,
+        "correct": 198,
+        "accuracy_pct": 55.0,
+        "logloss": 0.97258,
+        "brier": 0.57748,
+        "draw_picks": 0
+      },
+      "multinomial": {
+        "n": 360,
+        "correct": 195,
+        "accuracy_pct": 54.167,
+        "logloss": 0.97992,
+        "brier": 0.58,
+        "draw_picks": 3
+      },
+      "direct": {
+        "n": 360,
+        "correct": 194,
+        "accuracy_pct": 53.889,
+        "logloss": 0.99283,
+        "brier": 0.58319,
+        "draw_picks": 14
+      }
+    },
+    "2024/25": {
+      "ordinal": {
+        "n": 370,
+        "correct": 191,
+        "accuracy_pct": 51.622,
+        "logloss": 1.00465,
+        "brier": 0.60096,
+        "draw_picks": 0
+      },
+      "multinomial": {
+        "n": 370,
+        "correct": 192,
+        "accuracy_pct": 51.892,
+        "logloss": 1.0069,
+        "brier": 0.60274,
+        "draw_picks": 0
+      },
+      "direct": {
+        "n": 370,
+        "correct": 184,
+        "accuracy_pct": 49.73,
+        "logloss": 1.05883,
+        "brier": 0.63523,
+        "draw_picks": 21
+      }
+    },
+    "2025/26": {
+      "ordinal": {
+        "n": 370,
+        "correct": 175,
+        "accuracy_pct": 47.297,
+        "logloss": 1.03598,
+        "brier": 0.62245,
+        "draw_picks": 0
+      },
+      "multinomial": {
+        "n": 370,
+        "correct": 175,
+        "accuracy_pct": 47.297,
+        "logloss": 1.03743,
+        "brier": 0.62309,
+        "draw_picks": 0
+      },
+      "direct": {
+        "n": 370,
+        "correct": 170,
+        "accuracy_pct": 45.946,
+        "logloss": 1.06037,
+        "brier": 0.63703,
+        "draw_picks": 5
+      }
+    }
+  },
+  "models": {
+    "ordinal": {
+      "standalone": {
+        "n": 1100,
+        "correct": 564,
+        "accuracy_pct": 51.273,
+        "logloss": 1.00469,
+        "brier": 0.6005,
+        "draw_picks": 0,
+        "uplift_pp": -2.727,
+        "net_more_correct": -30,
+        "paired_bootstrap_95pct_pp": [
+          -4.545,
+          -0.818
+        ],
+        "fixes": 42,
+        "damages": 72
+      },
+      "fixed_blend": {
+        "n": 1100,
+        "correct": 598,
+        "accuracy_pct": 54.364,
+        "logloss": 0.97647,
+        "brier": 0.5811,
+        "draw_picks": 0,
+        "uplift_pp": 0.364,
+        "net_more_correct": 4,
+        "paired_bootstrap_95pct_pp": [
+          -0.545,
+          1.364
+        ],
+        "fixes": 17,
+        "damages": 13
+      }
+    },
+    "multinomial": {
+      "standalone": {
+        "n": 1100,
+        "correct": 562,
+        "accuracy_pct": 51.091,
+        "logloss": 1.00834,
+        "brier": 0.60214,
+        "draw_picks": 3,
+        "uplift_pp": -2.909,
+        "net_more_correct": -32,
+        "paired_bootstrap_95pct_pp": [
+          -4.727,
+          -1.091
+        ],
+        "fixes": 38,
+        "damages": 70
+      },
+      "fixed_blend": {
+        "n": 1100,
+        "correct": 597,
+        "accuracy_pct": 54.273,
+        "logloss": 0.97747,
+        "brier": 0.58166,
+        "draw_picks": 0,
+        "uplift_pp": 0.273,
+        "net_more_correct": 3,
+        "paired_bootstrap_95pct_pp": [
+          -0.727,
+          1.273
+        ],
+        "fixes": 17,
+        "damages": 14
+      }
+    },
+    "direct": {
+      "standalone": {
+        "n": 1100,
+        "correct": 548,
+        "accuracy_pct": 49.818,
+        "logloss": 1.03775,
+        "brier": 0.6188,
+        "draw_picks": 40,
+        "uplift_pp": -4.182,
+        "net_more_correct": -46,
+        "paired_bootstrap_95pct_pp": [
+          -6.366,
+          -2.091
+        ],
+        "fixes": 47,
+        "damages": 93
+      },
+      "fixed_blend": {
+        "n": 1100,
+        "correct": 588,
+        "accuracy_pct": 53.455,
+        "logloss": 0.98102,
+        "brier": 0.58465,
+        "draw_picks": 5,
+        "uplift_pp": -0.545,
+        "net_more_correct": -6,
+        "paired_bootstrap_95pct_pp": [
+          -1.727,
+          0.636
+        ],
+        "fixes": 19,
+        "damages": 25
+      }
+    }
+  },
+  "method": "six stage-1 Poisson shot/corner regressions; ordered logit and multinomial stage 2, chronological out-of-season stage-1 predictions; direct logistic comparator",
+  "source": "2021/22-2025/26 Football-Data match statistics",
+  "test_fixture_count": 1100,
+  "passed": [],
+  "decision": "NO-GO: +2pp development accuracy hurdle not met"
+}

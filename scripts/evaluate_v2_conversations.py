@@ -77,6 +77,8 @@ SCENARIOS = [
         ("Why is that?",
          [P("form_summary", team="Liverpool", games=10),
           P("form_summary", team="Arsenal", games=10)], ("form_pair", "why_defence")),
+        ("Why was H07 rejected?",
+         [P("experiment_history", experiment="H07")], ("h07", "topic_switch")),
     ]),
     ("out_of_scope", [
         ("Can you tell me today's weather in London?", [], ("unsupported",)),
@@ -203,6 +205,12 @@ def evaluate(live=False, provider="local"):
                     ok &= "frozen forecasts (10 fixtures)" not in answer.lower()
                     ok &= frozen.get("source", "") in answer
                     ok &= "not an explanation of recent form" in answer.lower() or "No fixture forecast is inferred" in answer
+                if "topic_switch" in checks:
+                    ok &= "H07 parked" in answer
+                    ok &= "docs/experiments/H07_PLAYER_INTELLIGENCE.md" in answer
+                    ok &= "Liverpool vs Arsenal" not in answer
+                    ok &= "deterministic_form_route" not in result["trace"]
+                    ok &= "planned 1 tool(s)" in result["trace"]
                 if "unsupported" in checks:
                     ok &= not result["evidence"]
                 if "rejected" in checks:

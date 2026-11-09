@@ -279,6 +279,8 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("planned 1 tool(s)", result["trace"])
         self.assertNotIn("deterministic_form_route", result["trace"])
         self.assertIn("H07 parked", result["answer"])
+        self.assertIn("did not outperform the frozen Model 2", result["answer"])
+        self.assertIn("Both probability error scores were higher (worse)", result["answer"])
         self.assertIn("docs/experiments/H07_PLAYER_INTELLIGENCE.md", result["answer"])
         self.assertNotIn("Liverpool vs Arsenal", result["answer"])
 

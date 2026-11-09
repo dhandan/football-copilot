@@ -1,6 +1,6 @@
 name: V2 Groq Free single-run live evaluation
 
-# Final one-off safe error-code classification run, 9 Nov 2026.
+# One-off real 18-turn conversation context-switch regression run, 9 Nov 2026.
 # Runs only on exact experimental branch, never on pull requests or a schedule.
 # No PR secrets, no deployment; user confirmed Free plan, ZDR and private key.
 on:
@@ -53,7 +53,7 @@ jobs:
               raise SystemExit("NO-GO: Secret unavailable or explicit Free/ZDR/model gate failed")
           print("PASS: opted-in Free/ZDR credential gate (user-attested; not independently account-verified)")
           PY
-      - name: Run one bounded live 13-turn Groq V2 acceptance
+      - name: Run one bounded live 18-turn Groq V2 acceptance
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python -m scripts.evaluate_v2_conversations --live --groq

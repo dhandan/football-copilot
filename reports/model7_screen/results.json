@@ -1,0 +1,243 @@
+{
+  "benchmark": {
+    "n": 1100,
+    "correct": 594,
+    "accuracy_pct": 54.0,
+    "logloss": 0.97607,
+    "brier": 0.58104,
+    "draws": 0
+  },
+  "arms": {
+    "A": {
+      "standalone": {
+        "n": 1100,
+        "correct": 567,
+        "accuracy_pct": 51.545,
+        "logloss": 1.00958,
+        "brier": 0.60448,
+        "draws": 4,
+        "uplift_pp": -2.455,
+        "paired_95pct_bootstrap_ci_pp": [
+          -4.182,
+          -0.818
+        ],
+        "additional_correct": -27,
+        "fixes": 33,
+        "damages": 60
+      },
+      "fixed_blend": {
+        "n": 1100,
+        "correct": 584,
+        "accuracy_pct": 53.091,
+        "logloss": 0.97632,
+        "brier": 0.58129,
+        "draws": 0,
+        "uplift_pp": -0.909,
+        "paired_95pct_bootstrap_ci_pp": [
+          -1.727,
+          -0.091
+        ],
+        "additional_correct": -10,
+        "fixes": 7,
+        "damages": 17
+      }
+    },
+    "B": {
+      "standalone": {
+        "n": 1100,
+        "correct": 577,
+        "accuracy_pct": 52.455,
+        "logloss": 0.9975,
+        "brier": 0.59546,
+        "draws": 1,
+        "uplift_pp": -1.545,
+        "paired_95pct_bootstrap_ci_pp": [
+          -3.091,
+          -0.091
+        ],
+        "additional_correct": -17,
+        "fixes": 29,
+        "damages": 46
+      },
+      "fixed_blend": {
+        "n": 1100,
+        "correct": 593,
+        "accuracy_pct": 53.909,
+        "logloss": 0.97512,
+        "brier": 0.58037,
+        "draws": 0,
+        "uplift_pp": -0.091,
+        "paired_95pct_bootstrap_ci_pp": [
+          -1.0,
+          0.727
+        ],
+        "additional_correct": -1,
+        "fixes": 11,
+        "damages": 12
+      }
+    },
+    "C": {
+      "standalone": {
+        "n": 1100,
+        "correct": 594,
+        "accuracy_pct": 54.0,
+        "logloss": 1.00567,
+        "brier": 0.59994,
+        "draws": 5,
+        "uplift_pp": 0.0,
+        "paired_95pct_bootstrap_ci_pp": [
+          -1.636,
+          1.636
+        ],
+        "additional_correct": 0,
+        "fixes": 42,
+        "damages": 42
+      },
+      "fixed_blend": {
+        "n": 1100,
+        "correct": 602,
+        "accuracy_pct": 54.727,
+        "logloss": 0.97616,
+        "brier": 0.5807,
+        "draws": 0,
+        "uplift_pp": 0.727,
+        "paired_95pct_bootstrap_ci_pp": [
+          -0.273,
+          1.727
+        ],
+        "additional_correct": 8,
+        "fixes": 21,
+        "damages": 13
+      }
+    }
+  },
+  "season_results": {
+    "A": {
+      "2023/24": {
+        "n": 360,
+        "correct": 205,
+        "accuracy_pct": 56.944,
+        "logloss": 0.96699,
+        "brier": 0.5736,
+        "draws": 2
+      },
+      "2024/25": {
+        "n": 370,
+        "correct": 189,
+        "accuracy_pct": 51.081,
+        "logloss": 1.01915,
+        "brier": 0.61214,
+        "draws": 1
+      },
+      "2025/26": {
+        "n": 370,
+        "correct": 173,
+        "accuracy_pct": 46.757,
+        "logloss": 1.04145,
+        "brier": 0.62687,
+        "draws": 1
+      }
+    },
+    "B": {
+      "2023/24": {
+        "n": 360,
+        "correct": 197,
+        "accuracy_pct": 54.722,
+        "logloss": 0.95861,
+        "brier": 0.56792,
+        "draws": 1
+      },
+      "2024/25": {
+        "n": 370,
+        "correct": 199,
+        "accuracy_pct": 53.784,
+        "logloss": 0.9942,
+        "brier": 0.59366,
+        "draws": 0
+      },
+      "2025/26": {
+        "n": 370,
+        "correct": 181,
+        "accuracy_pct": 48.919,
+        "logloss": 1.03863,
+        "brier": 0.62406,
+        "draws": 0
+      }
+    },
+    "C": {
+      "2023/24": {
+        "n": 360,
+        "correct": 209,
+        "accuracy_pct": 58.056,
+        "logloss": 0.9541,
+        "brier": 0.56299,
+        "draws": 1
+      },
+      "2024/25": {
+        "n": 370,
+        "correct": 207,
+        "accuracy_pct": 55.946,
+        "logloss": 1.01339,
+        "brier": 0.60492,
+        "draws": 3
+      },
+      "2025/26": {
+        "n": 370,
+        "correct": 178,
+        "accuracy_pct": 48.108,
+        "logloss": 1.04813,
+        "brier": 0.63091,
+        "draws": 1
+      }
+    }
+  },
+  "source_match_rate": 1.0,
+  "parameters": {
+    "iterations": 350,
+    "depth": 4,
+    "learning_rate": 0.035,
+    "l2_leaf_reg": 8,
+    "loss_function": "MultiClass",
+    "random_seed": 42,
+    "thread_count": 2,
+    "verbose": false,
+    "allow_writing_files": false
+  },
+  "feature_names": [
+    "HomeRecentGoalsFor",
+    "HomeRecentGoalsAgainst",
+    "HomeRecentPPG",
+    "AwayRecentGoalsFor",
+    "AwayRecentGoalsAgainst",
+    "AwayRecentPPG",
+    "Home10GoalsFor",
+    "Home10GoalsAgainst",
+    "Home10PPG",
+    "Away10GoalsFor",
+    "Away10GoalsAgainst",
+    "Away10PPG",
+    "HomeVenuePPG",
+    "HomeVenueGoalsFor",
+    "AwayVenuePPG",
+    "AwayVenueGoalsFor",
+    "HomeSeasonPPG",
+    "HomeSeasonGoalDifferencePG",
+    "AwaySeasonPPG",
+    "AwaySeasonGoalDifferencePG",
+    "RecentPPGDifference",
+    "TenMatchPPGDifference",
+    "SeasonPPGDifference",
+    "AttackVsDefenceHome",
+    "AttackVsDefenceAway",
+    "EventDelta_totalScoringAtt",
+    "EventDelta_attemptsIbox",
+    "EventDelta_attemptsConcededIbox",
+    "EventDelta_touchesInOppBox",
+    "EventDelta_totalFinalThirdPasses",
+    "EventDelta_finalThirdEntries",
+    "EventDelta_possWonAtt3rd",
+    "EventDelta_possessionPercentage"
+  ],
+  "verdict": "NO-GO full model build: no qualified +2pp historical result",
+  "best_fixed_blend_correct": 602
+}

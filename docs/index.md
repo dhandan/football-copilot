@@ -11,12 +11,12 @@
 
 **Side-project operating principle:** One AI engineering build task at a time; weekly prediction evaluation alongside it. Prefer short practical increments, no admin-heavy ceremonies, no paid APIs or hosting.
 
-## Latest checkpoint: GW9 completed, GW10 prepared (3 November 2026)
+## Latest checkpoint: GW10 evaluated, four-way prospective review (9 November 2026)
 
-- [GW9 verified results and four-way retrospective](gameweeks/GW09.md): all four frozen approaches scored **5/10** on GW9 accuracy; Model 2 had the lowest GW9 Log Loss (**0.9936**) and Brier (**0.5930**). Results independently cross-checked; official ingestion parity still outstanding.
-- **Comparable GW6–GW9 (40 fixtures):** fixed 40/60 **19/40**, mean Log Loss **1.0239**, Brier **0.6167**; Model 2 **16/40**, **1.1154**, **0.6826**. Small-sample provisional evidence, **not** formal production promotion.
-- [GW10 schedule, prospective freeze checklist and bounded diagnostics](gameweeks/GW10.md): first kickoff Fri **6 November 20:00 GMT**; target T-24h Thu **5 November 20:00 GMT**. Maintain the four existing model/market approaches; no new weight tuning or frozen GW9 edits.
-- Four-way [summary](../data/live/evaluations/2026_27_gw09_four_way_summary.csv) and [fixture-level metrics](../data/live/evaluations/2026_27_gw09_four_way_fixture_scores.csv) are committed. Full-season tracker and standard local evaluator parity remain open.
+- [GW10 full retrospective](gameweeks/GW10.md): independently cross-verified 10/10 final scores after FPL provider-status failure; original frozen predictions and market snapshots remain unchanged.
+- **GW10 four-way matched 10 fixtures:** Model 2 **6/10** (Log Loss **0.9732**, Brier **0.5702**); market-only **5/10** (**0.9389**, **0.5508**); fixed 40/60 **6/10** (**0.9488**, **0.5566**); adaptive **6/10** (**0.9520**, **0.5591**). Market-only led probability metrics, not 1X2 accuracy. [Four-way scorecard](../data/live/evaluations/2026_27_gw10_four_way_summary.csv) · [fixture scores](../data/live/evaluations/2026_27_gw10_four_way_fixture_scores.csv).
+- **Prospective GW6–GW10, 50 same fixtures:** fixed 40/60 **25/50**, LL **1.00892**, Brier **0.60468**; Model 2 **22/50**, LL **1.08684**, Brier **0.66017**. Evidence remains provisional, not formal model promotion; adaptive has a shorter series.
+- **Remaining exceptions:** GW10 externally verified result CSV is expressly **not FPL API ingestion**; historical-frequency baseline source not tracked, so GW10 baseline fields left blank; local Python test/evaluator runtime parity, actual project-board statuses and Streamlit role switching remain unverified. See GW10 journal and [operating audit #8](https://github.com/dhandan/football-copilot/issues/8).
 
 ## 2026/27 Premier League Live Prediction Experiment
 

@@ -43,6 +43,14 @@ class GroqBadRequest(GroqUnavailable):
     """Provider returned HTTP 400 (request format or model rejection)."""
 
 
+class GroqBadRequestJsonValidation(GroqBadRequest):
+    """HTTP 400 with a recognised provider JSON-validation error code."""
+
+
+class GroqBadRequestContext(GroqBadRequest):
+    """HTTP 400 with a recognised context-length error code."""
+
+
 class GroqAuthenticationRejected(GroqUnavailable):
     """Provider returned HTTP 401 or 403; credentials/access were rejected."""
 
@@ -125,6 +133,19 @@ def _chat(system: str, user: str, response_format: dict) -> str:
     except requests.exceptions.RequestException:
         raise GroqTransportFailed("Groq request timed out or failed") from None
     if reply.status_code == 400:
+        # Provider messages and failed_generation payloads can contain prompts,
+        # evidence, or user text. Inspect ONLY a fixed allowlist of scalar
+        # error.code values and never log or interpolate response data.
+        try:
+            body = reply.json()
+            error = body.get("error", {}) if isinstance(body, dict) else {}
+            code = error.get("code") if isinstance(error, dict) else None
+        except (ValueError, TypeError):
+            code = None
+        if code in ("json_validate_failed", "structured_generation_failed"):
+            raise GroqBadRequestJsonValidation("Groq rejected generated JSON") from None
+        if code == "context_length_exceeded":
+            raise GroqBadRequestContext("Groq context-length rejection") from None
         raise GroqBadRequest("Groq request rejected (HTTP 400)") from None
     if reply.status_code in (401, 403):
         raise GroqAuthenticationRejected("Groq authentication or access denied") from None

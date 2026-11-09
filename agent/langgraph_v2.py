@@ -17,6 +17,8 @@ from httpx import ReadTimeout
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.memory import InMemorySaver
 
+from agent.defensive_explanation import defensive_evidence
+
 from agent.football_tools import (
     experiment_history,
     frozen_gameweek_predictions,
@@ -342,6 +344,11 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             return found
         teams = names_in(q)
         followup = bool(re.search(r"\b(their|both|those|that comparison|who|which|better|they|each other)\b", q, re.I) or re.search(r"\b(?:what about|how about|and over|over the last|last \d+|defen[sc]\w*)\b", q, re.I))
+        # A short "why?" follow-up refers to an earlier two-team form
+        # comparison, not to a free-floating causal explanation.
+        asks_why = bool(re.search(r"\b(?:why|reason|explain)\b", q, re.I))
+        followup = followup or bool(asks_why and prior_q)
+
         if len(teams) != 2 and followup:
             teams = names_in(prior_q)
             if len(teams) != 2:
@@ -356,7 +363,21 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         games = {"five": 5, "ten": 10}.get(requested.group(1).lower(), None) if requested else None
         if requested and games is None:
             games = int(requested.group(1))
+        # The most recent explicit window wins; do not silently change a
+        # follow-up from ten matches to the default when it says "why?".
+        if games is None and asks_why and prior_q and len(teams) == 2:
+            for previous in reversed(state.get("history", [])):
+                prior_window = re.search(
+                    r"\b(?:last|past|those|these)\s+(\d+|five|ten)(?:\s+(?:matches|games))?\b",
+                    previous["question"], re.I)
+                if prior_window:
+                    token = prior_window.group(1).lower()
+                    games = {"five": 5, "ten": 10}.get(token)
+                    if games is None:
+                        games = int(token)
+                    break
         is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|comparison|compare|conced\w*|last|past|those|these)\b", q, re.I))
+        is_form = is_form or bool(asks_why and prior_q and games is not None and len(teams) == 2)
         gw_match = re.search(r"\b(?:GW|gameweek)\s*(\d{1,2})\b", q, re.I)
         forecast_intent = bool(re.search(r"\b(forecast|prediction|predicted)\w*\b", q, re.I))
         if (len(teams) == 2 and games is not None and 1 <= games <= 30
@@ -728,7 +749,22 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             defence_focus = bool(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", state["question"], re.I))
             if not defence_focus and re.search(r"\b(?:what about|how about|over the last|last \d+)\b", state["question"], re.I):
                 defence_focus = any(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", earlier, re.I) for earlier in reversed(recent_questions))
-            if defence_focus:
+            why_focus = bool(re.search(r"\b(?:why|reason|explain)\b", state["question"], re.I))
+            if why_focus:
+                # Explain patterns even when the short question says just
+                # "why?" after a form/defensive comparison. Do not infer
+                # formations, player quality or opponents' strength.
+                insight = defensive_evidence(a, x, b, y)
+                cols = [
+                    ("Played", "Played"),
+                    ("GoalsAgainst", "Goals conceded"),
+                    ("GoalsFor", "Goals scored"),
+                ]
+                table = ["| Observed metric | " + a + " | " + b + " |",
+                         "|:--|--:|--:|"]
+                table += [f"| {label} | {fmt_stat(x[key])} | {fmt_stat(y[key])} |"
+                          for key, label in cols]
+            elif defence_focus:
                 conceded_a, conceded_b = int(x["GoalsAgainst"]), int(y["GoalsAgainst"])
                 if conceded_a == conceded_b:
                     headline = (f"**Neither team has the defensive edge.** Both conceded "

@@ -62,6 +62,22 @@ SCENARIOS = [
           P("frozen_gameweek_predictions", gameweek=8)],
          ("form_pair", "missing_fixture")),
     ]),
+    ("defensive_why_direct", [
+        ("Why is Arsenal defensively stronger than Liverpool over their last 10 matches?",
+         [P("form_summary", team="Arsenal", games=10),
+          P("form_summary", team="Liverpool", games=10)], ("form_pair", "why_defence")),
+    ]),
+    ("defensive_why_followup", [
+        ("Compare Liverpool and Arsenal over their last 10 matches",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)], ("form_pair",)),
+        ("Who has been defensively better over those 10 matches?",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)], ("form_pair", "defence")),
+        ("Why is that?",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)], ("form_pair", "why_defence")),
+    ]),
     ("out_of_scope", [
         ("Can you tell me today's weather in London?", [], ("unsupported",)),
     ]),
@@ -154,6 +170,14 @@ def evaluate(live=False, provider="local"):
                             ok &= expected_winner in answer
                             ok &= str(abs(a - b)) in answer or a == b
                             ok &= "Goals conceded" in answer
+                if "why_defence" in checks:
+                    ok &= "**Why the defensive records differ (observed results):**" in answer
+                    ok &= "descriptive patterns" in answer
+                    ok &= "Match results alone cannot establish tactics" in answer
+                    ok &= "clean sheet" in answer and "two or more" in answer
+                    ok &= "most recent five matches" in answer
+                    ok &= all(e["result"]["data"][0].get("ConcededRecent5") is not None
+                              for e in result["evidence"] if e["tool"] == "form_summary")
                 if "matching_fixture" in checks or "missing_fixture" in checks:
                     frozen = next((e["result"] for e in result["evidence"]
                                    if e["tool"] == "frozen_gameweek_predictions"), {})

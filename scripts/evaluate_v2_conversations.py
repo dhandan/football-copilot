@@ -70,7 +70,18 @@ SCENARIOS = [
     ]),
 ]
 
-def evaluate(live=False):
+def evaluate(live=False, provider="local"):
+    if provider not in ("local", "groq"):
+        raise ValueError("Unsupported V2 evaluation provider")
+    if provider == "groq":
+        if not live:
+            raise ValueError("Use --live --groq for the opt-in Groq evaluation")
+        from agent.groq_v2 import groq_ready, groq_planner, groq_synthesizer
+        if not groq_ready():
+            raise ValueError("Groq Free/ZDR/key confirmation missing; evaluation blocked")
+        selected_planner, selected_synthesizer = groq_planner, groq_synthesizer
+    else:
+        selected_planner, selected_synthesizer = local_planner, local_synthesizer
     total = sum(len(turns) for _, turns in SCENARIOS)
     passed = 0
     durations = []
@@ -87,7 +98,7 @@ def evaluate(live=False):
         def timed_planner(question):
             started = time.perf_counter()
             try:
-                return local_planner(question)
+                return selected_planner(question)
             finally:
                 stage["planning"] += time.perf_counter() - started
 
@@ -95,7 +106,7 @@ def evaluate(live=False):
             started = time.perf_counter()
             stage["synthesis_calls"] += 1
             try:
-                return local_synthesizer(question, facts)
+                return selected_synthesizer(question, facts)
             finally:
                 stage["synthesis"] += time.perf_counter() - started
 
@@ -198,11 +209,13 @@ def evaluate(live=False):
                   f"synthesis={synthesis_outcome} trace={trace}", flush=True)
     print(f"LATENCY: mean={sum(durations)/len(durations):.2f}s max={max(durations):.2f}s", flush=True)
     print(f"RESULT: {passed}/{total} passed "
-          f"({'live Qwen' if live else 'offline'})", flush=True)
+          f"({'live '+provider if live else 'offline'})", flush=True)
     return passed == total
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--live", action="store_true")
+    parser.add_argument("--groq", action="store_true",
+                        help="Use opt-in Groq planner/synthesis; requires Free/ZDR/key attestations")
     args = parser.parse_args()
-    raise SystemExit(0 if evaluate(args.live) else 1)
+    raise SystemExit(0 if evaluate(args.live, provider="groq" if args.groq else "local") else 1)

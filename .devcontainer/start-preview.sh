@@ -9,7 +9,7 @@ fi
 
 # Explicit restart is needed after a git pull: browser refresh and Streamlit
 # hot reload can leave the old agent/langgraph_v2 Python module in memory.
-if [[ "\${1:-}" == "--restart" ]]; then
+if [[ "${1:-}" == "--restart" ]]; then
   echo "Stopping the existing V2 preview to load updated Python modules..."
   pkill -f 'python -m streamlit run app/v2_groq_preview.py' || true
   for attempt in {1..20}; do

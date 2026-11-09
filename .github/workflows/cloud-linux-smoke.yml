@@ -10,6 +10,9 @@ on:
       - "tests/test_cloud_readiness_audit.py"
       - "agent/groq_v2.py"
       - "agent/langgraph_v2.py"
+      - "agent/defensive_explanation.py"
+      - "agent/football_tools.py"
+      - "tests/test_v2_defensive_why.py"
       - "app/streamlit_app.py"
       - "tests/test_groq_v2.py"
       - "scripts/evaluate_v2_conversations.py"
@@ -23,6 +26,9 @@ on:
       - "tests/test_cloud_readiness_audit.py"
       - "agent/groq_v2.py"
       - "agent/langgraph_v2.py"
+      - "agent/defensive_explanation.py"
+      - "agent/football_tools.py"
+      - "tests/test_v2_defensive_why.py"
       - "app/streamlit_app.py"
       - "tests/test_groq_v2.py"
       - "scripts/evaluate_v2_conversations.py"
@@ -53,6 +59,10 @@ jobs:
         env:
           FOOTBALL_V2_FACTS_FIRST: '0'
         run: python -m unittest discover -s tests -v
+      - name: Run full V2 offline conversation acceptance
+        env:
+          FOOTBALL_V2_FACTS_FIRST: '0'
+        run: python -m scripts.evaluate_v2_conversations
       - name: Validate committed runtime assets and DuckDB
         run: python scripts/validate_project.py
       - name: Verify real football answer without Ollama or external LLM

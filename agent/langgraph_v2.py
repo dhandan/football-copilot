@@ -749,7 +749,14 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             defence_focus = bool(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", state["question"], re.I))
             if not defence_focus and re.search(r"\b(?:what about|how about|over the last|last \d+)\b", state["question"], re.I):
                 defence_focus = any(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", earlier, re.I) for earlier in reversed(recent_questions))
-            why_focus = bool(re.search(r"\b(?:why|reason|explain)\b", state["question"], re.I))
+            why_focus = bool(
+                re.search(r"\b(?:why|reason|explain)\b", state["question"], re.I)
+                and (defence_focus or any(
+                    re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b",
+                              earlier, re.I)
+                    for earlier in reversed(recent_questions)
+                ))
+            )
             if why_focus:
                 # Explain patterns even when the short question says just
                 # "why?" after a form/defensive comparison. Do not infer
@@ -788,7 +795,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 f"*Seasons: {season_scope}*\n\n"
                 + coverage
                 + "**Key differences**\n\n" + insight + "\n\n"
-                + "**Head-to-head form stats**\n\n"
+                + "**Observed recent-form stats (not head-to-head fixtures)**\n\n"
                 + "\n".join(table) + "\n\n"
                 + f"**{a} recent form** and **{b} recent form** are compared above.\n"
                 + f"*Source: {sources}. Completed Premier League results, not predictions.*"

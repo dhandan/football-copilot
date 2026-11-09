@@ -252,6 +252,53 @@ class AgentGraphTests(unittest.TestCase):
                              {games})
             self.assertIn("Arsenal have been defensively stronger", answer["answer"])
 
+    def test_explicit_h07_question_switches_topic_after_defensive_why(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+
+        calls = []
+        def planner(prompt):
+            calls.append(prompt)
+            if "Why was H07 rejected?" in prompt:
+                return [{"name": "experiment_history",
+                         "arguments": {"experiment": "H07"}}]
+            raise AssertionError("All team-form turns should take deterministic route")
+
+        chat = Conversation(planner=planner)
+        chat.ask("Compare Liverpool and Arsenal over their last 10 matches",
+                 thread_id="real-user-sequence")
+        chat.ask("Who has been defensively better over those 10 matches?",
+                 thread_id="real-user-sequence")
+        chat.ask("Why is that?", thread_id="real-user-sequence")
+        result = chat.ask("Why was H07 rejected?",
+                          thread_id="real-user-sequence")
+        self.assertEqual([e["tool"] for e in result["evidence"]],
+                         ["experiment_history"])
+        self.assertEqual(result["evidence"][0]["arguments"]["experiment"], "H07")
+        self.assertEqual(len(calls), 1, "H07 must call the experimental planner")
+        self.assertIn("planned 1 tool(s)", result["trace"])
+        self.assertNotIn("deterministic_form_route", result["trace"])
+        self.assertIn("H07 parked", result["answer"])
+        self.assertIn("docs/experiments/H07_PLAYER_INTELLIGENCE.md", result["answer"])
+        self.assertNotIn("Liverpool vs Arsenal", result["answer"])
+
+    def test_short_why_still_inherits_defensive_comparison(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+        def unavailable(_):
+            raise AssertionError("No LLM should plan referential why")
+        chat = Conversation(planner=unavailable)
+        chat.ask("Compare Liverpool and Arsenal over their last 10 matches",
+                 thread_id="short-why")
+        chat.ask("Who has been defensively better over those 10 matches?",
+                 thread_id="short-why")
+        result = chat.ask("Why is that?", thread_id="short-why")
+        self.assertEqual([e["tool"] for e in result["evidence"]],
+                         ["form_summary", "form_summary"])
+        self.assertEqual({e["arguments"]["games"] for e in result["evidence"]},
+                         {10})
+        self.assertIn("descriptive patterns", result["answer"])
+
     def test_next_meeting_context_uses_schedule_not_forecasts(self):
         from unittest.mock import patch
         from agent.langgraph_v2 import Conversation

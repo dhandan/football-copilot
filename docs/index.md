@@ -9,6 +9,8 @@
 3. **Weekly model optimisation:** GW freeze, compare champion/challenger against identical final results, make a weekly keep/improve/release decision. No repeated rejected experiments, no forced releases or extended hold. GW8 40/60 and adaptive forecasts remain immutable.
 4. **V4 FPL Copilot: parked.** No active development or new ticket.
 
+**P0 ongoing model accuracy research (from 9 November 2026):** Independently research credible, zero-cost, point-in-time-safe ways to improve full-coverage Premier League 1X2 accuracy by at least **+2.00 percentage points** versus the fixed 40/60 historical baseline (**594/1,100 = 54.00%; require ≥616/1,100 = 56.00%**). This is a high-priority parallel research track, **not permission to repeat failed model sweeps**. Bring forward an approach only after independent source validation, a bounded empirical screen, a documented **GO/NO-GO assessment**, calibration and season-level evidence. No selected-fixture thresholds, changing denominators, data leakage, unverified uplift or unqualified promise of success. The repeatedly studied historical cohort is not untouched validation; retain production and 2026/27 frozen forecasts. See [P0 research objective #15](https://github.com/dhandan/football-copilot/issues/15).  An independent weekly research watch has been scheduled.
+
 **Side-project operating principle:** One AI engineering build task at a time; weekly prediction evaluation alongside it. Prefer short practical increments, no admin-heavy ceremonies, no paid APIs or hosting.
 
 ## Latest checkpoint: GW10 evaluated, four-way prospective review (9 November 2026)

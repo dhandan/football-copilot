@@ -33,7 +33,7 @@ class DefensiveWhyTests(unittest.TestCase):
         self.assertIn("6 in 10 games (0.60 per match)", text)
         self.assertIn("13 (1.30 per match)", text)
         self.assertIn("4 clean sheets versus 1", text)
-        self.assertIn("two or more in 1 matches versus 4", text)
+        self.assertIn("two or more in 1 match versus 4", text)
         self.assertIn("most recent five matches Arsenal conceded 2", text)
         self.assertIn("descriptive patterns", text)
         self.assertIn("cannot establish tactics", text)
@@ -66,7 +66,7 @@ class DefensiveWhyTests(unittest.TestCase):
             result = chat.ask("Why is that?", thread_id="why-followup")
         self.assertEqual(len(result["evidence"]), 2)
         self.assertEqual({r["arguments"]["games"] for r in result["evidence"]}, {10})
-        self.assertIn("1 clean sheets versus 4", result["answer"])
+        self.assertIn("1 clean sheet versus 4", result["answer"])
         self.assertIn("not proof of why", result["answer"])
 
     def test_real_readonly_result_data_has_computed_defensive_patterns(self):

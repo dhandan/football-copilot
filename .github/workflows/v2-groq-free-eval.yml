@@ -1,7 +1,8 @@
 name: V2 Groq Free single-run live evaluation
 
-# One intentional, bounded run when this file is created/updated on the
-# existing experiment branch. No PR secrets, no schedule, no deployment.
+# Explicit one-off diagnostic rerun, 9 Nov 2026: classify failed syntheses.
+# Runs only on exact experimental branch, never on pull requests or a schedule.
+# No PR secrets, no deployment; user confirmed Free plan, ZDR and private key.
 on:
   push:
     branches:

@@ -180,18 +180,20 @@ class AgentGraphTests(unittest.TestCase):
         self.assertGreaterEqual(data["data"][0]["Played"], 1)
         self.assertGreaterEqual(data["data"][0]["GoalsFor"], 2)
 
-    def test_recent_form_fills_ten_with_previous_season(self):
+    def test_recent_form_fills_fifteen_with_previous_season(self):
         import pandas as pd
         from unittest.mock import patch
         from agent.football_tools import _current_season_form
+        # Ten 2026/27 gameweeks are now completed. Request more than ten
+        # to exercise the previous-season fallback regardless of GW10 data.
         history = pd.DataFrame([
             {"Season": "2025/26", "Date": f"2026-05-{24-i:02d}",
              "Opponent": f"Opponent {i}", "GoalsFor": 1, "GoalsAgainst": 0}
             for i in range(10)
         ])
         with patch("agent.football_tools.get_team_form", return_value=history):
-            result = _current_season_form("Liverpool", 10)
-        self.assertEqual(result["data"][0]["Played"], 10)
+            result = _current_season_form("Liverpool", 15)
+        self.assertEqual(result["data"][0]["Played"], 15)
         self.assertIn("2025/26", result["season"])
         self.assertIn("2026/27", result["season"])
 

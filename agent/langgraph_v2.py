@@ -188,6 +188,20 @@ def local_synthesizer(question: str, facts: str) -> str:
     return _Answer.model_validate_json(result.message.content).answer
 
 
+
+def experimental_provider():
+    """Choose only explicitly enabled Groq or the established local Qwen path.
+
+    This selection does not verify remote account billing or privacy settings.
+    The Groq client separately refuses any call without explicit Free/ZDR
+    attestations and a key. It never falls back to a paid provider.
+    """
+    if os.getenv("FOOTBALL_GROQ_ENABLED") == "1":
+        from agent.groq_v2 import groq_planner, groq_synthesizer
+        return groq_planner, groq_synthesizer
+    return local_planner, local_synthesizer
+
+
 def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: bool, question: str = "") -> bool:
     """Conservative numeric guard; reject novel numbers and unsupported evaluation claims."""
     number = r"(?<![A-Za-z0-9])\d+(?:\.\d+)?%?"

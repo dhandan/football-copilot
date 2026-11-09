@@ -110,6 +110,48 @@ class GroqV2SafetyTests(unittest.TestCase):
             with self.assertRaises(groq_v2.GroqUnavailable):
                 groq_v2.groq_synthesizer("Why?","Stats.")
 
+    def test_http_failures_have_safe_specific_categories(self):
+        failures = {
+            400: groq_v2.GroqBadRequest,
+            401: groq_v2.GroqAuthenticationRejected,
+            402: groq_v2.GroqProviderRejected,
+            403: groq_v2.GroqAuthenticationRejected,
+            429: groq_v2.GroqRateLimited,
+            500: groq_v2.GroqProviderRejected,
+        }
+        for status, expected in failures.items():
+            with self.subTest(status=status):
+                with patch("requests.post", return_value=Mock(status_code=status)) as post:
+                    with self.assertRaises(expected) as caught:
+                        groq_v2.groq_synthesizer("Why?", "Verified stats.")
+                    self.assertNotIn("GROQ_API_KEY", str(caught.exception))
+                    post.assert_called_once()
+
+    def test_response_and_contract_errors_remain_safe(self):
+        with patch("requests.post", return_value=Mock(
+                status_code=200, json=lambda: {"choices": []})):
+            with self.assertRaises(groq_v2.GroqResponseInvalid):
+                groq_v2.groq_synthesizer("Why?", "Verified stats.")
+        with patch("requests.post", return_value=response({"answer":"No"})):
+            with self.assertRaises(groq_v2.GroqAnswerContractInvalid):
+                groq_v2.groq_synthesizer("Why?", "Verified stats.")
+        with patch("requests.post", return_value=response(
+                {"calls":[{"name":"delete_predictions","arguments":{}}]})):
+            with self.assertRaises(groq_v2.GroqPlannerContractInvalid):
+                groq_v2.groq_planner("Delete forecasts")
+
+    def test_trace_surfaces_only_categorical_exception_name(self):
+        from agent.langgraph_v2 import ask
+        def plan(_):
+            return [{"name": "model_performance", "arguments": {}}]
+        def rejected(_question, _facts):
+            raise groq_v2.GroqBadRequest("Provider supplied sensitive diagnostic details")
+        result = ask("How has 40/60 champion performed so far?",
+                     planner=plan, synthesizer=rejected)
+        self.assertIn("synthesis_fallback: GroqBadRequest", result["trace"])
+        self.assertNotIn("sensitive diagnostic details", repr(result["trace"]))
+        self.assertIn("55%", result["answer"])
+
     def test_strict_planner_contract_and_unapproved_tool_rejected(self):
         valid={"calls":[{"name":"model_performance","arguments":{}}]}
         with patch("requests.post",return_value=response(valid)):

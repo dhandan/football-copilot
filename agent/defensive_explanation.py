@@ -42,8 +42,9 @@ def defensive_evidence(team_a: str, row_a: dict, team_b: str, row_b: dict) -> st
               _valid_count(row_b, "Conceded2Plus", pb))
     if ca is not None and cb is not None and ma is not None and mb is not None:
         report += (
-            f" {team_a} kept {ca} clean sheets versus {cb} for {team_b}; "
-            f"{team_a} conceded two or more in {ma} matches versus {mb} "
+            f" {team_a} kept {ca} clean sheet{'s' if ca != 1 else ''} versus "
+            f"{cb} for {team_b}; "
+            f"{team_a} conceded two or more in {ma} match{'es' if ma != 1 else ''} versus {mb} "
             f"for {team_b}."
         )
     else:

@@ -1,0 +1,198 @@
+{
+  "baseline": {
+    "n": 1100,
+    "correct": 594,
+    "accuracy_pct": 54.0,
+    "log_loss": 0.97607,
+    "brier": 0.58104,
+    "draws": 0
+  },
+  "variants": {
+    "market_only_recalibration": {
+      "standalone": {
+        "n": 1100,
+        "correct": 599,
+        "accuracy_pct": 54.455,
+        "log_loss": 0.97163,
+        "brier": 0.57858,
+        "draws": 0,
+        "uplift_pp": 0.455,
+        "net_correct": 5,
+        "paired_95pct_bootstrap": [
+          -0.727,
+          1.636
+        ],
+        "fixes": 25,
+        "damages": 20
+      },
+      "fixed_blend": {
+        "n": 1100,
+        "correct": 596,
+        "accuracy_pct": 54.182,
+        "log_loss": 0.96904,
+        "brier": 0.57693,
+        "draws": 0,
+        "uplift_pp": 0.182,
+        "net_correct": 2,
+        "paired_95pct_bootstrap": [
+          -1.0,
+          1.364
+        ],
+        "fixes": 23,
+        "damages": 21
+      }
+    },
+    "market_plus_ah_ou": {
+      "standalone": {
+        "n": 1100,
+        "correct": 591,
+        "accuracy_pct": 53.727,
+        "log_loss": 0.9757,
+        "brier": 0.58136,
+        "draws": 0,
+        "uplift_pp": -0.273,
+        "net_correct": -3,
+        "paired_95pct_bootstrap": [
+          -1.818,
+          1.182
+        ],
+        "fixes": 32,
+        "damages": 35
+      },
+      "fixed_blend": {
+        "n": 1100,
+        "correct": 596,
+        "accuracy_pct": 54.182,
+        "log_loss": 0.96927,
+        "brier": 0.5772,
+        "draws": 0,
+        "uplift_pp": 0.182,
+        "net_correct": 2,
+        "paired_95pct_bootstrap": [
+          -1.091,
+          1.455
+        ],
+        "fixes": 26,
+        "damages": 24
+      }
+    },
+    "ah_ou_without_1x2": {
+      "standalone": {
+        "n": 1100,
+        "correct": 596,
+        "accuracy_pct": 54.182,
+        "log_loss": 0.97414,
+        "brier": 0.58018,
+        "draws": 0,
+        "uplift_pp": 0.182,
+        "net_correct": 2,
+        "paired_95pct_bootstrap": [
+          -1.182,
+          1.545
+        ],
+        "fixes": 28,
+        "damages": 26
+      },
+      "fixed_blend": {
+        "n": 1100,
+        "correct": 599,
+        "accuracy_pct": 54.455,
+        "log_loss": 0.96894,
+        "brier": 0.57705,
+        "draws": 0,
+        "uplift_pp": 0.455,
+        "net_correct": 5,
+        "paired_95pct_bootstrap": [
+          -0.727,
+          1.636
+        ],
+        "fixes": 24,
+        "damages": 19
+      }
+    }
+  },
+  "per_season": {
+    "market_only_recalibration": {
+      "2023/24": {
+        "n": 360,
+        "correct": 212,
+        "accuracy_pct": 58.889,
+        "log_loss": 0.92365,
+        "brier": 0.54332,
+        "draws": 0
+      },
+      "2024/25": {
+        "n": 370,
+        "correct": 202,
+        "accuracy_pct": 54.595,
+        "log_loss": 0.97722,
+        "brier": 0.58274,
+        "draws": 0
+      },
+      "2025/26": {
+        "n": 370,
+        "correct": 185,
+        "accuracy_pct": 50.0,
+        "log_loss": 1.01273,
+        "brier": 0.60871,
+        "draws": 0
+      }
+    },
+    "market_plus_ah_ou": {
+      "2023/24": {
+        "n": 360,
+        "correct": 207,
+        "accuracy_pct": 57.5,
+        "log_loss": 0.92535,
+        "brier": 0.54479,
+        "draws": 0
+      },
+      "2024/25": {
+        "n": 370,
+        "correct": 200,
+        "accuracy_pct": 54.054,
+        "log_loss": 0.98199,
+        "brier": 0.58564,
+        "draws": 0
+      },
+      "2025/26": {
+        "n": 370,
+        "correct": 184,
+        "accuracy_pct": 49.73,
+        "log_loss": 1.01839,
+        "brier": 0.61267,
+        "draws": 0
+      }
+    },
+    "ah_ou_without_1x2": {
+      "2023/24": {
+        "n": 360,
+        "correct": 209,
+        "accuracy_pct": 58.056,
+        "log_loss": 0.92444,
+        "brier": 0.54451,
+        "draws": 0
+      },
+      "2024/25": {
+        "n": 370,
+        "correct": 204,
+        "accuracy_pct": 55.135,
+        "log_loss": 0.97661,
+        "brier": 0.58196,
+        "draws": 0
+      },
+      "2025/26": {
+        "n": 370,
+        "correct": 183,
+        "accuracy_pct": 49.459,
+        "log_loss": 1.02003,
+        "brier": 0.61311,
+        "draws": 0
+      }
+    }
+  },
+  "design": "Fixed C=0.1 regularized multinomial, train on all earlier seasons; replace 40% football component and keep exact archived 60% market",
+  "source": "Original Football-Data.co.uk raw opening odds and 1100 baseline",
+  "passing": [],
+  "decision": "NO-GO: +2pp all-fixture target unmet"
+}

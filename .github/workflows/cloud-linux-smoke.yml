@@ -13,6 +13,10 @@ on:
       - "agent/defensive_explanation.py"
       - "agent/football_tools.py"
       - "tests/test_v2_defensive_why.py"
+      - "app/v2_groq_preview.py"
+      - ".devcontainer/devcontainer.json"
+      - ".devcontainer/start-preview.sh"
+      - "docs/PRIVATE_V2_GROQ_BROWSER_PREVIEW.md"
       - "app/streamlit_app.py"
       - "tests/test_groq_v2.py"
       - "scripts/evaluate_v2_conversations.py"
@@ -29,6 +33,10 @@ on:
       - "agent/defensive_explanation.py"
       - "agent/football_tools.py"
       - "tests/test_v2_defensive_why.py"
+      - "app/v2_groq_preview.py"
+      - ".devcontainer/devcontainer.json"
+      - ".devcontainer/start-preview.sh"
+      - "docs/PRIVATE_V2_GROQ_BROWSER_PREVIEW.md"
       - "app/streamlit_app.py"
       - "tests/test_groq_v2.py"
       - "scripts/evaluate_v2_conversations.py"
@@ -59,6 +67,18 @@ jobs:
         env:
           FOOTBALL_V2_FACTS_FIRST: '0'
         run: python -m unittest discover -s tests -v
+      - name: Check private preview syntax and devcontainer config
+        run: |
+          python -m py_compile app/v2_groq_preview.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          config = json.loads(Path(".devcontainer/devcontainer.json").read_text())
+          assert 8501 in config["forwardPorts"]
+          assert config["postAttachCommand"] == "bash .devcontainer/start-preview.sh"
+          assert config["containerEnv"]["FOOTBALL_GROQ_MODEL"] == "openai/gpt-oss-20b"
+          print("Private preview config and Python syntax OK")
+          PY
       - name: Run full V2 offline conversation acceptance
         env:
           FOOTBALL_V2_FACTS_FIRST: '0'

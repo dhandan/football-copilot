@@ -18,6 +18,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.memory import InMemorySaver
 
 from agent.defensive_explanation import defensive_evidence
+from agent.opponent_strength import compare_opponent_strength
 
 from agent.football_tools import (
     experiment_history,
@@ -32,6 +33,7 @@ ALLOWED = {
     "experiment_history": experiment_history,
     "model_performance": model_performance,
     "form_summary": form_summary,
+    "compare_opponent_strength": compare_opponent_strength,
     "next_meeting": next_meeting,
 }
 MAX_TOOLS = 3
@@ -51,6 +53,12 @@ class _H07Args(_Strict):
 
 class _FormArgs(_Strict):
     team: str = Field(min_length=1, max_length=80)
+    games: int = Field(ge=1, le=30)
+
+
+class _OpponentArgs(_Strict):
+    team1: str = Field(min_length=1, max_length=80)
+    team2: str = Field(min_length=1, max_length=80)
     games: int = Field(ge=1, le=30)
 
 
@@ -78,6 +86,11 @@ class _FormCall(_Strict):
     arguments: _FormArgs
 
 
+class _OpponentCall(_Strict):
+    name: Literal["compare_opponent_strength"]
+    arguments: _OpponentArgs
+
+
 class _MeetingCall(_Strict):
     name: Literal["next_meeting"]
     arguments: _MeetingArgs
@@ -89,7 +102,7 @@ class _PerformanceCall(_Strict):
 
 
 _ToolCall = Annotated[
-    Union[_ForecastCall, _HistoryCall, _PerformanceCall, _FormCall, _MeetingCall],
+    Union[_ForecastCall, _HistoryCall, _PerformanceCall, _FormCall, _OpponentCall, _MeetingCall],
     Field(discriminator="name"),
 ]
 
@@ -408,9 +421,12 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                        "arguments": {"gameweek": gw}}],
                         "trace": ["deterministic_multi_tool_form_forecast_route"]}
         if opponent_scope and len(teams) == 2 and games is not None and 1 <= games <= 30:
-            return {"plan": [{"name": "form_summary",
-                               "arguments": {"team": team, "games": games}} for team in teams],
-                    "trace": ["deterministic_opponent_scope_route"]}
+            calls = [{"name": "form_summary",
+                      "arguments": {"team": team, "games": games}} for team in teams]
+            calls.append({"name": "compare_opponent_strength",
+                          "arguments": {"team1": teams[0], "team2": teams[1],
+                                        "games": games}})
+            return {"plan": calls, "trace": ["deterministic_opponent_scope_route"]}
         if len(teams) == 2 and games is not None and 1 <= games <= 30 and is_form:
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],
@@ -490,6 +506,11 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 if args.get("experiment", "").upper() != "H07":
                     continue
                 args = {"experiment": "H07"}
+            elif name == "compare_opponent_strength":
+                try:
+                    args = _OpponentArgs.model_validate(args).model_dump()
+                except ValidationError:
+                    continue
             elif name == "next_meeting":
                 try:
                     args = _MeetingArgs.model_validate(args).model_dump()
@@ -633,6 +654,9 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         f"{result.get('error') or result.get('note', '')} "
                         f"Source: {result.get('source', 'FPL schedule')}."
                     )
+            elif name == "compare_opponent_strength":
+                # Combined with exactly two verified form summaries below.
+                continue
             elif name == "form_summary":
                 def fmt(value):
                     n = float(value)
@@ -818,29 +842,80 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                          "|:--|--:|--:|"]
                 table += [f"| {label} | {fmt_stat(x[key])} | {fmt_stat(y[key])} |"
                           for key, label in cols]
-            # Discuss potential fixture-difficulty confounding without inventing
-            # an opponent-strength metric or a causal explanation.
-            if re.search(
+            # Observational opposition-form proxy; do not infer causality.
+            opponent_item = next(
+                (item for item in state["evidence"]
+                 if item["tool"] == "compare_opponent_strength"), None
+            )
+            if opponent_item and re.search(
                 r"\b(?:opponents?|opposition|fixture difficulty|strength of schedule|"
                 r"strength of (?:the )?teams faced|stronger teams|weaker teams)\b",
                 state["question"], re.I
             ):
-                insight = (
-                    f"**Observed defensive record:** {a} conceded "
-                    f"{fmt_stat(x['GoalsAgainst'])} goals in {fmt_stat(x['Played'])} "
-                    f"matches; {b} conceded {fmt_stat(y['GoalsAgainst'])} in "
-                    f"{fmt_stat(y['Played'])}.\n\n"
-                    "**Does opponent strength explain the difference?** "
-                    "It could contribute, but that is **not established**. "
-                    "Goals conceded alone cannot separate defensive performance "
-                    "from the strength of the opposition. The verified form summaries "
-                    "do not contain a comparable opponent-strength measure for "
-                    "each fixture in this window. We therefore **cannot conclude** "
-                    "whether an easier or harder schedule explains the gap or that "
-                    "one defence is intrinsically better. A valid test would measure "
-                    "opponent strength using information available before each "
-                    "match. No opponent-adjusted result has been calculated."
+                evidence = opponent_item["result"]
+                by_team = evidence.get("data", {})
+                left, right = by_team.get(a, {}), by_team.get(b, {})
+                minimum = max(3, int(x["Played"] * 0.7))
+                complete = (
+                    "error" not in evidence
+                    and left.get("rated", 0) >= minimum
+                    and right.get("rated", 0) >= minimum
+                    and left.get("played") == x["Played"]
+                    and right.get("played") == y["Played"]
+                    and left.get("mean_opponent_prior_ppg") is not None
+                    and right.get("mean_opponent_prior_ppg") is not None
                 )
+                if complete:
+                    la, lb = left["mean_opponent_prior_ppg"], right["mean_opponent_prior_ppg"]
+                    if abs(la - lb) <= 0.02:
+                        comparison = "The two schedules have similar measured pre-match opponent form."
+                    else:
+                        stronger = a if la > lb else b
+                        comparison = (
+                            f"**{stronger}** faced opponents with higher recent "
+                            "pre-match points per game on this measure."
+                        )
+                    def proxy(row):
+                        ratio = row.get("observed_to_prior_goals_ratio")
+                        return f"{ratio:.2f}" if ratio is not None else "n/a"
+                    insight = (
+                        f"**Observed defensive record:** {a} conceded "
+                        f"{fmt_stat(x['GoalsAgainst'])} in {fmt_stat(x['Played'])}; "
+                        f"{b} conceded {fmt_stat(y['GoalsAgainst'])} in "
+                        f"{fmt_stat(y['Played'])}.\n\n"
+                        "**Fixture difficulty: opponents' form before each match**\n\n"
+                        f"| Metric | {a} | {b} |\n|:--|--:|--:|\n"
+                        "| Fixtures with sufficient prior opponent form | "
+                        f"{left['rated']}/{left['played']} | {right['rated']}/{right['played']} |\n"
+                        f"| Mean opponent prior points per match | {la:.2f} | {lb:.2f} |\n"
+                        "| Mean opponent prior goals scored per match | "
+                        f"{left['mean_opponent_prior_gf_pg']:.2f} | "
+                        f"{right['mean_opponent_prior_gf_pg']:.2f} |\n"
+                        "| Goals conceded in rated fixtures | "
+                        f"{left['goals_conceded_rated']} | {right['goals_conceded_rated']} |\n"
+                        "| Goals conceded / summed opponents' prior scoring rates | "
+                        f"{proxy(left)} | {proxy(right)} |\n\n"
+                        + comparison
+                        + " The last ratio is a rough scoring-rate context, **not** a "
+                        "validated goals-conceded expectation or a home/away-adjusted model. "
+                        "These measures cannot establish whether opposition difficulty "
+                        "caused the defensive difference or whether either side is "
+                        "intrinsically better.\n\n"
+                        f"*Method: {evidence['method']} "
+                        f"Source: {evidence['source']}.*"
+                    )
+                else:
+                    insight = (
+                        f"**Observed defensive record:** {a} conceded "
+                        f"{fmt_stat(x['GoalsAgainst'])} in {fmt_stat(x['Played'])}; "
+                        f"{b} conceded {fmt_stat(y['GoalsAgainst'])} in "
+                        f"{fmt_stat(y['Played'])}.\n\n"
+                        "**Opponent-strength comparison:** Insufficient comparable "
+                        "pre-match opponent history for both teams in this window. "
+                        "No opponent-adjusted defensive conclusion is inferred. "
+                        "Older fixtures and missing evidence are not treated as "
+                        "zero-strength opponents."
+                    )
             # A two-part question must not drop its explicit away-match scope.
             # Compare away goals conceded per match, since away counts can differ.
             away_requested = bool(re.search(

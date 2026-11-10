@@ -403,10 +403,15 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         ))
         followup = followup or bool((refers_to_previous or stat_followup) and prior_q)
 
-        if len(teams) != 2 and followup:
-            teams = names_in(prior_q)
-            if len(teams) != 2:
-                teams = names_in(" ".join(h["question"] for h in reversed(state.get("history", []))))[:2]
+        if len(teams) != 2 and followup and prior_q:
+            previous_teams = names_in(prior_q)
+            if (len(previous_teams) == 2
+                    and (not teams or set(teams).issubset(set(previous_teams)))):
+                teams = previous_teams
+        if not teams and followup and state.get("history"):
+            teams = names_in(" ".join(
+                h["question"] for h in reversed(state.get("history", []))
+            ))[:2]
         if len(teams) == 2 and re.search(r"\b(?:head[- ]to[- ]head|h2h)\b", q, re.I):
             return {"plan": [{"name": "head_to_head",
                                "arguments": {"team1": teams[0], "team2": teams[1]}}],

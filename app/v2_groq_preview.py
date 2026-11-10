@@ -28,7 +28,7 @@ st.info(
 # The existing GitHub Actions secret is a different secret store.
 ready = groq_v2.groq_ready()
 st.sidebar.header("Experimental runtime")
-st.sidebar.caption("Build: H07 topic-switch fix · 9 Nov 2026")
+st.sidebar.caption("Build: opponent-strength analysis · 10 Nov 2026")
 st.sidebar.write("**Groq model:** " + os.getenv("FOOTBALL_GROQ_MODEL", groq_v2.DEFAULT_MODEL))
 st.sidebar.write("**Groq setup:** " + ("Ready (user-attested)" if ready else "Not configured"))
 st.sidebar.caption(

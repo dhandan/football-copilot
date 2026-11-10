@@ -28,6 +28,7 @@ from agent.football_tools import (
     model_performance,
     form_summary,
     next_meeting,
+    head_to_head,
 )
 
 ALLOWED = {
@@ -37,6 +38,7 @@ ALLOWED = {
     "form_summary": form_summary,
     "compare_opponent_strength": compare_opponent_strength,
     "next_meeting": next_meeting,
+    "head_to_head": head_to_head,
 }
 MAX_TOOLS = 3
 TEAM_ALIASES = {'manchester city': 'Man City', 'manchester united': 'Man United', 'spurs': 'Tottenham'}
@@ -106,6 +108,11 @@ class _OpponentCall(_Strict):
     arguments: _OpponentArgs
 
 
+class _HeadToHeadCall(_Strict):
+    name: Literal["head_to_head"]
+    arguments: _MeetingArgs
+
+
 class _MeetingCall(_Strict):
     name: Literal["next_meeting"]
     arguments: _MeetingArgs
@@ -117,7 +124,7 @@ class _PerformanceCall(_Strict):
 
 
 _ToolCall = Annotated[
-    Union[_ForecastCall, _HistoryCall, _PerformanceCall, _FormCall, _OpponentCall, _MeetingCall],
+    Union[_ForecastCall, _HistoryCall, _PerformanceCall, _FormCall, _OpponentCall, _MeetingCall, _HeadToHeadCall],
     Field(discriminator="name"),
 ]
 
@@ -400,13 +407,21 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             teams = names_in(prior_q)
             if len(teams) != 2:
                 teams = names_in(" ".join(h["question"] for h in reversed(state.get("history", []))))[:2]
+        if len(teams) == 2 and re.search(r"\b(?:head[- ]to[- ]head|h2h)\b", q, re.I):
+            return {"plan": [{"name": "head_to_head",
+                               "arguments": {"team1": teams[0], "team2": teams[1]}}],
+                    "trace": ["deterministic_head_to_head_route"]}
         if re.search(r"\b(when|date|next|upcoming)\b", q, re.I) and re.search(
             r"\b(play|playing|meet|meeting|face|fixture)\b", q, re.I
         ) and len(teams) == 2:
             return {"plan": [{"name": "next_meeting",
                               "arguments": {"team1": teams[0], "team2": teams[1]}}],
                     "trace": ["deterministic_next_meeting_route"]}
-        requested = re.search(r"\b(?:last|past|those|these)\s+(\d+|five|ten)(?:\s+(?:matches|games))?\b", q, re.I)
+        requested = re.search(
+            r"\b(?:last|past|those|these)\s+(\d+|five|ten)"
+            r"(?:\s+(?:Premier League|league|PL))?(?:\s+(?:matches|games))?\b",
+            q, re.I
+        )
         games = {"five": 5, "ten": 10}.get(requested.group(1).lower(), None) if requested else None
         if requested and games is None:
             games = int(requested.group(1))
@@ -537,7 +552,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     args = _OpponentArgs.model_validate(args).model_dump()
                 except ValidationError:
                     continue
-            elif name == "next_meeting":
+            elif name in ("next_meeting", "head_to_head"):
                 try:
                     args = _MeetingArgs.model_validate(args).model_dump()
                 except ValidationError:
@@ -664,6 +679,40 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     f"This historical experiment is not a GW8 prospective result. "
                     f"Source: {result['source']}."
                 )
+            elif name == "head_to_head":
+                meetings = result.get("data", [])
+                asked = re.search(r"\b(?:last|past)\s+(\d+|five|ten)\b",
+                                  state["question"], re.I)
+                token = asked.group(1).lower() if asked else "5"
+                n = {"five": 5, "ten": 10}.get(token)
+                if n is None:
+                    n = int(token)
+                n = min(n, 30)
+                team1, team2 = item["arguments"]["team1"], item["arguments"]["team2"]
+                if not meetings:
+                    parts.append(
+                        f"No verified historical head-to-head results were found "
+                        f"for {team1} and {team2} in the local DuckDB data. "
+                        "No matches are invented."
+                    )
+                else:
+                    table = [f"| Date | Fixture from {team1}'s perspective | Score |",
+                             "|:--|:--|:--|"]
+                    for meeting in meetings[:n]:
+                        date = str(meeting["Date"])[:10]
+                        home = meeting.get("Venue") in ("Home", "H")
+                        fixture = f"{team1} vs {team2}" if home else f"{team2} vs {team1}"
+                        gf, ga = int(meeting["GoalsFor"]), int(meeting["GoalsAgainst"])
+                        score = f"{gf}-{ga}" if home else f"{ga}-{gf}"
+                        table.append(f"| {date} | {fixture} | {score} |")
+                    parts.append(
+                        f"**Last {min(n, len(meetings))} verified Premier League "
+                        f"head-to-head meetings: {team1} and {team2}**\n\n"
+                        + "\n".join(table)
+                        + "\n\n*Source: historical DuckDB team_match_stats; "
+                        "the verified live 2026/27 snapshots are not included "
+                        "in this historical H2H tool.*"
+                    )
             elif name == "next_meeting":
                 fixture = result.get("fixture")
                 if fixture:

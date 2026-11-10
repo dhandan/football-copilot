@@ -443,7 +443,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     if games is None:
                         games = int(token)
                     break
-        is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|comparison|compare|conced\w*|last|past|those|these)\b", q, re.I))
+        is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|defend\w*|comparison|compare|conced\w*|last|past|those|these)\b", q, re.I))
         is_form = is_form or bool((((refers_to_previous or stat_followup) and prior_q) or opponent_scope) and games is not None and len(teams) == 2)
         gw_match = re.search(r"\b(?:GW|gameweek)\s*(\d{1,2})\b", q, re.I)
         forecast_intent = bool(re.search(r"\b(forecast|prediction|predicted)\w*\b", q, re.I))
@@ -908,7 +908,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             ]
             sources = "; ".join(dict.fromkeys(source_items))
             recent_questions = [h["question"] for h in state.get("history", [])[-3:]]
-            defence_focus = bool(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", state["question"], re.I))
+            defence_focus = bool(re.search(r"\b(defen[sc]\w*|defend\w*|conced\w*|clean sheets?)\b", state["question"], re.I))
             if not defence_focus and re.search(r"\b(?:what about|how about|over the last|last \d+)\b", state["question"], re.I):
                 defence_focus = any(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", earlier, re.I) for earlier in reversed(recent_questions))
             why_focus = bool(
@@ -1042,6 +1042,49 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         "Older fixtures and missing evidence are not treated as "
                         "zero-strength opponents."
                     )
+            # An explicit home AND away question must answer both scopes.
+            # Use rate denominators because the home/away counts differ.
+            home_and_away = bool(
+                re.search(r"\bhome\b", state["question"], re.I)
+                and re.search(r"\baway\b", state["question"], re.I)
+            )
+            if home_and_away:
+                venue_complete = all(
+                    row.get("VenueKnown") == row.get("Played")
+                    and isinstance(row.get("VenueSplit"), dict)
+                    for row in (x, y)
+                )
+                if not venue_complete:
+                    insight += (
+                        "\n\n**Home-only comparison:** Not available reliably. "
+                        "At least one fixture lacks verified home/away data."
+                    )
+                else:
+                    hv_a = x["VenueSplit"].get("Home", {})
+                    hv_b = y["VenueSplit"].get("Home", {})
+                    if not hv_a.get("Played") or not hv_b.get("Played"):
+                        insight += (
+                            "\n\n**Home-only comparison:** Insufficient home "
+                            "fixtures for one or both teams in this window."
+                        )
+                    else:
+                        rate_a = hv_a["GoalsAgainst"] / hv_a["Played"]
+                        rate_b = hv_b["GoalsAgainst"] / hv_b["Played"]
+                        if abs(rate_a - rate_b) < 1e-12:
+                            verdict = "Both teams have the same home concession rate."
+                        else:
+                            better_home = a if rate_a < rate_b else b
+                            verdict = f"**{better_home}** have the lower home concession rate."
+                        insight += (
+                            f"\n\n**Home-only comparison within the same last "
+                            f"{fmt_stat(x['Played'])} matches**\n\n"
+                            f"| Home defensive metric | {a} | {b} |\n"
+                            "|:--|--:|--:|\n"
+                            f"| Home matches | {hv_a['Played']} | {hv_b['Played']} |\n"
+                            f"| Home goals conceded | {hv_a['GoalsAgainst']} | {hv_b['GoalsAgainst']} |\n"
+                            f"| Home goals conceded per match | {rate_a:.2f} | {rate_b:.2f} |\n\n"
+                            + verdict + " Small samples; descriptive only."
+                        )
             # A two-part question must not drop its explicit away-match scope.
             # Compare away goals conceded per match, since away counts can differ.
             away_requested = bool(re.search(

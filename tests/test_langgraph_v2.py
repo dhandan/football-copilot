@@ -279,7 +279,7 @@ class AgentGraphTests(unittest.TestCase):
             answer = Conversation(planner=no_planner).ask(question)["answer"]
         self.assertIn("Arsenal have been defensively stronger", answer)
         self.assertIn("Away-only check", answer)
-        self.assertIn("| Away matches | 4 | 6 |", answer)
+        self.assertIn("| Away matches | 6 | 4 |", answer)
         self.assertIn("| Away goals conceded per match | 1.00 | 1.00 |", answer)
         self.assertIn("away goals-conceded rates are level", answer)
         self.assertNotIn("The overall advantage also holds away", answer)

@@ -64,7 +64,8 @@ CASES = [
         ],
         "tools": {"form_summary", "compare_opponent_strength"},
         "teams": {"Chelsea", "Tottenham"},
-        "contains": ["Opponent-strength", "pre-match"],
+        "contains": ["pre-match"],
+        "opponent_evidence": True,
     },
     {
         "name": "five_match_context_followup",
@@ -168,7 +169,18 @@ def screen():
                     if args.get(key):
                         team_args.add(args[key])
             answer = result.get("answer", "")
+            # Both a measured schedule comparison and a transparent
+            # insufficient-coverage outcome are legitimate; require an
+            # evidenced conclusion, not one literal heading.
+            opponent_answer_valid = (
+                ("Fixture difficulty:" in answer
+                 and "Mean opponent prior points per match" in answer
+                 and "Fixtures with sufficient prior opponent form" in answer)
+                or ("Opponent-strength comparison:" in answer
+                    and "Insufficient comparable" in answer)
+            )
             checks = {
+                "opponent_evidence": opponent_answer_valid if case.get("opponent_evidence") else True,
                 "required_tools": case["tools"].issubset(actual),
                 "team_recall": case["teams"].issubset(team_args),
                 "answer_obligations": all(x.casefold() in answer.casefold()

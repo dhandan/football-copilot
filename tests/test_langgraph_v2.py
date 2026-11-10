@@ -252,6 +252,58 @@ class AgentGraphTests(unittest.TestCase):
                              {games})
             self.assertIn("Arsenal have been defensively stronger", answer["answer"])
 
+    def test_two_part_defensive_question_answers_away_scope(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+
+        def fake_form(team, games):
+            arsenal = team == "Arsenal"
+            return {"season": "2026/27, 2025/26", "source": "verified results",
+                    "data": [{"Played": games, "Won": 4, "Drawn": 2,
+                              "Lost": games - 6, "Points": 14, "PointsPerGame": 1.4,
+                              "GoalsFor": 12, "GoalsAgainst": 6 if arsenal else 10,
+                              "VenueKnown": games,
+                              "VenueSplit": {
+                                  "Home": {"Played": 6 if arsenal else 4,
+                                           "GoalsAgainst": 2 if arsenal else 4},
+                                  "Away": {"Played": 4 if arsenal else 6,
+                                           "GoalsAgainst": 4 if arsenal else 6}}}]}
+
+        def no_planner(_):
+            raise AssertionError("Both known teams and window must be deterministic")
+
+        question = ("Has Arsenal's defence been better than Liverpool's over their "
+                    "last 10 Premier League matches, and does that advantage still "
+                    "hold when we look at away matches only?")
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            answer = Conversation(planner=no_planner).ask(question)["answer"]
+        self.assertIn("Arsenal have been defensively stronger", answer)
+        self.assertIn("Away-only check", answer)
+        self.assertIn("| Away matches | 4 | 6 |", answer)
+        self.assertIn("| Away goals conceded per match | 1.00 | 1.00 |", answer)
+        self.assertIn("away goals-conceded rates are level", answer)
+        self.assertNotIn("The overall advantage also holds away", answer)
+
+    def test_away_only_comparison_never_infers_missing_venues(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+
+        def incomplete_form(team, games):
+            return {"season": "2026/27", "source": "verified results",
+                    "data": [{"Played": games, "Won": 4, "Drawn": 2,
+                              "Lost": games - 6, "Points": 14, "PointsPerGame": 1.4,
+                              "GoalsFor": 12, "GoalsAgainst": 6 if team == "Arsenal" else 10,
+                              "VenueKnown": games - 1,
+                              "VenueSplit": {"Away": {"Played": 5, "GoalsAgainst": 2}}}]}
+
+        question = ("Compare Arsenal and Liverpool over their last 10 matches. "
+                    "Does Arsenal's defensive advantage hold away?")
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": incomplete_form}):
+            answer = Conversation(planner=lambda _: []).ask(question)["answer"]
+        self.assertIn("Away-only comparison:", answer)
+        self.assertIn("lack verified home/away labels", answer)
+        self.assertNotIn("Away goals conceded per match", answer)
+
     def test_explicit_h07_question_switches_topic_after_defensive_why(self):
         from unittest.mock import patch
         from agent.langgraph_v2 import Conversation

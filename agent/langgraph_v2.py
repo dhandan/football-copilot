@@ -806,7 +806,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             # A two-part question must not drop its explicit away-match scope.
             # Compare away goals conceded per match, since away counts can differ.
             away_requested = bool(re.search(
-                r"\\baway\\b", state["question"], re.I
+                r"\baway\b", state["question"], re.I
             ))
             if away_requested:
                 venue_complete = all(
@@ -816,7 +816,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 )
                 if not venue_complete:
                     insight += (
-                        "\\n\\n**Away-only comparison:** Not available reliably. "
+                        "\n\n**Away-only comparison:** Not available reliably. "
                         "Some matches in the requested window lack verified home/away "
                         "labels, so no away-only winner is inferred."
                     )
@@ -824,7 +824,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                     av, bv = x["VenueSplit"].get("Away", {}), y["VenueSplit"].get("Away", {})
                     if not av.get("Played") or not bv.get("Played"):
                         insight += (
-                            "\\n\\n**Away-only comparison:** Insufficient away "
+                            "\n\n**Away-only comparison:** Insufficient away "
                             "matches within the requested window for both teams. "
                             "No away-only conclusion is inferred."
                         )
@@ -848,13 +848,13 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                             )
                             away_verdict = f"**{away_winner}** have the lower away concession rate. {agreement}"
                         insight += (
-                            "\\n\\n**Away-only check within those same last "
-                            f"{fmt_stat(x['Played'])} matches**\\n\\n"
-                            f"| Away defensive metric | {a} | {b} |\\n"
-                            "|:--|--:|--:|\\n"
-                            f"| Away matches | {av['Played']} | {bv['Played']} |\\n"
-                            f"| Away goals conceded | {av['GoalsAgainst']} | {bv['GoalsAgainst']} |\\n"
-                            f"| Away goals conceded per match | {ra:.2f} | {rb:.2f} |\\n\\n"
+                            "\n\n**Away-only check within those same last "
+                            f"{fmt_stat(x['Played'])} matches**\n\n"
+                            f"| Away defensive metric | {a} | {b} |\n"
+                            "|:--|--:|--:|\n"
+                            f"| Away matches | {av['Played']} | {bv['Played']} |\n"
+                            f"| Away goals conceded | {av['GoalsAgainst']} | {bv['GoalsAgainst']} |\n"
+                            f"| Away goals conceded per match | {ra:.2f} | {rb:.2f} |\n\n"
                             + away_verdict +
                             " The away-only sample is smaller than ten matches "
                             "per team; this is a descriptive comparison."

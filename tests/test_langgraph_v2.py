@@ -304,6 +304,43 @@ class AgentGraphTests(unittest.TestCase):
         self.assertIn("lack verified home/away labels", answer)
         self.assertNotIn("Away goals conceded per match", answer)
 
+    def test_opponent_strength_followup_retains_context_without_groq(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+
+        calls = []
+        def fake_form(team, games):
+            calls.append((team, games))
+            conceded = 6 if team == "Arsenal" else 10
+            return {"season": "2026/27, 2025/26", "source": "verified results",
+                    "data": [{"Played": games, "Won": 5, "Drawn": 2,
+                              "Lost": games - 7, "Points": 17,
+                              "PointsPerGame": 1.7, "GoalsFor": 15,
+                              "GoalsAgainst": conceded}]}
+
+        def no_planner(_):
+            raise AssertionError("This grounded contextual fallback must not call Groq")
+
+        chat = Conversation(planner=no_planner)
+        first = ("Has Arsenal's defence been better than Liverpool's over their "
+                 "last 10 Premier League matches, and does that advantage still "
+                 "hold when we look at away matches only?")
+        followup = ("Does that mean Arsenal are genuinely better defensively, "
+                    "or could the difference be explained by the strength "
+                    "of the opponents they've faced?")
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            chat.ask(first, thread_id="opp-followup")
+            result = chat.ask(followup, thread_id="opp-followup")
+
+        self.assertEqual(result["trace"][0], "deterministic_opponent_scope_route")
+        self.assertEqual({e["arguments"]["team"] for e in result["evidence"]},
+                         {"Liverpool", "Arsenal"})
+        self.assertEqual({e["arguments"]["games"] for e in result["evidence"]}, {10})
+        self.assertIn("Does opponent strength explain the difference?", result["answer"])
+        self.assertIn("not established", result["answer"])
+        self.assertIn("No opponent-adjusted result has been calculated", result["answer"])
+        self.assertNotIn("No supported evidence tool selected", result["answer"])
+
     def test_explicit_h07_question_switches_topic_after_defensive_why(self):
         from unittest.mock import patch
         from agent.langgraph_v2 import Conversation

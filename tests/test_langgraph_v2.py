@@ -354,9 +354,47 @@ class AgentGraphTests(unittest.TestCase):
         self.assertEqual({e["arguments"]["games"] for e in result["evidence"]}, {10})
         self.assertEqual([e["tool"] for e in result["evidence"]][-1], "compare_opponent_strength")
         self.assertIn("Fixture difficulty: opponents' form before each match", result["answer"])
-        self.assertIn("higher recent pre-match points per game", result["answer"])
+        self.assertIn("0.30 more pre-match points per match", result["answer"])
         self.assertIn("not** a validated", result["answer"])
         self.assertNotIn("No supported evidence tool selected", result["answer"])
+
+
+    def test_small_opponent_ppg_gap_is_not_overstated(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+
+        def fake_form(team, games):
+            return {"season": "2026/27, 2025/26", "source": "verified",
+                    "data": [{"Played": 10, "Won": 5, "Drawn": 2, "Lost": 3,
+                              "Points": 17, "PointsPerGame": 1.7,
+                              "GoalsFor": 12,
+                              "GoalsAgainst": 10 if team == "Liverpool" else 6}]}
+
+        def rated(team1, team2, games):
+            def row(ppg, rated_count, conceded):
+                return {"rated": rated_count, "played": 10,
+                        "mean_opponent_prior_ppg": ppg,
+                        "mean_opponent_prior_gf_pg": 1.5,
+                        "goals_conceded_rated": conceded,
+                        "observed_to_prior_goals_ratio": 0.5}
+            return {"source": "verified", "method": "pre-match data",
+                    "data": {"Liverpool": row(1.50, 10, 10),
+                             "Arsenal": row(1.47, 9, 6)}}
+
+        chat = Conversation(planner=lambda _: self.fail("Must use deterministic route"))
+        with patch.dict("agent.langgraph_v2.ALLOWED",
+                        {"form_summary": fake_form,
+                         "compare_opponent_strength": rated}):
+            chat.ask("Compare Liverpool and Arsenal over their last 10 matches",
+                     thread_id="small-gap")
+            result = chat.ask(
+                "Could Arsenal's better defence be explained by the strength "
+                "of the opponents they've faced?", thread_id="small-gap")
+        self.assertIn("differ by only 0.03", result["answer"])
+        self.assertIn("not evidence of a meaningfully harder schedule", result["answer"])
+        self.assertIn("**Coverage caveat:**", result["answer"])
+        self.assertIn("9/10", result["answer"])
+        self.assertNotIn("Liverpool** faced opponents with higher", result["answer"])
 
     def test_explicit_h07_question_switches_topic_after_defensive_why(self):
         from unittest.mock import patch

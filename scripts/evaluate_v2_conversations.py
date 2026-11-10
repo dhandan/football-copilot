@@ -70,6 +70,17 @@ SCENARIOS = [
           P("form_summary", team="Arsenal", games=10)],
          ("form_pair", "defence", "away_scope")),
     ]),
+    ("opponent_strength_context_followup", [
+        ("Compare Liverpool and Arsenal over their last 10 matches",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)], ("form_pair",)),
+        ("Does that mean Arsenal are genuinely better defensively, "
+         "or could the difference be explained by the strength of the "
+         "opponents they've faced?",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)],
+         ("form_pair", "opponent_scope")),
+    ]),
     ("defensive_why_direct", [
         ("Why is Arsenal defensively stronger than Liverpool over their last 10 matches?",
          [P("form_summary", team="Arsenal", games=10),
@@ -180,6 +191,11 @@ def evaluate(live=False, provider="local"):
                             ok &= expected_winner in answer
                             ok &= str(abs(a - b)) in answer or a == b
                             ok &= "Goals conceded" in answer
+                if "opponent_scope" in checks:
+                    ok &= "Does opponent strength explain the difference?" in answer
+                    ok &= "not established" in answer
+                    ok &= "No opponent-adjusted result has been calculated" in answer
+                    ok &= "deterministic_opponent_scope_route" in result["trace"]
                 if "away_scope" in checks:
                     # Whether venue coverage is complete or not, the away part
                     # must be explicitly addressed and must not be fabricated.

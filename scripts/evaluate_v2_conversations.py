@@ -62,6 +62,14 @@ SCENARIOS = [
           P("frozen_gameweek_predictions", gameweek=8)],
          ("form_pair", "missing_fixture")),
     ]),
+    ("compound_defensive_away_comparison", [
+        ("Has Arsenal's defence been better than Liverpool's over their last 10 "
+         "Premier League matches, and does that advantage still hold when we "
+         "look at away matches only?",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)],
+         ("form_pair", "defence", "away_scope")),
+    ]),
     ("defensive_why_direct", [
         ("Why is Arsenal defensively stronger than Liverpool over their last 10 matches?",
          [P("form_summary", team="Arsenal", games=10),
@@ -172,6 +180,14 @@ def evaluate(live=False, provider="local"):
                             ok &= expected_winner in answer
                             ok &= str(abs(a - b)) in answer or a == b
                             ok &= "Goals conceded" in answer
+                if "away_scope" in checks:
+                    # Whether venue coverage is complete or not, the away part
+                    # must be explicitly addressed and must not be fabricated.
+                    ok &= "Away-only" in answer
+                    ok &= ("Away goals conceded per match" in answer
+                           or "not available reliably" in answer.lower()
+                           or "Insufficient away" in answer)
+                    ok &= "same last" in answer or "requested window" in answer
                 if "why_defence" in checks:
                     ok &= "**Why the defensive records differ (observed results):**" in answer
                     ok &= "descriptive patterns" in answer

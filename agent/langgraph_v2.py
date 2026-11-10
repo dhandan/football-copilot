@@ -803,6 +803,62 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                          "|:--|--:|--:|"]
                 table += [f"| {label} | {fmt_stat(x[key])} | {fmt_stat(y[key])} |"
                           for key, label in cols]
+            # A two-part question must not drop its explicit away-match scope.
+            # Compare away goals conceded per match, since away counts can differ.
+            away_requested = bool(re.search(
+                r"\\baway\\b", state["question"], re.I
+            ))
+            if away_requested:
+                venue_complete = all(
+                    row.get("VenueKnown") == row.get("Played")
+                    and isinstance(row.get("VenueSplit"), dict)
+                    for row in (x, y)
+                )
+                if not venue_complete:
+                    insight += (
+                        "\\n\\n**Away-only comparison:** Not available reliably. "
+                        "Some matches in the requested window lack verified home/away "
+                        "labels, so no away-only winner is inferred."
+                    )
+                else:
+                    av, bv = x["VenueSplit"].get("Away", {}), y["VenueSplit"].get("Away", {})
+                    if not av.get("Played") or not bv.get("Played"):
+                        insight += (
+                            "\\n\\n**Away-only comparison:** Insufficient away "
+                            "matches within the requested window for both teams. "
+                            "No away-only conclusion is inferred."
+                        )
+                    else:
+                        ra = av["GoalsAgainst"] / av["Played"]
+                        rb = bv["GoalsAgainst"] / bv["Played"]
+                        if abs(ra - rb) < 1e-12:
+                            away_verdict = "Their away goals-conceded rates are level."
+                        else:
+                            away_winner = a if ra < rb else b
+                            overall_winner = (
+                                a if x["GoalsAgainst"] / x["Played"] <
+                                y["GoalsAgainst"] / y["Played"] else
+                                b if y["GoalsAgainst"] / y["Played"] <
+                                x["GoalsAgainst"] / x["Played"] else None
+                            )
+                            agreement = (
+                                "The overall advantage also holds away." if
+                                away_winner == overall_winner else
+                                "The overall advantage does not hold away."
+                            )
+                            away_verdict = f"**{away_winner}** have the lower away concession rate. {agreement}"
+                        insight += (
+                            "\\n\\n**Away-only check within those same last "
+                            f"{fmt_stat(x['Played'])} matches**\\n\\n"
+                            f"| Away defensive metric | {a} | {b} |\\n"
+                            "|:--|--:|--:|\\n"
+                            f"| Away matches | {av['Played']} | {bv['Played']} |\\n"
+                            f"| Away goals conceded | {av['GoalsAgainst']} | {bv['GoalsAgainst']} |\\n"
+                            f"| Away goals conceded per match | {ra:.2f} | {rb:.2f} |\\n\\n"
+                            + away_verdict +
+                            " The away-only sample is smaller than ten matches "
+                            "per team; this is a descriptive comparison."
+                        )
             parts = [
                 f"### {a} vs {b} | Last {fmt_stat(x['Played'])} matches\n"
                 f"*Seasons: {season_scope}*\n\n"

@@ -328,17 +328,34 @@ class AgentGraphTests(unittest.TestCase):
         followup = ("Does that mean Arsenal are genuinely better defensively, "
                     "or could the difference be explained by the strength "
                     "of the opponents they've faced?")
-        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+        def rated(team1, team2, games):
+            return {"source": "verified pre-match fixture data",
+                    "method": "preceding five completed matches",
+                    "data": {
+                        "Liverpool": {"rated": 9, "played": 10,
+                            "mean_opponent_prior_ppg": 1.2,
+                            "mean_opponent_prior_gf_pg": 1.3,
+                            "goals_conceded_rated": 9,
+                            "observed_to_prior_goals_ratio": 0.77},
+                        "Arsenal": {"rated": 10, "played": 10,
+                            "mean_opponent_prior_ppg": 1.5,
+                            "mean_opponent_prior_gf_pg": 1.6,
+                            "goals_conceded_rated": 6,
+                            "observed_to_prior_goals_ratio": 0.38}}}
+        with patch.dict("agent.langgraph_v2.ALLOWED",
+                        {"form_summary": fake_form,
+                         "compare_opponent_strength": rated}):
             chat.ask(first, thread_id="opp-followup")
             result = chat.ask(followup, thread_id="opp-followup")
 
         self.assertEqual(result["trace"][0], "deterministic_opponent_scope_route")
-        self.assertEqual({e["arguments"]["team"] for e in result["evidence"]},
-                         {"Liverpool", "Arsenal"})
+        self.assertEqual({e["arguments"]["team"] for e in result["evidence"]
+                          if e["tool"] == "form_summary"}, {"Liverpool", "Arsenal"})
         self.assertEqual({e["arguments"]["games"] for e in result["evidence"]}, {10})
-        self.assertIn("Does opponent strength explain the difference?", result["answer"])
-        self.assertIn("not established", result["answer"])
-        self.assertIn("No opponent-adjusted result has been calculated", result["answer"])
+        self.assertEqual([e["tool"] for e in result["evidence"]][-1], "compare_opponent_strength")
+        self.assertIn("Fixture difficulty: opponents' form before each match", result["answer"])
+        self.assertIn("higher recent pre-match points per game", result["answer"])
+        self.assertIn("not** a validated", result["answer"])
         self.assertNotIn("No supported evidence tool selected", result["answer"])
 
     def test_explicit_h07_question_switches_topic_after_defensive_why(self):

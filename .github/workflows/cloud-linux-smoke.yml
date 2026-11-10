@@ -1,0 +1,111 @@
+name: Cloud Linux smoke test (issue 9)
+
+on:
+  push:
+    branches: [feature/issue9-cloud-readiness-audit]
+    paths:
+      - ".github/workflows/cloud-linux-smoke.yml"
+      - "requirements-cloud.txt"
+      - "scripts/audit_cloud_readiness.py"
+      - "tests/test_cloud_readiness_audit.py"
+      - "agent/groq_v2.py"
+      - "agent/langgraph_v2.py"
+      - "agent/defensive_explanation.py"
+      - "agent/football_tools.py"
+      - "tests/test_v2_defensive_why.py"
+      - "app/v2_groq_preview.py"
+      - ".devcontainer/devcontainer.json"
+      - ".devcontainer/start-preview.sh"
+      - "docs/PRIVATE_V2_GROQ_BROWSER_PREVIEW.md"
+      - "app/streamlit_app.py"
+      - "tests/test_groq_v2.py"
+      - "scripts/evaluate_v2_conversations.py"
+      - "scripts/evaluate_v2_groq_shadow.py"
+      - "tests/test_v2_groq_shadow.py"
+      - "docs/V2_GROQ_EXPERIMENT_2026_11_09.md"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/cloud-linux-smoke.yml"
+      - "requirements-cloud.txt"
+      - "scripts/audit_cloud_readiness.py"
+      - "tests/test_cloud_readiness_audit.py"
+      - "agent/groq_v2.py"
+      - "agent/langgraph_v2.py"
+      - "agent/defensive_explanation.py"
+      - "agent/football_tools.py"
+      - "tests/test_v2_defensive_why.py"
+      - "app/v2_groq_preview.py"
+      - ".devcontainer/devcontainer.json"
+      - ".devcontainer/start-preview.sh"
+      - "docs/PRIVATE_V2_GROQ_BROWSER_PREVIEW.md"
+      - "app/streamlit_app.py"
+      - "tests/test_groq_v2.py"
+      - "scripts/evaluate_v2_conversations.py"
+      - "scripts/evaluate_v2_groq_shadow.py"
+      - "tests/test_v2_groq_shadow.py"
+      - "docs/V2_GROQ_EXPERIMENT_2026_11_09.md"
+
+permissions:
+  contents: read
+
+jobs:
+  linux-smoke:
+    if: github.ref == 'refs/heads/feature/issue9-cloud-readiness-audit' || github.head_ref == 'feature/issue9-cloud-readiness-audit'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install minimal cloud runtime
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Check dependency consistency
+        run: python -m pip check
+      - name: Run offline unit regression
+        env:
+          FOOTBALL_V2_FACTS_FIRST: '0'
+        run: python -m unittest discover -s tests -v
+      - name: Check private preview syntax and devcontainer config
+        run: |
+          python -m py_compile app/v2_groq_preview.py scripts/evaluate_v2_groq_shadow.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          config = json.loads(Path(".devcontainer/devcontainer.json").read_text())
+          assert 8501 in config["forwardPorts"]
+          assert config["postAttachCommand"] == "bash .devcontainer/start-preview.sh"
+          assert config["containerEnv"]["FOOTBALL_GROQ_MODEL"] == "openai/gpt-oss-20b"
+          print("Private preview config and Python syntax OK")
+          PY
+      - name: Run full V2 offline conversation acceptance
+        env:
+          FOOTBALL_V2_FACTS_FIRST: '0'
+        run: python -m scripts.evaluate_v2_conversations
+      - name: Validate committed runtime assets and DuckDB
+        run: python scripts/validate_project.py
+      - name: Verify real football answer without Ollama or external LLM
+        run: |
+          python - <<'PY'
+          from analytics.football_analytics import get_team_record
+          from agent.football_tools import frozen_gameweek_predictions
+
+          record = get_team_record("Liverpool", "2025/26")
+          assert len(record) == 1, "Historical Liverpool record missing"
+          played = int(record.iloc[0]["Played"])
+          won = int(record.iloc[0]["Won"])
+          drawn = int(record.iloc[0]["Drawn"])
+          lost = int(record.iloc[0]["Lost"])
+          assert played == 38 and won + drawn + lost == played
+          frozen = frozen_gameweek_predictions(8)
+          assert not frozen.get("error"), frozen.get("error")
+          assert len(frozen["data"]) == 10 and "Model2_v1.0" in frozen["models"]
+          print("PASS: Liverpool 2025/26 played", played, "won", won, "drawn", drawn, "lost", lost)
+          print("PASS: GW8 immutable forecasts", len(frozen["data"]), "models", frozen["models"])
+          print("PASS: Deterministic cloud answer obtained; Ollama not called")
+          PY

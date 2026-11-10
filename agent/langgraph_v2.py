@@ -9,6 +9,7 @@ import json
 import math
 import os
 import re
+from functools import lru_cache
 from typing import Annotated, Callable, Literal, TypedDict, Union
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -17,12 +18,17 @@ from httpx import ReadTimeout
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.memory import InMemorySaver
 
+from agent.defensive_explanation import defensive_evidence
+from agent.opponent_strength import compare_opponent_strength
+from analytics.football_analytics import get_teams
+
 from agent.football_tools import (
     experiment_history,
     frozen_gameweek_predictions,
     model_performance,
     form_summary,
     next_meeting,
+    head_to_head,
 )
 
 ALLOWED = {
@@ -30,10 +36,25 @@ ALLOWED = {
     "experiment_history": experiment_history,
     "model_performance": model_performance,
     "form_summary": form_summary,
+    "compare_opponent_strength": compare_opponent_strength,
     "next_meeting": next_meeting,
+    "head_to_head": head_to_head,
 }
 MAX_TOOLS = 3
 TEAM_ALIASES = {'manchester city': 'Man City', 'manchester united': 'Man United', 'spurs': 'Tottenham'}
+
+
+@lru_cache(maxsize=1)
+def _available_team_names():
+    """Recognise clubs from the validated database, not a nine-team whitelist."""
+    fallback = ("Manchester City", "Manchester United", "Liverpool", "Arsenal",
+                "Chelsea", "Tottenham", "Spurs", "Man City", "Man United")
+    try:
+        catalog = set(get_teams()) | set(fallback)
+    except (OSError, ValueError, RuntimeError):
+        catalog = set(fallback)
+    return sorted(catalog, key=lambda name: (-len(name), name))
+
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -49,6 +70,12 @@ class _H07Args(_Strict):
 
 class _FormArgs(_Strict):
     team: str = Field(min_length=1, max_length=80)
+    games: int = Field(ge=1, le=30)
+
+
+class _OpponentArgs(_Strict):
+    team1: str = Field(min_length=1, max_length=80)
+    team2: str = Field(min_length=1, max_length=80)
     games: int = Field(ge=1, le=30)
 
 
@@ -76,6 +103,16 @@ class _FormCall(_Strict):
     arguments: _FormArgs
 
 
+class _OpponentCall(_Strict):
+    name: Literal["compare_opponent_strength"]
+    arguments: _OpponentArgs
+
+
+class _HeadToHeadCall(_Strict):
+    name: Literal["head_to_head"]
+    arguments: _MeetingArgs
+
+
 class _MeetingCall(_Strict):
     name: Literal["next_meeting"]
     arguments: _MeetingArgs
@@ -87,7 +124,7 @@ class _PerformanceCall(_Strict):
 
 
 _ToolCall = Annotated[
-    Union[_ForecastCall, _HistoryCall, _PerformanceCall, _FormCall, _MeetingCall],
+    Union[_ForecastCall, _HistoryCall, _PerformanceCall, _FormCall, _OpponentCall, _MeetingCall, _HeadToHeadCall],
     Field(discriminator="name"),
 ]
 
@@ -186,6 +223,20 @@ def local_synthesizer(question: str, facts: str) -> str:
         options={"num_predict": 320, "num_ctx": 2048, "temperature": 0},
     )
     return _Answer.model_validate_json(result.message.content).answer
+
+
+
+def experimental_provider():
+    """Choose only explicitly enabled Groq or the established local Qwen path.
+
+    This selection does not verify remote account billing or privacy settings.
+    The Groq client separately refuses any call without explicit Free/ZDR
+    attestations and a key. It never falls back to a paid provider.
+    """
+    if os.getenv("FOOTBALL_GROQ_ENABLED") == "1":
+        from agent.groq_v2 import groq_planner, groq_synthesizer
+        return groq_planner, groq_synthesizer
+    return local_planner, local_synthesizer
 
 
 def _grounded(candidate: str, facts: str, is_forecast: bool, is_performance: bool, question: str = "") -> bool:
@@ -316,8 +367,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         q = state["question"]
         prior_q = next((h["question"] for h in reversed(state.get("history", []))
                         if re.search(r"\b(compare|versus|vs|which of)\b", h["question"], re.I)), "")
-        team_names = ("Manchester City", "Manchester United", "Liverpool",
-                      "Arsenal", "Chelsea", "Tottenham", "Spurs", "Man City", "Man United")
+        team_names = _available_team_names()
         def names_in(sentence):
             found = []
             for label in team_names:
@@ -327,22 +377,74 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         found.append(team)
             return found
         teams = names_in(q)
+        # An opponent-strength follow-up may omit one team and the time window.
+        # Recover context only from the immediately previous two-team question.
+        opponent_scope = bool(re.search(
+            r"\b(?:opponents?|opposition|fixture difficulty|strength of schedule|"
+            r"strength of (?:the )?teams faced|stronger teams|weaker teams)\b",
+            q, re.I
+        ))
+        if opponent_scope and len(teams) < 2 and state.get("history"):
+            previous_teams = names_in(state["history"][-1]["question"])
+            if len(previous_teams) == 2 and (not teams or set(teams).issubset(set(previous_teams))):
+                teams = previous_teams
         followup = bool(re.search(r"\b(their|both|those|that comparison|who|which|better|they|each other)\b", q, re.I) or re.search(r"\b(?:what about|how about|and over|over the last|last \d+|defen[sc]\w*)\b", q, re.I))
-        if len(teams) != 2 and followup:
-            teams = names_in(prior_q)
-            if len(teams) != 2:
-                teams = names_in(" ".join(h["question"] for h in reversed(state.get("history", []))))[:2]
+        # Only a genuinely referential "why?" inherits an earlier two-team
+        # comparison. Explicit new subjects ("Why was H07 rejected?",
+        # "Why did Model 2 lose?") must NOT recycle prior teams/last N.
+        asks_why = bool(re.search(r"\b(?:why|reason|explain)\b", q, re.I))
+        refers_to_previous = bool(re.fullmatch(
+            r"\s*(?:(?:and|so)\s+)?(?:why(?:\s+(?:is\s+that|so|the\s+difference))?"
+            r"|explain\s+(?:that|this)|what\s+explains\s+(?:that|the\s+difference))"
+            r"\s*[?!.]*\s*", q, re.I
+        ))
+        stat_followup = bool(re.search(
+            r"\b(?:which of them|which team|who of them)\b", q, re.I
+        ))
+        followup = followup or bool((refers_to_previous or stat_followup) and prior_q)
+
+        if len(teams) != 2 and followup and prior_q:
+            previous_teams = names_in(prior_q)
+            if (len(previous_teams) == 2
+                    and (not teams or set(teams).issubset(set(previous_teams)))):
+                teams = previous_teams
+        if not teams and followup and state.get("history"):
+            teams = names_in(" ".join(
+                h["question"] for h in reversed(state.get("history", []))
+            ))[:2]
+        if len(teams) == 2 and re.search(r"\b(?:head[- ]to[- ]head|h2h)\b", q, re.I):
+            return {"plan": [{"name": "head_to_head",
+                               "arguments": {"team1": teams[0], "team2": teams[1]}}],
+                    "trace": ["deterministic_head_to_head_route"]}
         if re.search(r"\b(when|date|next|upcoming)\b", q, re.I) and re.search(
             r"\b(play|playing|meet|meeting|face|fixture)\b", q, re.I
         ) and len(teams) == 2:
             return {"plan": [{"name": "next_meeting",
                               "arguments": {"team1": teams[0], "team2": teams[1]}}],
                     "trace": ["deterministic_next_meeting_route"]}
-        requested = re.search(r"\b(?:last|past|those|these)\s+(\d+|five|ten)(?:\s+(?:matches|games))?\b", q, re.I)
+        requested = re.search(
+            r"\b(?:last|past|those|these)\s+(\d+|five|ten)"
+            r"(?:\s+(?:Premier League|league|PL))?(?:\s+(?:matches|games))?\b",
+            q, re.I
+        )
         games = {"five": 5, "ten": 10}.get(requested.group(1).lower(), None) if requested else None
         if requested and games is None:
             games = int(requested.group(1))
-        is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|comparison|compare|conced\w*|last|past|those|these)\b", q, re.I))
+        # The most recent explicit window wins; do not silently change a
+        # follow-up from ten matches to the default when it says "why?".
+        if games is None and (((refers_to_previous or stat_followup) and prior_q) or opponent_scope) and len(teams) == 2:
+            for previous in reversed(state.get("history", [])):
+                prior_window = re.search(
+                    r"\b(?:last|past|those|these)\s+(\d+|five|ten)(?:\s+(?:matches|games))?\b",
+                    previous["question"], re.I)
+                if prior_window:
+                    token = prior_window.group(1).lower()
+                    games = {"five": 5, "ten": 10}.get(token)
+                    if games is None:
+                        games = int(token)
+                    break
+        is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|defend\w*|comparison|compare|conced\w*|last|past|those|these)\b", q, re.I))
+        is_form = is_form or bool((((refers_to_previous or stat_followup) and prior_q) or opponent_scope) and games is not None and len(teams) == 2)
         gw_match = re.search(r"\b(?:GW|gameweek)\s*(\d{1,2})\b", q, re.I)
         forecast_intent = bool(re.search(r"\b(forecast|prediction|predicted)\w*\b", q, re.I))
         if (len(teams) == 2 and games is not None and 1 <= games <= 30
@@ -355,10 +457,26 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 ] + [{"name": "frozen_gameweek_predictions",
                        "arguments": {"gameweek": gw}}],
                         "trace": ["deterministic_multi_tool_form_forecast_route"]}
+        if opponent_scope and len(teams) == 2 and games is not None and 1 <= games <= 30:
+            calls = [{"name": "form_summary",
+                      "arguments": {"team": team, "games": games}} for team in teams]
+            calls.append({"name": "compare_opponent_strength",
+                          "arguments": {"team1": teams[0], "team2": teams[1],
+                                        "games": games}})
+            return {"plan": calls, "trace": ["deterministic_opponent_scope_route"]}
         if len(teams) == 2 and games is not None and 1 <= games <= 30 and is_form:
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],
                     "trace": ["deterministic_form_route"]}
+        if len(teams) == 1 and games is not None and 1 <= games <= 30 and is_form:
+            previous_five = bool(re.search(
+                r"\b(?:five before|previous five|preceding five)\b", q, re.I
+            ))
+            if previous_five and games == 5:
+                games = 10
+            return {"plan": [{"name": "form_summary",
+                               "arguments": {"team": teams[0], "games": games}}],
+                    "trace": ["deterministic_single_team_form_route"]}
         # Explicit model-quality questions are not requests for a team's recent form.
         # Repair the two misroutes observed in the 13-turn live Qwen acceptance.
         # Compose explicit forecasting, performance and experiment requests before
@@ -434,7 +552,12 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 if args.get("experiment", "").upper() != "H07":
                     continue
                 args = {"experiment": "H07"}
-            elif name == "next_meeting":
+            elif name == "compare_opponent_strength":
+                try:
+                    args = _OpponentArgs.model_validate(args).model_dump()
+                except ValidationError:
+                    continue
+            elif name in ("next_meeting", "head_to_head"):
                 try:
                     args = _MeetingArgs.model_validate(args).model_dump()
                 except ValidationError:
@@ -550,10 +673,51 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 metrics = result["historical_2025_26"]
                 a, b = metrics["Model 2"], metrics["H07 xG+xA"]
                 parts.append(
-                    f"H07 parked: 2025/26 accuracy {b['accuracy_pct']}% vs {a['accuracy_pct']}% "
-                    f"Model 2, Log Loss {b['log_loss']} vs {a['log_loss']}, "
-                    f"Brier {b['brier']} vs {a['brier']}. Source: {result['source']}."
+                    f"H07 parked: the xG+xA experiment was not promoted because it "
+                    f"did not outperform the frozen Model 2 benchmark on 2025/26 "
+                    f"historical validation. H07 accuracy was {b['accuracy_pct']}% "
+                    f"versus {a['accuracy_pct']}% for Model 2; "
+                    f"Log Loss was {b['log_loss']} versus {a['log_loss']} and "
+                    f"Brier was {b['brier']} versus {a['brier']}. "
+                    f"Both probability error scores were higher (worse) for H07. "
+                    f"No deployable improvement was established. "
+                    f"This historical experiment is not a GW8 prospective result. "
+                    f"Source: {result['source']}."
                 )
+            elif name == "head_to_head":
+                meetings = result.get("data", [])
+                asked = re.search(r"\b(?:last|past)\s+(\d+|five|ten)\b",
+                                  state["question"], re.I)
+                token = asked.group(1).lower() if asked else "5"
+                n = {"five": 5, "ten": 10}.get(token)
+                if n is None:
+                    n = int(token)
+                n = min(n, 30)
+                team1, team2 = item["arguments"]["team1"], item["arguments"]["team2"]
+                if not meetings:
+                    parts.append(
+                        f"No verified historical head-to-head results were found "
+                        f"for {team1} and {team2} in the local DuckDB data. "
+                        "No matches are invented."
+                    )
+                else:
+                    table = [f"| Date | Fixture from {team1}'s perspective | Score |",
+                             "|:--|:--|:--|"]
+                    for meeting in meetings[:n]:
+                        date = str(meeting["Date"])[:10]
+                        home = meeting.get("Venue") in ("Home", "H")
+                        fixture = f"{team1} vs {team2}" if home else f"{team2} vs {team1}"
+                        gf, ga = int(meeting["GoalsFor"]), int(meeting["GoalsAgainst"])
+                        score = f"{gf}-{ga}" if home else f"{ga}-{gf}"
+                        table.append(f"| {date} | {fixture} | {score} |")
+                    parts.append(
+                        f"**Last {min(n, len(meetings))} verified Premier League "
+                        f"head-to-head meetings: {team1} and {team2}**\n\n"
+                        + "\n".join(table)
+                        + "\n\n*Source: historical DuckDB team_match_stats; "
+                        "the verified live 2026/27 snapshots are not included "
+                        "in this historical H2H tool.*"
+                    )
             elif name == "next_meeting":
                 fixture = result.get("fixture")
                 if fixture:
@@ -570,6 +734,9 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         f"{result.get('error') or result.get('note', '')} "
                         f"Source: {result.get('source', 'FPL schedule')}."
                     )
+            elif name == "compare_opponent_strength":
+                # Combined with exactly two verified form summaries below.
+                continue
             elif name == "form_summary":
                 def fmt(value):
                     n = float(value)
@@ -651,6 +818,36 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                                       "GoalsFor", "GoalsAgainst"))
                     and rows[0]["Played"] > 0):
                 forms.append((item["arguments"]["team"], rows[0], item["result"].get("season", "2026/27"), item["arguments"]["games"]))
+        if len(forms) == 1 and len(state["evidence"]) == 1:
+            team, row, season, requested = forms[0]
+            q = state["question"]
+            source = state["evidence"][0]["result"].get("source", "verified match data")
+            played = int(row["Played"])
+            if re.search(r"\b(?:five before|previous five|preceding five)\b", q, re.I):
+                recent = row.get("ConcededRecent5")
+                previous = row.get("ConcededPrevious5")
+                if recent is not None and previous is not None and played >= 10:
+                    direction = ("improved" if recent < previous else
+                                 "worsened" if recent > previous else "unchanged")
+                    parts = [
+                        f"**{team} defensive trend:** Goals conceded in the last "
+                        f"five matches: **{recent}**; previous five: "
+                        f"**{previous}**. The goals-conceded record has "
+                        f"**{direction}** on this measure. This describes "
+                        "results, not why they occurred. "
+                        f"*Seasons: {season}. Source: {source}.*"
+                    ]
+            elif re.search(r"\b(?:goals?|scor(?:e|ed|ing))\b", q, re.I):
+                if re.search(r"\b(?:conced(?:ed|e|ing)|against)\b", q, re.I):
+                    metric, value = "Goals conceded", row["GoalsAgainst"]
+                else:
+                    metric, value = "Goals scored", row["GoalsFor"]
+                parts = [
+                    f"**{team} | Last {played} matches:** "
+                    f"{metric}: **{int(value)}**. "
+                    f"*Seasons: {season}. Source: {source}. "
+                    "Completed results, not predictions.*"
+                ]
         if (len(forms) == 2
                 and forms[0][0] != forms[1][0]
                 and forms[0][1].get("Played") == forms[1][1].get("Played")
@@ -711,10 +908,32 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             ]
             sources = "; ".join(dict.fromkeys(source_items))
             recent_questions = [h["question"] for h in state.get("history", [])[-3:]]
-            defence_focus = bool(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", state["question"], re.I))
+            defence_focus = bool(re.search(r"\b(defen[sc]\w*|defend\w*|conced\w*|clean sheets?)\b", state["question"], re.I))
             if not defence_focus and re.search(r"\b(?:what about|how about|over the last|last \d+)\b", state["question"], re.I):
                 defence_focus = any(re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b", earlier, re.I) for earlier in reversed(recent_questions))
-            if defence_focus:
+            why_focus = bool(
+                re.search(r"\b(?:why|reason|explain)\b", state["question"], re.I)
+                and (defence_focus or any(
+                    re.search(r"\b(defen[sc]\w*|conced\w*|clean sheets?)\b",
+                              earlier, re.I)
+                    for earlier in reversed(recent_questions)
+                ))
+            )
+            if why_focus:
+                # Explain patterns even when the short question says just
+                # "why?" after a form/defensive comparison. Do not infer
+                # formations, player quality or opponents' strength.
+                insight = defensive_evidence(a, x, b, y)
+                cols = [
+                    ("Played", "Played"),
+                    ("GoalsAgainst", "Goals conceded"),
+                    ("GoalsFor", "Goals scored"),
+                ]
+                table = ["| Observed metric | " + a + " | " + b + " |",
+                         "|:--|--:|--:|"]
+                table += [f"| {label} | {fmt_stat(x[key])} | {fmt_stat(y[key])} |"
+                          for key, label in cols]
+            elif defence_focus:
                 conceded_a, conceded_b = int(x["GoalsAgainst"]), int(y["GoalsAgainst"])
                 if conceded_a == conceded_b:
                     headline = (f"**Neither team has the defensive edge.** Both conceded "
@@ -733,12 +952,201 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                          "|:--|--:|--:|"]
                 table += [f"| {label} | {fmt_stat(x[key])} | {fmt_stat(y[key])} |"
                           for key, label in cols]
+            # Observational opposition-form proxy; do not infer causality.
+            opponent_item = next(
+                (item for item in state["evidence"]
+                 if item["tool"] == "compare_opponent_strength"), None
+            )
+            if opponent_item and re.search(
+                r"\b(?:opponents?|opposition|fixture difficulty|strength of schedule|"
+                r"strength of (?:the )?teams faced|stronger teams|weaker teams)\b",
+                state["question"], re.I
+            ):
+                evidence = opponent_item["result"]
+                by_team = evidence.get("data", {})
+                left, right = by_team.get(a, {}), by_team.get(b, {})
+                minimum = max(3, int(x["Played"] * 0.7))
+                complete = (
+                    "error" not in evidence
+                    and left.get("rated", 0) >= minimum
+                    and right.get("rated", 0) >= minimum
+                    and left.get("played") == x["Played"]
+                    and right.get("played") == y["Played"]
+                    and left.get("mean_opponent_prior_ppg") is not None
+                    and right.get("mean_opponent_prior_ppg") is not None
+                )
+                if complete:
+                    la, lb = left["mean_opponent_prior_ppg"], right["mean_opponent_prior_ppg"]
+                    gap = abs(la - lb)
+                    if gap <= 0.10:
+                        comparison = (
+                            f"Opponent prior points per match differ by only "
+                            f"{gap:.2f}. This is a small descriptive difference "
+                            "and not evidence of a meaningfully harder schedule."
+                        )
+                    else:
+                        stronger = a if la > lb else b
+                        comparison = (
+                            f"**{stronger}** faced opponents with "
+                            f"{gap:.2f} more pre-match points per match on this "
+                            "proxy. This alone cannot establish a materially "
+                            "harder schedule."
+                        )
+                    coverage_caveat = (
+                        f"**Coverage caveat:** {a} has {left['rated']}/{left['played']} "
+                        f"rated fixtures, while {b} has "
+                        f"{right['rated']}/{right['played']}. "
+                        "Averages and scoring-rate ratios use only rated fixtures "
+                        "and may change with complete coverage. "
+                        if left["rated"] != left["played"] or
+                        right["rated"] != right["played"] else ""
+                    )
+                    def proxy(row):
+                        ratio = row.get("observed_to_prior_goals_ratio")
+                        return f"{ratio:.2f}" if ratio is not None else "n/a"
+                    insight = (
+                        f"**Observed defensive record:** {a} conceded "
+                        f"{fmt_stat(x['GoalsAgainst'])} in {fmt_stat(x['Played'])}; "
+                        f"{b} conceded {fmt_stat(y['GoalsAgainst'])} in "
+                        f"{fmt_stat(y['Played'])}.\n\n"
+                        "**Fixture difficulty: opponents' form before each match**\n\n"
+                        f"| Metric | {a} | {b} |\n|:--|--:|--:|\n"
+                        "| Fixtures with sufficient prior opponent form | "
+                        f"{left['rated']}/{left['played']} | {right['rated']}/{right['played']} |\n"
+                        f"| Mean opponent prior points per match | {la:.2f} | {lb:.2f} |\n"
+                        "| Mean opponent prior goals scored per match | "
+                        f"{left['mean_opponent_prior_gf_pg']:.2f} | "
+                        f"{right['mean_opponent_prior_gf_pg']:.2f} |\n"
+                        "| Goals conceded in rated fixtures | "
+                        f"{left['goals_conceded_rated']} | {right['goals_conceded_rated']} |\n"
+                        "| Goals conceded / summed opponents' prior scoring rates | "
+                        f"{proxy(left)} | {proxy(right)} |\n\n"
+                        + comparison + " " + coverage_caveat
+                        + "The last ratio is a rough scoring-rate context, **not** a "
+                        "validated goals-conceded expectation or a home/away-adjusted model. "
+                        "These measures cannot establish whether opposition difficulty "
+                        "caused the defensive difference or whether either side is "
+                        "intrinsically better.\n\n"
+                        f"*Method: {evidence['method']} "
+                        f"Source: {evidence['source']}.*"
+                    )
+                else:
+                    insight = (
+                        f"**Observed defensive record:** {a} conceded "
+                        f"{fmt_stat(x['GoalsAgainst'])} in {fmt_stat(x['Played'])}; "
+                        f"{b} conceded {fmt_stat(y['GoalsAgainst'])} in "
+                        f"{fmt_stat(y['Played'])}.\n\n"
+                        "**Opponent-strength comparison:** Insufficient comparable "
+                        "pre-match opponent history for both teams in this window. "
+                        "No opponent-adjusted defensive conclusion is inferred. "
+                        "Older fixtures and missing evidence are not treated as "
+                        "zero-strength opponents."
+                    )
+            # An explicit home AND away question must answer both scopes.
+            # Use rate denominators because the home/away counts differ.
+            home_and_away = bool(
+                re.search(r"\bhome\b", state["question"], re.I)
+                and re.search(r"\baway\b", state["question"], re.I)
+            )
+            if home_and_away:
+                venue_complete = all(
+                    row.get("VenueKnown") == row.get("Played")
+                    and isinstance(row.get("VenueSplit"), dict)
+                    for row in (x, y)
+                )
+                if not venue_complete:
+                    insight += (
+                        "\n\n**Home-only comparison:** Not available reliably. "
+                        "At least one fixture lacks verified home/away data."
+                    )
+                else:
+                    hv_a = x["VenueSplit"].get("Home", {})
+                    hv_b = y["VenueSplit"].get("Home", {})
+                    if not hv_a.get("Played") or not hv_b.get("Played"):
+                        insight += (
+                            "\n\n**Home-only comparison:** Insufficient home "
+                            "fixtures for one or both teams in this window."
+                        )
+                    else:
+                        rate_a = hv_a["GoalsAgainst"] / hv_a["Played"]
+                        rate_b = hv_b["GoalsAgainst"] / hv_b["Played"]
+                        if abs(rate_a - rate_b) < 1e-12:
+                            verdict = "Both teams have the same home concession rate."
+                        else:
+                            better_home = a if rate_a < rate_b else b
+                            verdict = f"**{better_home}** have the lower home concession rate."
+                        insight += (
+                            f"\n\n**Home-only comparison within the same last "
+                            f"{fmt_stat(x['Played'])} matches**\n\n"
+                            f"| Home defensive metric | {a} | {b} |\n"
+                            "|:--|--:|--:|\n"
+                            f"| Home matches | {hv_a['Played']} | {hv_b['Played']} |\n"
+                            f"| Home goals conceded | {hv_a['GoalsAgainst']} | {hv_b['GoalsAgainst']} |\n"
+                            f"| Home goals conceded per match | {rate_a:.2f} | {rate_b:.2f} |\n\n"
+                            + verdict + " Small samples; descriptive only."
+                        )
+            # A two-part question must not drop its explicit away-match scope.
+            # Compare away goals conceded per match, since away counts can differ.
+            away_requested = bool(re.search(
+                r"\baway\b", state["question"], re.I
+            ))
+            if away_requested:
+                venue_complete = all(
+                    row.get("VenueKnown") == row.get("Played")
+                    and isinstance(row.get("VenueSplit"), dict)
+                    for row in (x, y)
+                )
+                if not venue_complete:
+                    insight += (
+                        "\n\n**Away-only comparison:** Not available reliably. "
+                        "Some matches in the requested window lack verified home/away "
+                        "labels, so no away-only winner is inferred."
+                    )
+                else:
+                    av, bv = x["VenueSplit"].get("Away", {}), y["VenueSplit"].get("Away", {})
+                    if not av.get("Played") or not bv.get("Played"):
+                        insight += (
+                            "\n\n**Away-only comparison:** Insufficient away "
+                            "matches within the requested window for both teams. "
+                            "No away-only conclusion is inferred."
+                        )
+                    else:
+                        ra = av["GoalsAgainst"] / av["Played"]
+                        rb = bv["GoalsAgainst"] / bv["Played"]
+                        if abs(ra - rb) < 1e-12:
+                            away_verdict = "Their away goals-conceded rates are level."
+                        else:
+                            away_winner = a if ra < rb else b
+                            overall_winner = (
+                                a if x["GoalsAgainst"] / x["Played"] <
+                                y["GoalsAgainst"] / y["Played"] else
+                                b if y["GoalsAgainst"] / y["Played"] <
+                                x["GoalsAgainst"] / x["Played"] else None
+                            )
+                            agreement = (
+                                "The overall advantage also holds away." if
+                                away_winner == overall_winner else
+                                "The overall advantage does not hold away."
+                            )
+                            away_verdict = f"**{away_winner}** have the lower away concession rate. {agreement}"
+                        insight += (
+                            "\n\n**Away-only check within those same last "
+                            f"{fmt_stat(x['Played'])} matches**\n\n"
+                            f"| Away defensive metric | {a} | {b} |\n"
+                            "|:--|--:|--:|\n"
+                            f"| Away matches | {av['Played']} | {bv['Played']} |\n"
+                            f"| Away goals conceded | {av['GoalsAgainst']} | {bv['GoalsAgainst']} |\n"
+                            f"| Away goals conceded per match | {ra:.2f} | {rb:.2f} |\n\n"
+                            + away_verdict +
+                            " The away-only sample is smaller than ten matches "
+                            "per team; this is a descriptive comparison."
+                        )
             parts = [
                 f"### {a} vs {b} | Last {fmt_stat(x['Played'])} matches\n"
                 f"*Seasons: {season_scope}*\n\n"
                 + coverage
                 + "**Key differences**\n\n" + insight + "\n\n"
-                + "**Head-to-head form stats**\n\n"
+                + "**Observed recent-form stats (not head-to-head fixtures)**\n\n"
                 + "\n".join(table) + "\n\n"
                 + f"**{a} recent form** and **{b} recent form** are compared above.\n"
                 + f"*Source: {sources}. Completed Premier League results, not predictions.*"

@@ -94,7 +94,8 @@ def _current_season_form(team: str, games: int):
                 continue
             if team == home or team == away:
                 gf, ga = (int(hg), int(ag)) if team == home else (int(ag), int(hg))
-                all_matches.append((str(row["FixtureDate"]), gf, ga, key))
+                all_matches.append((str(row["FixtureDate"]), gf, ga, key,
+                                    "Home" if team == home else "Away"))
     # Fill an incomplete current-season window using completed 2025/26 matches.
     # Historical analytics data is read-only and must precede 2026/27 results.
     if len(all_matches) < games:
@@ -105,7 +106,11 @@ def _current_season_form(team: str, games: int):
                     continue
                 gf, ga = int(row["GoalsFor"]), int(row["GoalsAgainst"])
                 date = str(row["Date"])[:10]
-                all_matches.append((date, gf, ga, ("2025/26", date, str(row["Opponent"]))))
+                venue = {"h": "Home", "home": "Home",
+                         "a": "Away", "away": "Away"}.get(
+                             str(row.get("Venue", "")).strip().lower())
+                all_matches.append((date, gf, ga,
+                                    ("2025/26", date, str(row["Opponent"])), venue))
         except ValueError:
             # Newly promoted sides may not have a 2025/26 Premier League record.
             pass
@@ -116,14 +121,40 @@ def _current_season_form(team: str, games: int):
                 "source": "data/live/results/2026_27_gw??_results.csv",
                 "requested_games": games, "data": []}
     seasons = sorted({"2025/26" if m[0] < "2026-07-01" else "2026/27" for m in matches}, reverse=True)
-    wins = sum(gf > ga for _, gf, ga, _ in matches)
-    draws = sum(gf == ga for _, gf, ga, _ in matches)
+    wins = sum(m[1] > m[2] for m in matches)
+    draws = sum(m[1] == m[2] for m in matches)
     losses = len(matches) - wins - draws
     points = 3 * wins + draws
+    # Scoreline patterns are facts, not claims about *causes* of defending.
+    # Matches are sorted most recent first. The previous-five split is only
+    # available when the requested window contains at least ten actual games.
+    defensive_breakdown = {
+        "CleanSheets": sum(m[2] == 0 for m in matches),
+        "Conceded2Plus": sum(m[2] >= 2 for m in matches),
+    }
+    # Venue splits refer to the SAME recent-match window as the overall totals.
+    # Incomplete historic venue metadata must not produce a confident conclusion.
+    venue_split = {}
+    for venue in ("Home", "Away"):
+        subset = [m for m in matches if m[4] == venue]
+        conceded = sum(m[2] for m in subset)
+        venue_split[venue] = {
+            "Played": len(subset),
+            "GoalsAgainst": conceded,
+            "GoalsAgainstPerGame": round(conceded / len(subset), 2) if subset else None,
+        }
+    venue_known = sum(m[4] in ("Home", "Away") for m in matches)
+    if len(matches) >= 10:
+        defensive_breakdown.update({
+            "ConcededRecent5": sum(m[2] for m in matches[:5]),
+            "ConcededPrevious5": sum(m[2] for m in matches[5:10]),
+        })
     return {"type": "form_summary", "season": ", ".join(seasons),
             "source": "verified 2026/27 gameweek results snapshots and 2025/26 DuckDB team_match_stats",
             "requested_games": games,
-            "data": [{"Played": len(matches), "Won": wins, "Drawn": draws,
+            "data": [{**defensive_breakdown,
+                      "VenueKnown": venue_known, "VenueSplit": venue_split,
+                      "Played": len(matches), "Won": wins, "Drawn": draws,
                       "Lost": losses, "Points": points,
                       "PointsPerGame": round(points / len(matches), 2),
                       "GoalsFor": sum(m[1] for m in matches),

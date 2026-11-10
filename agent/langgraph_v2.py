@@ -343,6 +343,17 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         found.append(team)
             return found
         teams = names_in(q)
+        # An opponent-strength follow-up may omit one team and the time window.
+        # Recover context only from the immediately previous two-team question.
+        opponent_scope = bool(re.search(
+            r"\b(?:opponents?|opposition|fixture difficulty|strength of schedule|"
+            r"strength of (?:the )?teams faced|stronger teams|weaker teams)\b",
+            q, re.I
+        ))
+        if opponent_scope and len(teams) < 2 and state.get("history"):
+            previous_teams = names_in(state["history"][-1]["question"])
+            if len(previous_teams) == 2 and (not teams or set(teams).issubset(set(previous_teams))):
+                teams = previous_teams
         followup = bool(re.search(r"\b(their|both|those|that comparison|who|which|better|they|each other)\b", q, re.I) or re.search(r"\b(?:what about|how about|and over|over the last|last \d+|defen[sc]\w*)\b", q, re.I))
         # Only a genuinely referential "why?" inherits an earlier two-team
         # comparison. Explicit new subjects ("Why was H07 rejected?",
@@ -371,7 +382,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             games = int(requested.group(1))
         # The most recent explicit window wins; do not silently change a
         # follow-up from ten matches to the default when it says "why?".
-        if games is None and refers_to_previous and prior_q and len(teams) == 2:
+        if games is None and ((refers_to_previous and prior_q) or opponent_scope) and len(teams) == 2:
             for previous in reversed(state.get("history", [])):
                 prior_window = re.search(
                     r"\b(?:last|past|those|these)\s+(\d+|five|ten)(?:\s+(?:matches|games))?\b",
@@ -383,7 +394,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         games = int(token)
                     break
         is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|comparison|compare|conced\w*|last|past|those|these)\b", q, re.I))
-        is_form = is_form or bool(refers_to_previous and prior_q and games is not None and len(teams) == 2)
+        is_form = is_form or bool(((refers_to_previous and prior_q) or opponent_scope) and games is not None and len(teams) == 2)
         gw_match = re.search(r"\b(?:GW|gameweek)\s*(\d{1,2})\b", q, re.I)
         forecast_intent = bool(re.search(r"\b(forecast|prediction|predicted)\w*\b", q, re.I))
         if (len(teams) == 2 and games is not None and 1 <= games <= 30
@@ -396,6 +407,10 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 ] + [{"name": "frozen_gameweek_predictions",
                        "arguments": {"gameweek": gw}}],
                         "trace": ["deterministic_multi_tool_form_forecast_route"]}
+        if opponent_scope and len(teams) == 2 and games is not None and 1 <= games <= 30:
+            return {"plan": [{"name": "form_summary",
+                               "arguments": {"team": team, "games": games}} for team in teams],
+                    "trace": ["deterministic_opponent_scope_route"]}
         if len(teams) == 2 and games is not None and 1 <= games <= 30 and is_form:
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],
@@ -803,6 +818,29 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                          "|:--|--:|--:|"]
                 table += [f"| {label} | {fmt_stat(x[key])} | {fmt_stat(y[key])} |"
                           for key, label in cols]
+            # Discuss potential fixture-difficulty confounding without inventing
+            # an opponent-strength metric or a causal explanation.
+            if re.search(
+                r"\b(?:opponents?|opposition|fixture difficulty|strength of schedule|"
+                r"strength of (?:the )?teams faced|stronger teams|weaker teams)\b",
+                state["question"], re.I
+            ):
+                insight = (
+                    f"**Observed defensive record:** {a} conceded "
+                    f"{fmt_stat(x['GoalsAgainst'])} goals in {fmt_stat(x['Played'])} "
+                    f"matches; {b} conceded {fmt_stat(y['GoalsAgainst'])} in "
+                    f"{fmt_stat(y['Played'])}.\n\n"
+                    "**Does opponent strength explain the difference?** "
+                    "It could contribute, but that is **not established**. "
+                    "Goals conceded alone cannot separate defensive performance "
+                    "from the strength of the opposition. The verified form summaries "
+                    "do not contain a comparable opponent-strength measure for "
+                    "each fixture in this window. We therefore **cannot conclude** "
+                    "whether an easier or harder schedule explains the gap or that "
+                    "one defence is intrinsically better. A valid test would measure "
+                    "opponent strength using information available before each "
+                    "match. No opponent-adjusted result has been calculated."
+                )
             # A two-part question must not drop its explicit away-match scope.
             # Compare away goals conceded per match, since away counts can differ.
             away_requested = bool(re.search(

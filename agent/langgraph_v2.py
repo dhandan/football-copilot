@@ -867,14 +867,30 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                 )
                 if complete:
                     la, lb = left["mean_opponent_prior_ppg"], right["mean_opponent_prior_ppg"]
-                    if abs(la - lb) <= 0.02:
-                        comparison = "The two schedules have similar measured pre-match opponent form."
+                    gap = abs(la - lb)
+                    if gap <= 0.10:
+                        comparison = (
+                            f"Opponent prior points per match differ by only "
+                            f"{gap:.2f}. This is a small descriptive difference "
+                            "and not evidence of a meaningfully harder schedule."
+                        )
                     else:
                         stronger = a if la > lb else b
                         comparison = (
-                            f"**{stronger}** faced opponents with higher recent "
-                            "pre-match points per game on this measure."
+                            f"**{stronger}** faced opponents with "
+                            f"{gap:.2f} more pre-match points per match on this "
+                            "proxy. This alone cannot establish a materially "
+                            "harder schedule."
                         )
+                    coverage_caveat = (
+                        f"**Coverage caveat:** {a} has {left['rated']}/{left['played']} "
+                        f"rated fixtures, while {b} has "
+                        f"{right['rated']}/{right['played']}. "
+                        "Averages and scoring-rate ratios use only rated fixtures "
+                        "and may change with complete coverage. "
+                        if left["rated"] != left["played"] or
+                        right["rated"] != right["played"] else ""
+                    )
                     def proxy(row):
                         ratio = row.get("observed_to_prior_goals_ratio")
                         return f"{ratio:.2f}" if ratio is not None else "n/a"
@@ -895,8 +911,8 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         f"{left['goals_conceded_rated']} | {right['goals_conceded_rated']} |\n"
                         "| Goals conceded / summed opponents' prior scoring rates | "
                         f"{proxy(left)} | {proxy(right)} |\n\n"
-                        + comparison
-                        + " The last ratio is a rough scoring-rate context, **not** a "
+                        + comparison + " " + coverage_caveat
+                        + "The last ratio is a rough scoring-rate context, **not** a "
                         "validated goals-conceded expectation or a home/away-adjusted model. "
                         "These measures cannot establish whether opposition difficulty "
                         "caused the defensive difference or whether either side is "

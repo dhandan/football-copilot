@@ -20,6 +20,8 @@ on:
       - "app/streamlit_app.py"
       - "tests/test_groq_v2.py"
       - "scripts/evaluate_v2_conversations.py"
+      - "scripts/evaluate_v2_groq_shadow.py"
+      - "tests/test_v2_groq_shadow.py"
       - "docs/V2_GROQ_EXPERIMENT_2026_11_09.md"
   pull_request:
     branches: [main]
@@ -40,6 +42,8 @@ on:
       - "app/streamlit_app.py"
       - "tests/test_groq_v2.py"
       - "scripts/evaluate_v2_conversations.py"
+      - "scripts/evaluate_v2_groq_shadow.py"
+      - "tests/test_v2_groq_shadow.py"
       - "docs/V2_GROQ_EXPERIMENT_2026_11_09.md"
 
 permissions:
@@ -69,7 +73,7 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Check private preview syntax and devcontainer config
         run: |
-          python -m py_compile app/v2_groq_preview.py
+          python -m py_compile app/v2_groq_preview.py scripts/evaluate_v2_groq_shadow.py
           python - <<'PY'
           import json
           from pathlib import Path

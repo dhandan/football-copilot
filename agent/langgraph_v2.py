@@ -9,6 +9,7 @@ import json
 import math
 import os
 import re
+from functools import lru_cache
 from typing import Annotated, Callable, Literal, TypedDict, Union
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -19,6 +20,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from agent.defensive_explanation import defensive_evidence
 from agent.opponent_strength import compare_opponent_strength
+from analytics.football_analytics import get_teams
 
 from agent.football_tools import (
     experiment_history,
@@ -38,6 +40,19 @@ ALLOWED = {
 }
 MAX_TOOLS = 3
 TEAM_ALIASES = {'manchester city': 'Man City', 'manchester united': 'Man United', 'spurs': 'Tottenham'}
+
+
+@lru_cache(maxsize=1)
+def _available_team_names():
+    """Recognise clubs from the validated database, not a nine-team whitelist."""
+    fallback = ("Manchester City", "Manchester United", "Liverpool", "Arsenal",
+                "Chelsea", "Tottenham", "Spurs", "Man City", "Man United")
+    try:
+        catalog = set(get_teams()) | set(fallback)
+    except (OSError, ValueError, RuntimeError):
+        catalog = set(fallback)
+    return sorted(catalog, key=lambda name: (-len(name), name))
+
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -345,8 +360,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
         q = state["question"]
         prior_q = next((h["question"] for h in reversed(state.get("history", []))
                         if re.search(r"\b(compare|versus|vs|which of)\b", h["question"], re.I)), "")
-        team_names = ("Manchester City", "Manchester United", "Liverpool",
-                      "Arsenal", "Chelsea", "Tottenham", "Spurs", "Man City", "Man United")
+        team_names = _available_team_names()
         def names_in(sentence):
             found = []
             for label in team_names:
@@ -377,7 +391,10 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             r"|explain\s+(?:that|this)|what\s+explains\s+(?:that|the\s+difference))"
             r"\s*[?!.]*\s*", q, re.I
         ))
-        followup = followup or bool(refers_to_previous and prior_q)
+        stat_followup = bool(re.search(
+            r"\b(?:which of them|which team|who of them)\b", q, re.I
+        ))
+        followup = followup or bool((refers_to_previous or stat_followup) and prior_q)
 
         if len(teams) != 2 and followup:
             teams = names_in(prior_q)
@@ -395,7 +412,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             games = int(requested.group(1))
         # The most recent explicit window wins; do not silently change a
         # follow-up from ten matches to the default when it says "why?".
-        if games is None and ((refers_to_previous and prior_q) or opponent_scope) and len(teams) == 2:
+        if games is None and (((refers_to_previous or stat_followup) and prior_q) or opponent_scope) and len(teams) == 2:
             for previous in reversed(state.get("history", [])):
                 prior_window = re.search(
                     r"\b(?:last|past|those|these)\s+(\d+|five|ten)(?:\s+(?:matches|games))?\b",
@@ -407,7 +424,7 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                         games = int(token)
                     break
         is_form = bool(re.search(r"\b(form|matches|games|defen[sc]\w*|comparison|compare|conced\w*|last|past|those|these)\b", q, re.I))
-        is_form = is_form or bool(((refers_to_previous and prior_q) or opponent_scope) and games is not None and len(teams) == 2)
+        is_form = is_form or bool((((refers_to_previous or stat_followup) and prior_q) or opponent_scope) and games is not None and len(teams) == 2)
         gw_match = re.search(r"\b(?:GW|gameweek)\s*(\d{1,2})\b", q, re.I)
         forecast_intent = bool(re.search(r"\b(forecast|prediction|predicted)\w*\b", q, re.I))
         if (len(teams) == 2 and games is not None and 1 <= games <= 30
@@ -431,6 +448,15 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
             return {"plan": [{"name": "form_summary",
                                "arguments": {"team": team, "games": games}} for team in teams],
                     "trace": ["deterministic_form_route"]}
+        if len(teams) == 1 and games is not None and 1 <= games <= 30 and is_form:
+            previous_five = bool(re.search(
+                r"\b(?:five before|previous five|preceding five)\b", q, re.I
+            ))
+            if previous_five and games == 5:
+                games = 10
+            return {"plan": [{"name": "form_summary",
+                               "arguments": {"team": teams[0], "games": games}}],
+                    "trace": ["deterministic_single_team_form_route"]}
         # Explicit model-quality questions are not requests for a team's recent form.
         # Repair the two misroutes observed in the 13-turn live Qwen acceptance.
         # Compose explicit forecasting, performance and experiment requests before
@@ -738,6 +764,36 @@ def make_graph(planner: Callable[[str], list[dict]] = local_planner, checkpointe
                                       "GoalsFor", "GoalsAgainst"))
                     and rows[0]["Played"] > 0):
                 forms.append((item["arguments"]["team"], rows[0], item["result"].get("season", "2026/27"), item["arguments"]["games"]))
+        if len(forms) == 1 and len(state["evidence"]) == 1:
+            team, row, season, requested = forms[0]
+            q = state["question"]
+            source = state["evidence"][0]["result"].get("source", "verified match data")
+            played = int(row["Played"])
+            if re.search(r"\b(?:five before|previous five|preceding five)\b", q, re.I):
+                recent = row.get("ConcededRecent5")
+                previous = row.get("ConcededPrevious5")
+                if recent is not None and previous is not None and played >= 10:
+                    direction = ("improved" if recent < previous else
+                                 "worsened" if recent > previous else "unchanged")
+                    parts = [
+                        f"**{team} defensive trend:** Goals conceded in the last "
+                        f"five matches: **{recent}**; previous five: "
+                        f"**{previous}**. The goals-conceded record has "
+                        f"**{direction}** on this measure. This describes "
+                        "results, not why they occurred. "
+                        f"*Seasons: {season}. Source: {source}.*"
+                    ]
+            elif re.search(r"\b(?:goals?|scor(?:e|ed|ing))\b", q, re.I):
+                if re.search(r"\b(?:conced(?:ed|e|ing)|against)\b", q, re.I):
+                    metric, value = "Goals conceded", row["GoalsAgainst"]
+                else:
+                    metric, value = "Goals scored", row["GoalsFor"]
+                parts = [
+                    f"**{team} | Last {played} matches:** "
+                    f"{metric}: **{int(value)}**. "
+                    f"*Seasons: {season}. Source: {source}. "
+                    "Completed results, not predictions.*"
+                ]
         if (len(forms) == 2
                 and forms[0][0] != forms[1][0]
                 and forms[0][1].get("Played") == forms[1][1].get("Played")

@@ -55,6 +55,7 @@ st.sidebar.warning(
 if st.sidebar.button("Clear conversation", use_container_width=True):
     st.session_state.pop("v2_private_conversation", None)
     st.session_state.pop("v2_private_messages", None)
+    st.session_state.pop("v2_queued_question", None)
     st.rerun()
 
 if not ready:
@@ -73,7 +74,6 @@ if "v2_queued_question" not in st.session_state:
 st.markdown("##### Try a real question")
 examples = [
     ("Recent form", "Compare Liverpool and Arsenal over their last 10 matches"),
-    ("Follow-up", "Who has been better defensively over those 10 matches?"),
     ("Five-match trend", "Has Arsenal's defence improved in its most recent five matches compared with the previous five?"),
     ("Opponent context", "Compare Arsenal and Liverpool's last seven matches and the strength of opponents they faced."),
     ("Why question", "Why did Brighton score more than Brentford over their last seven matches?"),
@@ -84,7 +84,12 @@ for label, question in examples:
     if st.button(label, key="sample_" + label):
         sample = question
 
-for item in st.session_state.v2_private_messages:
+messages = st.session_state.v2_private_messages
+latest_answer_index = next(
+    (i for i in range(len(messages) - 1, -1, -1)
+     if messages[i]["role"] == "assistant"), None
+)
+for idx, item in enumerate(messages):
     with st.chat_message(item["role"]):
         summary, details = (split_answer_for_display(item["content"])
                             if item["role"] == "assistant"
@@ -95,11 +100,11 @@ for item in st.session_state.v2_private_messages:
                 st.markdown(details)
         if item["role"] == "assistant":
             st.caption(item["status"])
-            if item.get("followups"):
+            if idx == latest_answer_index and item.get("followups"):
                 st.caption("Ask a follow-up")
                 columns = st.columns(len(item["followups"]))
                 for i, suggestion in enumerate(item["followups"]):
-                    if columns[i].button(suggestion, key=f"followup_{len(st.session_state.v2_private_messages)}_{st.session_state.v2_private_messages.index(item)}_{i}",
+                    if columns[i].button(suggestion, key=f"followup_{idx}_{i}",
                                          use_container_width=True):
                         st.session_state.v2_queued_question = suggestion
                         st.rerun()

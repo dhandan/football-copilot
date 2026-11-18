@@ -3704,9 +3704,9 @@ if prompt:
                 # Preserve every existing prediction and experiment route.
                 # The opt-in original chat toggle is a one-click rollback.
                 original_topic = bool(re.search(
-                    r"\\b(?:predict\\w*|forecast\\w*|model\\s*2|40/60|champion|"
-                    r"gameweek|GW\\s*\\d+|probabilit\\w*|odds|H07|league table|"
-                    r"standings|next fixture|next match)\\b",
+                    r"\b(?:predict\w*|forecast\w*|model\s*2|40/60|champion|"
+                    r"gameweek|GW\s*\d+|probabilit\w*|odds|H07|league table|"
+                    r"standings|next fixture|next match)\b",
                     prompt, re.I
                 ))
                 if use_product_v2 and not original_topic:

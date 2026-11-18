@@ -47,6 +47,8 @@ jobs:
         run: python -m scripts.compare_v2_investigator
       - name: Evaluate conditional evidence uplift (guided offline, not Groq)
         run: python -m scripts.evaluate_v2_conditional_value
+      - name: Evaluate candidate evidence avenue selection (offline, no Groq)
+        run: python -m scripts.evaluate_v2_avenue_choice
       - name: Check private preview syntax and devcontainer config
         run: |
           python -m py_compile app/v2_groq_preview.py app/v2_investigator_lab.py scripts/evaluate_v2_groq_shadow.py scripts/evaluate_v2_investigator.py

@@ -139,7 +139,7 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
             else:
                 winner = ta if int(a["GoalsAgainst"]) < int(b["GoalsAgainst"]) else tb
                 lead = f"{winner} had the better goals-conceded record"
-            if not answer.startswith("### Answer\\n" + lead):
+            if not answer.startswith("### Answer\n" + lead):
                 problems.append("missing_or_wrong_lead")
             if scope.opposition:
                 items = by_tool.get("compare_opponent_strength", [])

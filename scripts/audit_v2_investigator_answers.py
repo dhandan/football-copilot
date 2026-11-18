@@ -192,7 +192,7 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
                               f"the preceding five. Points: {points_a} versus {points_b}.")
             if expected_trend not in answer:
                 problems.append("missing_or_wrong_trend:" + team)
-            if not answer.startswith("### Answer\\n") or (
+            if not answer.startswith("### Answer\n") or (
                     f"{team} five-match trend:" not in answer.split(
                         "### Verified football evidence")[0]):
                 problems.append("missing_trend_lead:" + team)

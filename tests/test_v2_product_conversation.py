@@ -34,8 +34,7 @@ class ProductConversationTests(unittest.TestCase):
             "compared with the previous five?", thread_id="trend")
         self.assertEqual(out["route"], "deterministic_investigation")
         self.assertTrue(out["complete"], out["trace"])
-        self.assertIn("Five-match trend", out["answer"] if False
-                      else out["answer"].replace("five-match trend", "Five-match trend"))
+        self.assertIn("five-match trend", out["answer"])
         self.assertIn("the preceding five", out["answer"])
 
     def test_why_uses_two_rounds_only_if_verified_gap(self):

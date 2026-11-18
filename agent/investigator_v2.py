@@ -304,6 +304,22 @@ def _defensive_conclusions(scope: Scope, evidence: list[dict]) -> list[str]:
                 except (KeyError, TypeError, ValueError):
                     lines.append(f"**{venue} attacking verdict:** Goals-scored "
                                  "venue evidence unavailable; no conclusion.")
+        if scope.opposition:
+            if not isinstance(opponent, dict):
+                lines.append("**Opposition verdict:** Verified opponent-strength evidence unavailable.")
+            else:
+                oa, ob = opponent.get(a, {}), opponent.get(b, {})
+                pa, pb = oa.get("mean_opponent_prior_ppg"), ob.get("mean_opponent_prior_ppg")
+                if pa is None or pb is None:
+                    lines.append("**Opposition verdict:** Insufficient rated opponent evidence.")
+                elif float(pa) == float(pb):
+                    lines.append("**Opposition verdict:** The measured opponents had equal average prior PPG.")
+                else:
+                    stronger = a if float(pa) > float(pb) else b
+                    lines.append(f"**Opposition verdict:** {stronger} faced opponents "
+                                 f"with higher average prior PPG ({float(pa):.2f} "
+                                 f"versus {float(pb):.2f}). This observational "
+                                 "proxy does not establish why either team scored more.")
         return lines
     if a in forms and b in forms:
         ra, rb = forms[a], forms[b]
@@ -461,6 +477,15 @@ def _answer_lead(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str | 
         if scope.venues:
             text += (" The venue-specific attacking comparison is shown "
                      "below where goals-scored splits are verified.")
+        if scope.opposition and isinstance(opponents, dict):
+            oa, ob = opponents.get(a, {}), opponents.get(b, {})
+            prior_a = oa.get("mean_opponent_prior_ppg")
+            prior_b = ob.get("mean_opponent_prior_ppg")
+            if prior_a is not None and prior_b is not None:
+                text += (f" Their opponents' prior PPG averaged "
+                         f"{float(prior_a):.2f} versus {float(prior_b):.2f} "
+                         f"({a} versus {b}). This is descriptive context, "
+                         "not a causal explanation of the scoring difference.")
         return text
     ga, gb = int(ra["GoalsAgainst"]), int(rb["GoalsAgainst"])
     if ga == gb:

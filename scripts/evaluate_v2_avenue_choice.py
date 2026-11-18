@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import time
+from agent.groq_v2 import GroqUnavailable
 from agent.avenue_selection_v2 import (
     CASES, choice_prompt, investigate, observed_form, select_keyword, select_live,
 )
@@ -35,7 +36,7 @@ def run(live_groq=False):
                 if selected != "none" and data["extra"] is None:
                     raise ValueError("Selected avenue lacks verified evidence")
                 counts["groq"] += selected == case.expected
-            except Exception as exc:
+            except (GroqUnavailable, ValueError) as exc:
                 # One attempt per case. Record only the exception class,
                 # never provider messages, response text, prompts or secrets.
                 selected = None

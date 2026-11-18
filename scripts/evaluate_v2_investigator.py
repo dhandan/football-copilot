@@ -57,6 +57,28 @@ CASES = [
      "Compare Arsenal and Chelsea over their last six matches.",
      "And what about their away defending and opposition difficulty?"),
 ]
+# Independent scope oracle. The evaluator MUST NOT use the system's own
+# inferred scope as its only success criterion (an omitted club otherwise
+# passes as a shorter, easier question).
+EXPECTED = {
+    "brighton_brentford_opposition":
+        (("Brighton", "Brentford"), 7, False, True, False),
+    "villa_newcastle_venue":
+        (("Aston Villa", "Newcastle"), 6, False, False, True),
+    "chelsea_spurs_h2h_form":
+        (("Chelsea", "Tottenham"), 8, True, False, False),
+    "fulham_west_ham":
+        (("Fulham", "West Ham"), 5, False, False, False),
+    "arsenal_liverpool_venue_opposition":
+        (("Arsenal", "Liverpool"), 9, False, True, True),
+    "bournemouth_everton_opposition":
+        (("Bournemouth", "Everton"), 6, False, True, False),
+    "palace_forest_h2h":
+        (("Crystal Palace", "Nott'm Forest"), 5, True, False, False),
+    "contextual_followup":
+        (("Arsenal", "Chelsea"), 6, False, True, True),
+}
+
 # No inferred expected outcomes, rates or actual scorelines in the benchmark.
 # Requirements are computed independently by a deterministic compiler.
 # This evaluator never claims that those requirements cover all possible
@@ -107,7 +129,20 @@ def evaluate(live_groq: bool = False) -> dict:
             result = first
             total_rounds = first["rounds"]
         executed = [x for x in result["evidence"] if "result" in x]
-        passed = bool(result["complete"] and result["evidence"])
+        final_scope = agent.context.get(name)
+        scope_tuple = (final_scope.teams, final_scope.games,
+                       final_scope.h2h, final_scope.opposition,
+                       final_scope.venues) if final_scope else None
+        scope_ok = scope_tuple == EXPECTED[name]
+        # An independent scope oracle guards against dropped entities,
+        # omitted subquestions and incorrect conversational inheritance.
+        expected_tool_count = (
+            2 + int(EXPECTED[name][2]) + int(EXPECTED[name][3])
+            if len(EXPECTED[name][0]) == 2 else 1
+        )
+        coverage_ok = len(executed) == expected_tool_count
+        passed = bool(result["complete"] and result["evidence"]
+                      and scope_ok and coverage_ok)
         first_round = sum(
             x.startswith("round_1_approved_") and not x.endswith("_0")
             for x in result["trace"]
@@ -126,6 +161,7 @@ def evaluate(live_groq: bool = False) -> dict:
         passed = passed and safe_answer
         row = {
             "case": name, "passed": passed, "complete": result["complete"],
+            "scope_ok": scope_ok, "coverage_ok": coverage_ok,
             "rounds": total_rounds, "trace": result["trace"],
             "tools": [e["tool"] for e in executed],
             "gaps": [c["name"] for c in result["gaps"]],
@@ -135,7 +171,8 @@ def evaluate(live_groq: bool = False) -> dict:
         rows.append(row)
         print(f"INVESTIGATOR_CASE {name} {'PASS' if passed else 'GAP'} "
               f"rounds={total_rounds} tools={row['tools']} "
-              f"missing={row['gaps']} duration_s={row['seconds']:.2f} "
+              f"missing={row['gaps']} scope_ok={scope_ok} "
+              f"coverage_ok={coverage_ok} duration_s={row['seconds']:.2f} "
               f"trace={row['trace']}", flush=True)
     count = sum(x["passed"] for x in rows)
     print(f"INVESTIGATOR_SUMMARY {'live_groq' if live_groq else 'guided_offline_control'} "

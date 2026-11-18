@@ -141,8 +141,26 @@ def evaluate(live_groq: bool = False) -> dict:
             if len(EXPECTED[name][0]) == 2 else 1
         )
         coverage_ok = len(executed) == expected_tool_count
+        # A home/away claim requires measured splits for BOTH teams.
+        # General form tool completion alone must never certify venue evidence.
+        venue_ok = True
+        if EXPECTED[name][4]:
+            forms = [e for e in executed if e["tool"] == "form_summary"]
+            venue_ok = len(forms) == 2 and all(
+                isinstance(e["result"]["data"][0].get("VenueSplit"), dict)
+                and e["result"]["data"][0].get("VenueKnown")
+                    == e["result"]["data"][0].get("Played")
+                and all(e["result"]["data"][0]["VenueSplit"].get(v, {}).get("Played", 0) > 0
+                        for v in ("Home", "Away"))
+                for e in forms
+            )
+            venue_ok = venue_ok and all(
+                f"{team}, home:" in result["answer"]
+                and f"{team}, away:" in result["answer"]
+                for team in EXPECTED[name][0]
+            )
         passed = bool(result["complete"] and result["evidence"]
-                      and scope_ok and coverage_ok)
+                      and scope_ok and coverage_ok and venue_ok)
         first_round = sum(
             x.startswith("round_1_approved_") and not x.endswith("_0")
             for x in result["trace"]
@@ -159,8 +177,10 @@ def evaluate(live_groq: bool = False) -> dict:
             and "opponents" not in (followup or question).lower()
         )
         passed = passed and safe_answer
+        blocked = bool(result.get("provider_blocked"))
         row = {
             "case": name, "passed": passed, "complete": result["complete"],
+            "provider_blocked": blocked, "venue_ok": venue_ok,
             "scope_ok": scope_ok, "coverage_ok": coverage_ok,
             "rounds": total_rounds, "trace": result["trace"],
             "tools": [e["tool"] for e in executed],
@@ -169,20 +189,25 @@ def evaluate(live_groq: bool = False) -> dict:
             "first_round_has_tools": bool(first_round),
         }
         rows.append(row)
-        print(f"INVESTIGATOR_CASE {name} {'PASS' if passed else 'GAP'} "
+        outcome = "BLOCKED_RATE_LIMIT" if blocked else ("PASS" if passed else "GAP")
+        print(f"INVESTIGATOR_CASE {name} {outcome} "
               f"rounds={total_rounds} tools={row['tools']} "
               f"missing={row['gaps']} scope_ok={scope_ok} "
-              f"coverage_ok={coverage_ok} duration_s={row['seconds']:.2f} "
+              f"coverage_ok={coverage_ok} venue_ok={venue_ok} "
+          f"duration_s={row['seconds']:.2f} "
               f"trace={row['trace']}", flush=True)
     count = sum(x["passed"] for x in rows)
+    blocked_count = sum(x["provider_blocked"] for x in rows)
     print(f"INVESTIGATOR_SUMMARY {'live_groq' if live_groq else 'guided_offline_control'} "
           f"complete_source_backed={count}/{len(rows)} "
+          f"provider_blocked={blocked_count} "
           f"total_seconds={sum(x['seconds'] for x in rows):.2f} "
           "not_full_answer_accuracy=True", flush=True)
     if live_groq:
         print("INVESTIGATOR_DECISION no_promotion_without_independent_human_review",
               flush=True)
-    return {"passed": count, "total": len(rows), "rows": rows}
+    return {"passed": count, "total": len(rows),
+            "provider_blocked": blocked_count, "rows": rows}
 
 
 if __name__ == "__main__":

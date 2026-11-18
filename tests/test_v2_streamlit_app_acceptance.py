@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
 
 
-APP_PATH = "app/v2_groq_preview.py"
+APP_PATH = str(Path(__file__).resolve().parent.parent / "app" / "v2_groq_preview.py")
 FIRST = "Compare Liverpool and Arsenal over their last 10 matches"
 
 
@@ -52,7 +53,6 @@ class PrivateV2StreamlitAcceptance(unittest.TestCase):
         self.assertEqual(messages[2]["content"], suggestion)
         self.assertIn("Verified football evidence", messages[3]["content"])
         self.assertIn("0 Groq request", messages[3]["status"])
-        self.app.button(key=None).run() if False else None
         clear = next(b for b in self.app.button if b.label == "Clear conversation")
         clear.click().run()
         self.assertEqual(len(self.app.exception), 0, list(self.app.exception))

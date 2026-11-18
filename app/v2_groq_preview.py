@@ -14,6 +14,17 @@ from agent import groq_v2
 from agent.langgraph_v2 import Conversation
 from agent.product_conversation_v2 import ProductConversation
 
+def split_answer_for_display(answer: str) -> tuple[str, str | None]:
+    """Show the verified conclusion first; keep its source tables accessible."""
+    marker = "### Verified football evidence"
+    if not answer.startswith("### Answer\\n") or marker not in answer:
+        return answer, None
+    before, after = answer.split(marker, 1)
+    if not before.strip() or not after.strip():
+        return answer, None
+    return before.strip(), marker + after
+
+
 st.set_page_config(page_title="Football Copilot V2 | Private Preview",
                    page_icon="⚽", layout="centered")
 st.title("⚽ Football Copilot V2")
@@ -75,7 +86,13 @@ for label, question in examples:
 
 for item in st.session_state.v2_private_messages:
     with st.chat_message(item["role"]):
-        st.markdown(item["content"])
+        summary, details = (split_answer_for_display(item["content"])
+                            if item["role"] == "assistant"
+                            else (item["content"], None))
+        st.markdown(summary)
+        if details:
+            with st.expander("Verified statistics and sources", expanded=False):
+                st.markdown(details)
         if item["role"] == "assistant":
             st.caption(item["status"])
             if item.get("followups"):

@@ -149,7 +149,11 @@ def run(live_groq=False):
         else:
             planner = GuidedPlanner(initial_calls, expected)
         investigator = Investigator(planner)
+        if live_groq:
+            from agent import groq_v2
+            before_remote = groq_v2._calls
         result = investigator.ask(case.question, thread_id=case.name)
+        actual_remote = groq_v2._calls - before_remote if live_groq else 0
         evaluation = score_context(case, scope, baseline, result, expected, expected_context)
         results.append(evaluation)
         print(f"CONDITIONAL_VALUE {case.name} "
@@ -157,11 +161,17 @@ def run(live_groq=False):
               f"expected_context={expected_context} "
               f"extra_context={evaluation['extra_context']} "
               f"extra_tools={evaluation['extra_tools']} "
-              f"groq_requests={planner.requests if live_groq else 0} "
+              f"groq_requests={actual_remote} "
+              f"planner_attempts={planner.requests} "
+              f"rounds={result['rounds']} "
+              f"trace={result['trace']} "
               f"guided_planner={not live_groq} "
               f"seconds={time.perf_counter()-start:.3f} "
               f"issues={evaluation['audit_issues']}", flush=True)
     passed = sum(int(e["pass"]) for e in results)
+    if live_groq:
+        print(f"CONDITIONAL_LIVE_USAGE total_groq_requests={groq_v2._calls} "
+              f"hard_cap={groq_v2.MAX_CALLS_PER_PROCESS}", flush=True)
     print(f"CONDITIONAL_VALUE_SUMMARY {passed}/{len(results)} "
           f"live_groq={live_groq} "
           "claim=incremental_opponent_context_not_causal_explanation "

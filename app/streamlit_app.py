@@ -3578,7 +3578,7 @@ st.caption(
 def render_product_v2_answer(answer):
     """Conclusions first; retain the complete verified evidence on demand."""
     marker = "### Verified football evidence"
-    if answer.startswith("### Answer\\n") and marker in answer:
+    if answer.startswith("### Answer\n") and marker in answer:
         lead, evidence = answer.split(marker, 1)
         st.markdown(lead.strip())
         with st.expander("Verified statistics and sources", expanded=False):

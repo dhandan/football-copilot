@@ -37,6 +37,25 @@ class ProductConversationTests(unittest.TestCase):
         self.assertIn("five-match trend", out["answer"])
         self.assertIn("the preceding five", out["answer"])
 
+    def test_live_report_home_away_attack_headline(self):
+        """Acceptance: exact follow-up must show the actual venue winners."""
+        self.chat.ask("Compare Arsenal and Liverpool over their last 10 Premier League matches",
+                      thread_id="live-review")
+        self.chat.ask("Compare Arsenal and Liverpool's goals scored over their last 10 matches.",
+                      thread_id="live-review")
+        out = self.chat.ask(
+            "How does Arsenal versus Liverpool home and away scoring compare over their last 10 matches?",
+            thread_id="live-review")
+        self.assertTrue(out["complete"], out["trace"])
+        lead = out["answer"].split("### Verified football evidence")[0]
+        self.assertIn("Home: Arsenal scored at a higher rate", lead)
+        self.assertIn("Away: Liverpool scored at a higher rate", lead)
+        self.assertIn("2.25", lead)
+        self.assertIn("0.83", lead)
+        self.assertIn("1.17", lead)
+        self.assertIn("1.75", lead)
+        self.assertEqual(out["planner_requests"], 0)
+
     def test_why_uses_two_rounds_only_if_verified_gap(self):
         out = self.chat.ask(
             "Why did Brighton score more than Brentford over their last seven matches?",

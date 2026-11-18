@@ -46,7 +46,7 @@ CASES = (
     Case("b2_attack", "Who scored more goals over those seven matches?",
          ("Brighton", "Brentford"), 7, "attack", ("form_summary", "form_summary")),
     Case("b3_why", "Why did Brighton score more than Brentford over their last seven matches?",
-         ("Brighton", "Brentford"), 7, "why", ("form_summary", "form_summary")),
+         ("Brighton", "Brentford"), 7, "why", ("form_summary", "form_summary", "compare_opponent_strength")),
     Case("b4_venues", "Compare Brighton and Brentford's home and away defending over their last seven matches",
          ("Brighton", "Brentford"), 7, "venue_defence", ("form_summary", "form_summary")),
     Case("b5_h2h", "Show Brighton and Brentford's historical head-to-head",
@@ -118,7 +118,7 @@ def judge(case: Case, result: dict, *, product: bool) -> tuple[bool, list[str]]:
         if not any(x in lower for x in ("scored", "scoring", "attacking")):
             issues.append("missing_attack_response")
     elif case.intent in ("defence", "venue_defence", "trend_defence"):
-        if not any(x in lower for x in ("conceded", "defensive", "defence")):
+        if not any(x in lower for x in ("conced", "defensive", "defence")):
             issues.append("missing_defence_response")
     if case.intent.startswith("venue") and product:
         if "home" not in lower or "away" not in lower:
@@ -151,6 +151,10 @@ def run():
         numbers["prior_v2_offline"] += b_ok
         details.append({"case": case.label, "v2": a_ok, "existing": b_ok,
                         "v2_issues": a_errors, "existing_issues": b_errors})
+        if a_errors:
+            print(f"PRODUCT_DIAGNOSTIC {case.label} "
+                  f"answer_lead={candidate.get('answer', '').split('### Verified football evidence')[0][:350]!r}",
+                  flush=True)
         print(f"PRODUCT_CASE {case.label} "
               f"v2={'PASS' if a_ok else 'FAIL'} issues={a_errors} "
               f"existing={'PASS' if b_ok else 'FAIL'} existing_issues={b_errors}",

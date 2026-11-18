@@ -18,6 +18,42 @@ class ProductConversationTests(unittest.TestCase):
         self.assertIn("Brighton", output["answer"])
         self.assertIn("Brentford", output["answer"])
 
+    def test_open_comparison_leads_with_points_attack_and_defence(self):
+        question = "Compare Arsenal and Liverpool over their last 10 Premier League matches."
+        out = self.chat.ask(question, thread_id="overall")
+        self.assertTrue(out["complete"], out["trace"])
+        rows = {e["arguments"]["team"]: e["result"]["data"][0]
+                for e in out["evidence"] if e["tool"] == "form_summary"}
+        lead = out["answer"].split("### Verified football evidence")[0]
+        self.assertTrue(lead.startswith("### Answer\\nOver their last 10 matches"))
+        for team in ("Arsenal", "Liverpool"):
+            self.assertIn(team, lead)
+            self.assertIn(str(int(rows[team]["Points"])), lead)
+            self.assertIn(str(int(rows[team]["GoalsFor"])), lead)
+            self.assertIn(str(int(rows[team]["GoalsAgainst"])), lead)
+        self.assertIn("scored more goals", lead)
+        self.assertIn("conceded fewer", lead)
+        self.assertEqual(out["planner_requests"], 0)
+
+    def test_specialised_defence_question_keeps_defensive_lead(self):
+        out = self.chat.ask(
+            "Compare Arsenal and Liverpool's defensive records over their last 10 matches.",
+            thread_id="defence-focus")
+        self.assertTrue(out["complete"], out["trace"])
+        self.assertIn("better goals-conceded record", out["answer"].split(
+            "### Verified football evidence")[0])
+        self.assertNotIn("Over their last 10 matches, ", out["answer"].split(
+            "### Verified football evidence")[0])
+
+    def test_specialised_attack_question_keeps_attacking_lead(self):
+        out = self.chat.ask(
+            "Compare Arsenal and Liverpool's goals scored over their last 10 matches.",
+            thread_id="attack-focus")
+        self.assertTrue(out["complete"], out["trace"])
+        self.assertIn("scored more goals", out["answer"].split(
+            "### Verified football evidence")[0])
+        self.assertNotIn("This compares observed results", out["answer"])
+
     def test_followup_keeps_teams_and_changes_focus(self):
         self.chat.ask("Compare Brighton and Brentford's last seven matches",
                       thread_id="follow")

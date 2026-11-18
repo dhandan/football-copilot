@@ -10,7 +10,7 @@ No Groq request occurs unless a caller explicitly passes a Groq planner.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 from agent import langgraph_v2 as v2
@@ -45,6 +45,7 @@ class Scope:
     venues: bool
     focus: str = "defence"
     trend: bool = False
+    investigate_why: bool = False
 
 
 def _teams(question: str) -> tuple[str, ...]:
@@ -118,7 +119,9 @@ def parse_scope(question: str, previous: Scope | None = None) -> Scope:
              else "defence")
     return Scope(teams, games, bool(_H2H.search(current)),
                  bool(_OPPOSITION.search(current)),
-                 bool(re.search(r"\b(?:home|away)\b", current, re.I)), focus, trend)
+                 bool(re.search(r"\b(?:home|away)\b", current, re.I)), focus, trend,
+                 bool(re.search(r"\bwhy\b|\bwhat explains\b|\bexplain the gap\b",
+                                current, re.I)))
 
 
 def requirements(scope: Scope) -> list[dict]:
@@ -159,6 +162,28 @@ def validated_proposals(raw, needed: list[dict]) -> list[dict]:
                 and call not in result):
             result.append(call)
     return result
+
+
+def conditional_opposition_evidence(scope: Scope, evidence: list[dict]) -> dict | None:
+    """Allow an observational context tool only after a verified team difference."""
+    if (not scope.investigate_why or scope.opposition or scope.trend
+            or len(scope.teams) != 2 or scope.games is None
+            or not 3 <= scope.games <= 30):
+        return None
+    forms = {e["arguments"]["team"]: e["result"]["data"][0]
+             for e in evidence if e.get("tool") == "form_summary"
+             and "result" in e}
+    if any(t not in forms for t in scope.teams):
+        return None
+    a, b = (forms[t] for t in scope.teams)
+    if int(a["Played"]) != scope.games or int(b["Played"]) != scope.games:
+        return None
+    metric = "GoalsFor" if scope.focus == "attack" else "GoalsAgainst"
+    if int(a[metric]) == int(b[metric]):
+        return None
+    return {"name": "compare_opponent_strength", "arguments": {
+        "team1": scope.teams[0], "team2": scope.teams[1],
+        "games": scope.games}}
 
 
 def _execute(call: dict, tools: dict, require_venues: bool = False, focus: str = 'defence', require_trend: bool = False) -> dict:
@@ -677,11 +702,27 @@ class Investigator:
                 evidence.append(item)
                 trace.append(f"executed_{item['tool']}" if "result" in item
                              else f"unavailable_{item['tool']}")
+            # The second-round context tool was not available during planning
+            # round one. Offer only when completed form rows show a difference.
+            if round_idx == 0:
+                candidate = conditional_opposition_evidence(scope, evidence)
+                if candidate and call_key(candidate) not in {
+                        call_key(c) for c in needed}:
+                    needed.append(candidate)
+                    trace.append("context_tool_offered_after_verified_gap")
         complete_keys = {(e["tool"], tuple(sorted(e["arguments"].items())))
                          for e in evidence if "result" in e}
         gaps = [c for c in needed if call_key(c) not in complete_keys]
         trace.append("complete" if not gaps else "partial_evidence")
-        answer = render_evidence(scope, evidence, gaps)
+        context_added = any(e["tool"] == "compare_opponent_strength"
+                            for e in evidence)
+        render_scope = (replace(scope, opposition=True)
+                        if context_added and not scope.opposition else scope)
+        answer = render_evidence(render_scope, evidence, gaps)
+        if scope.investigate_why:
+            answer += ("\n\n**Interpretation limit:** These results describe "
+                       "performance and opponent form. They cannot establish "
+                       "why a team performed differently or prove causation.")
         if provider_blocked:
             answer += ("\n\n**Provider rate limit:** Groq blocked further planning. "
                        "This is an availability failure, not evidence of incorrect "

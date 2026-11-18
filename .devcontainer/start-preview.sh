@@ -33,6 +33,6 @@ fi
 
 echo "Git branch: $(git branch --show-current)"
 echo "Git commit: $(git rev-parse --short HEAD)"
-echo "In the app sidebar look for: Build: H07 topic-switch fix"
+echo "In the app sidebar look for: Build: integrated facts-first V2 · 18 Nov 2026"
 echo "In GitHub Codespaces → PORTS, keep port 8501 Visibility PRIVATE."
 echo "Stop the Codespace when finished to conserve free allowance."

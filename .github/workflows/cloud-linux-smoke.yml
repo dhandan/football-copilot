@@ -49,6 +49,8 @@ jobs:
         run: python -m scripts.evaluate_v2_conditional_value
       - name: Evaluate candidate evidence avenue selection (offline, no Groq)
         run: python -m scripts.evaluate_v2_avenue_choice
+      - name: Assess V2 product usefulness against offline predecessor (20 questions)
+        run: python -m scripts.assess_v2_product_release
       - name: Check private preview syntax and devcontainer config
         run: |
           python -m py_compile app/v2_groq_preview.py app/v2_investigator_lab.py scripts/evaluate_v2_groq_shadow.py scripts/evaluate_v2_investigator.py

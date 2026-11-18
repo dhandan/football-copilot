@@ -280,17 +280,25 @@ class Investigator:
             if not missing or len(tried) >= MAX_TOOLS:
                 break
             rounds += 1
+            # Do not leak the expected answer/tool list to the first
+            # planner pass: otherwise the apparent AI planning score is
+            # largely a test of following a supplied solution.
+            review = (
+                "First pass: independently select the read-only tools "
+                "necessary to answer every component of the question."
+                if round_idx == 0 else
+                f"Second and FINAL pass. Already verified tools: "
+                f"{[e['tool'] for e in evidence if 'result' in e]}. "
+                f"Missing evidence requirements (repair hints): {missing!r}. "
+                "Select ONLY missing calls; do not repeat completed tools."
+            )
             instruction = (
                 "Select read-only Premier League evidence tools. Return only "
                 "a list of {name,arguments} calls (max 3). Do not answer, invent "
                 "statistics, request destructive tools or change source data. "
                 f"User question: {question!r}. Teams: {scope.teams}. "
                 f"Last-N window: {scope.games}. "
-                f"Required evidence categories still missing: "
-                f"{[c['name'] for c in missing]}. "
-                f"Previously successful tools: "
-                f"{[e['tool'] for e in evidence if 'result' in e]}. "
-                "Use exact team names and match window."
+                + review + " Use exact team names and match window."
             )
             try:
                 proposals = validated_proposals(self.planner(instruction), missing)

@@ -30,6 +30,17 @@ class ProductionPromotionSmoke(unittest.TestCase):
         self.assertEqual(len(app.exception), 0, list(app.exception))
         self.assertTrue(any(x.get("routing") == "product_v2_verified"
                             for x in app.session_state["debug_info"]))
+        messages = app.session_state["conversation"]
+        self.assertTrue(messages[-1]["v2_verified"])
+        self.assertEqual(len(messages[-1]["followups"]), 2)
+        self.assertTrue(any(e.label == "Verified statistics and sources"
+                            for e in app.get("expander")))
+        next_query = messages[-1]["followups"][0]
+        followup_button = next(b for b in app.button if b.label == next_query)
+        followup_button.click().run()
+        self.assertEqual(len(app.exception), 0, list(app.exception))
+        self.assertEqual(app.session_state["conversation"][-2]["content"], next_query)
+        self.assertTrue(app.session_state["conversation"][-1]["v2_verified"])
 
     def test_frozen_prediction_assets_unchanged_and_available(self):
         result = frozen_gameweek_predictions(8)

@@ -4,11 +4,16 @@
   "postCreateCommand": "python -m pip install --disable-pip-version-check -r requirements-cloud.txt",
   "postAttachCommand": "bash .devcontainer/start-preview.sh",
   "forwardPorts": [
-    8501
+    8501,
+    8502
   ],
   "portsAttributes": {
     "8501": {
       "label": "Football Copilot V2 PRIVATE preview",
+      "onAutoForward": "notify"
+    },
+    "8502": {
+      "label": "Football Copilot V2 INVESTIGATOR lab (PRIVATE)",
       "onAutoForward": "notify"
     }
   },

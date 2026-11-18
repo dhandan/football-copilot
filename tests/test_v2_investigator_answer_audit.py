@@ -56,6 +56,24 @@ class AnswerAuditTests(unittest.TestCase):
         self.assertIn("wrong_or_missing_venue:Arsenal:Away",
                       audit_answer(answer, self.scope, self.result["evidence"]))
 
+    def test_missing_venue_verdict_is_rejected(self):
+        answer = self.result["answer"].replace(
+            "**Away verdict:** Both teams conceded at the same rate",
+            "**Away comparison:** Both teams conceded at the same rate"
+        )
+        self.assertNotEqual(answer, self.result["answer"])
+        self.assertIn("missing_or_wrong_venue_verdict:Away",
+                      audit_answer(answer, self.scope, self.result["evidence"]))
+
+    def test_missing_overall_verdict_is_rejected(self):
+        answer = self.result["answer"].replace(
+            "**Overall verdict:** The teams conceded equally",
+            "**Summary:** The teams conceded equally"
+        )
+        self.assertNotEqual(answer, self.result["answer"])
+        self.assertIn("missing_or_wrong_overall_verdict",
+                      audit_answer(answer, self.scope, self.result["evidence"]))
+
     def test_missing_source_is_rejected(self):
         answer = self.result["answer"].replace("*Form source:", "*Unknown source:")
         self.assertIn("missing_form_attribution",

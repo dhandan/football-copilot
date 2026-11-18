@@ -138,8 +138,11 @@ def _current_season_form(team: str, games: int):
     for venue in ("Home", "Away"):
         subset = [m for m in matches if m[4] == venue]
         conceded = sum(m[2] for m in subset)
+        scored = sum(m[1] for m in subset)
         venue_split[venue] = {
             "Played": len(subset),
+            "GoalsFor": scored,
+            "GoalsForPerGame": round(scored / len(subset), 2) if subset else None,
             "GoalsAgainst": conceded,
             "GoalsAgainstPerGame": round(conceded / len(subset), 2) if subset else None,
         }

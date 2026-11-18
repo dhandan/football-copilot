@@ -31,9 +31,11 @@ class Case:
 
 
 CASES = (
+    # Negative control: the verified seven-match totals are tied, so no extra
+    # opponent evidence is justified. Do not manufacture a difference.
     Case("arsenal_liverpool_defence",
          "Why did Arsenal concede fewer goals than Liverpool over their last seven matches?",
-         ("Arsenal", "Liverpool"), 7, "defence", True),
+         ("Arsenal", "Liverpool"), 7, "defence", False),
     Case("brighton_brentford_attack",
          "Why did Brighton score more than Brentford over their last seven matches?",
          ("Brighton", "Brentford"), 7, "attack", True),

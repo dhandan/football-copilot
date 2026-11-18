@@ -55,12 +55,12 @@ def suggested_followups(scope) -> list[str]:
         if scope.focus == "attack":
             choices = [
                 f"{prefix}'s defending over their last {scope.games} matches.",
-                f"How does their home versus away scoring compare over their last {scope.games} matches?",
+                f"How does {a} versus {b} home and away scoring compare over their last {scope.games} matches?",
             ]
         else:
             choices = [
                 f"{prefix}'s goals scored over their last {scope.games} matches.",
-                f"How do their home versus away defensive records compare over their last {scope.games} matches?",
+                f"How do {a} and {b} compare defensively at home and away over their last {scope.games} matches?",
             ]
         return choices
     team = scope.teams[0]

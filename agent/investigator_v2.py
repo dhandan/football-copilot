@@ -445,11 +445,11 @@ def render_evidence(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str
                 pt_a, pt_b = int(a["Points"]), int(b["Points"])
                 if gf_a != gf_b:
                     winner = ta if gf_a > gf_b else tb
-                    lines.append(f"\\n**{winner} scored {abs(gf_a-gf_b)} more goals** "
+                    lines.append(f"\n**{winner} scored {abs(gf_a-gf_b)} more goals** "
                                  "in the measured window.")
                 else:
-                    lines.append("\\nBoth teams scored the same number of goals.")
-                lines.append(f"\\nPoints earned: {ta} {pt_a}, {tb} {pt_b}.")
+                    lines.append("\nBoth teams scored the same number of goals.")
+                lines.append(f"\nPoints earned: {ta} {pt_a}, {tb} {pt_b}.")
         if len(forms) == 2 and scope.focus != "attack":
             (ta, a, _), (tb, b, _) = forms
             if int(a["Played"]) == int(b["Played"]):

@@ -55,6 +55,29 @@ class AvenueSelectionTests(unittest.TestCase):
             with self.subTest(case=case.label):
                 self.assertEqual(select_keyword(case.question), case.expected)
 
+    def test_live_failure_classified_and_later_cases_continue_without_retry(self):
+        """All six cases are scored even when one provider response is invalid."""
+        from unittest.mock import patch
+        from agent.groq_v2 import GroqBadRequestJsonValidation
+        from scripts.evaluate_v2_avenue_choice import run
+        outputs = ["venue", "opposition", "venue", "opposition", "venue",
+                   GroqBadRequestJsonValidation("invalid")]
+        observed = []
+        def fake_select(question, scope, evidence):
+            observed.append(question)
+            item = outputs[len(observed) - 1]
+            if isinstance(item, Exception):
+                raise item
+            return item
+        with patch("agent.groq_v2.groq_ready", return_value=True), \\
+             patch("scripts.evaluate_v2_avenue_choice.select_live",
+                   side_effect=fake_select):
+            scores, total = run(live_groq=True)
+        self.assertEqual(total, 6)
+        self.assertEqual(scores["baseline"], 6)
+        self.assertEqual(scores["groq"], 4)
+        self.assertEqual(len(observed), 6)
+
     def test_prompt_exposes_only_factual_first_round_rows(self):
         case = CASES[1]
         scope, first = observed_form(case.question)

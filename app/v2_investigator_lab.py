@@ -46,6 +46,9 @@ if not ready:
     st.stop()
 
 if "inv_lab" not in st.session_state:
+    # Shadow protocol is scoped to this dedicated experiment process.
+    # Do not run the production preview in the same Python process.
+    os.environ["FOOTBALL_GROQ_SHADOW_PROTOCOL"] = "strict_budget"
     st.session_state.inv_lab = Investigator(groq_v2.groq_planner)
 if "inv_lab_messages" not in st.session_state:
     st.session_state.inv_lab_messages = []

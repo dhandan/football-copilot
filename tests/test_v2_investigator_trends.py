@@ -39,6 +39,21 @@ class TwoWindowInvestigationTests(unittest.TestCase):
                 self.assertEqual(
                     audit_answer(result["answer"], scope, result["evidence"]), [])
 
+    def test_two_team_trend_requires_two_separate_windows_per_team(self):
+        question = ("Have Arsenal and Liverpool improved defensively across "
+                    "their most recent five matches compared with the previous five?")
+        scope = parse_scope(question)
+        self.assertTrue(scope.trend)
+        self.assertEqual(scope.games, 10)
+        self.assertEqual(len(requirements(scope)), 2)
+        agent = Investigator(lambda _: requirements(scope))
+        result = agent.ask(question)
+        self.assertTrue(result["complete"], result["trace"])
+        self.assertIn("Arsenal five-match trend", result["answer"])
+        self.assertIn("Liverpool five-match trend", result["answer"])
+        self.assertEqual(audit_answer(result["answer"], scope,
+                                      result["evidence"]), [])
+
     def test_rejects_incomplete_or_inconsistent_two_window_metrics(self):
         question = ("Has Arsenal's defence improved in its most recent five "
                     "matches compared with the five before?")

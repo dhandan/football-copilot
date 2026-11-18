@@ -39,6 +39,8 @@ class PrivateV2StreamlitAcceptance(unittest.TestCase):
         self.assertEqual(len(messages), 2)
         self.assertEqual(messages[0]["content"], FIRST)
         self.assertIn("Verified football evidence", messages[1]["content"])
+        self.assertTrue(any(e.label == "Verified statistics and sources"
+                            for e in self.app.get("expander")))
         self.assertIn("0 Groq request", messages[1]["status"])
         self.assertGreaterEqual(len(messages[1]["followups"]), 1)
         suggestion = messages[1]["followups"][0]

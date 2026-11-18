@@ -39,15 +39,16 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
                     problems.append("unverified_venue:" + team)
                 for venue in ("Home", "Away"):
                     v = split.get(venue, {})
-                    n, ga = v.get("Played", 0), v.get("GoalsAgainst")
+                    metric = "GoalsFor" if scope.focus == "attack" else "GoalsAgainst"
+                    n, ga = v.get("Played", 0), v.get(metric)
                     if not isinstance(n, int) or n <= 0 or not isinstance(ga, int):
                         problems.append("missing_venue:" + team + ":" + venue)
                         continue
                     expected = (f"{team}, {venue.lower()}: {ga} goals "
-                                f"conceded in {n} matches ({ga/n:.2f} per match).")
+                                f"{'scored' if scope.focus == 'attack' else 'conceded'} in {n} matches ({ga/n:.2f} per match).")
                     if expected not in answer:
                         problems.append("wrong_or_missing_venue:" + team + ":" + venue)
-        if len(forms) == 2:
+        if len(forms) == 2 and scope.focus != "attack":
             fa, fb = forms
             a, b = fa["result"]["data"][0], fb["result"]["data"][0]
             if a["Played"] == b["Played"]:
@@ -88,7 +89,7 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
                     problems.append("wrong_or_missing_h2h_row")
                     break
     # Direct conclusions must be present and agree with underlying rows.
-    if len(forms) == 2:
+    if len(forms) == 2 and scope.focus != "attack":
         fa, fb = forms
         a, b = fa["result"]["data"][0], fb["result"]["data"][0]
         if a["Played"] == b["Played"]:
@@ -134,7 +135,11 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
         a, b = fa["result"]["data"][0], fb["result"]["data"][0]
         ta, tb = fa["arguments"]["team"], fb["arguments"]["team"]
         if a["Played"] == b["Played"]:
-            if int(a["GoalsAgainst"]) == int(b["GoalsAgainst"]):
+            if scope.focus == "attack":
+                gf_a, gf_b = int(a["GoalsFor"]), int(b["GoalsFor"])
+                lead = (f"{ta} and {tb} scored {gf_a} goals each" if gf_a == gf_b
+                        else f"{ta if gf_a > gf_b else tb} scored more goals")
+            elif int(a["GoalsAgainst"]) == int(b["GoalsAgainst"]):
                 lead = f"{ta} and {tb} conceded the same number of goals"
             else:
                 winner = ta if int(a["GoalsAgainst"]) < int(b["GoalsAgainst"]) else tb
@@ -150,6 +155,20 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
                     if pa is not None and pb is not None and abs(float(pa)-float(pb)) < 0.10:
                         if "not proof of materially tougher opposition" not in answer:
                             problems.append("small_opponent_gap_overstated_or_missing")
+    if scope.focus == "attack" and len(forms) == 2:
+        ta, tb = forms[0]["arguments"]["team"], forms[1]["arguments"]["team"]
+        a, b = forms[0]["result"]["data"][0], forms[1]["result"]["data"][0]
+        if a["Played"] == b["Played"]:
+            if a["GoalsFor"] == b["GoalsFor"]:
+                expected_attack = "Both teams scored the same number of goals."
+            else:
+                winner = ta if a["GoalsFor"] > b["GoalsFor"] else tb
+                expected_attack = f"**{winner} scored {abs(a['GoalsFor']-b['GoalsFor'])} more goals**"
+            if expected_attack not in answer:
+                problems.append("missing_or_wrong_attacking_verdict")
+            expected_points = f"Points earned: {ta} {int(a['Points'])}, {tb} {int(b['Points'])}."
+            if expected_points not in answer:
+                problems.append("missing_points_comparison")
     if forms and "*Form source:" not in answer:
         problems.append("missing_form_attribution")
     if any(item.get("error") for item in evidence):

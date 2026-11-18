@@ -64,6 +64,18 @@ class ProductConversationTests(unittest.TestCase):
         self.assertTrue(out["complete"], out["trace"])
         self.assertIn("Attacking verdict", out["answer"])
 
+    def test_defensively_followup_overrides_previous_attack_focus(self):
+        self.chat.ask(
+            "Compare Arsenal and Liverpool's goals scored over their last 10 matches",
+            thread_id="switch-focus")
+        out = self.chat.ask("Who has been better defensively over those 10 matches?",
+                            thread_id="switch-focus")
+        self.assertTrue(out["complete"], out["trace"])
+        lead = out["answer"].split("### Verified football evidence")[0]
+        self.assertIn("goals-conceded record", lead)
+        self.assertNotIn("scored more goals", lead)
+        self.assertEqual(out["planner_requests"], 0)
+
     def test_two_window_defence_has_a_verified_conclusion(self):
         out = self.chat.ask(
             "Has Arsenal's defence improved in its most recent five matches "

@@ -3818,6 +3818,10 @@ if prompt:
                         "followups": v2_followups,
                     }
                 )
+                # Re-render the stored answer so its follow-up actions appear
+                # immediately, not only after another user interaction.
+                if v2_verified:
+                    st.rerun()
 
 
             except Exception as error:

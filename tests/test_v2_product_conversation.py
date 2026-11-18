@@ -25,7 +25,7 @@ class ProductConversationTests(unittest.TestCase):
         rows = {e["arguments"]["team"]: e["result"]["data"][0]
                 for e in out["evidence"] if e["tool"] == "form_summary"}
         lead = out["answer"].split("### Verified football evidence")[0]
-        self.assertTrue(lead.startswith("### Answer\\nOver their last 10 matches"))
+        self.assertTrue(lead.startswith("### Answer\nOver their last 10 matches"))
         for team in ("Arsenal", "Liverpool"):
             self.assertIn(team, lead)
             self.assertIn(str(int(rows[team]["Points"])), lead)

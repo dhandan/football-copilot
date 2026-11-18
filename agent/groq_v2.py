@@ -101,6 +101,11 @@ def _authorised():
     return model, os.environ["GROQ_API_KEY"].strip()
 
 
+def _shadow_protocol() -> bool:
+    """Opt-in experiment only; preview uses the unchanged request contract."""
+    return os.getenv("FOOTBALL_GROQ_SHADOW_PROTOCOL") == "strict_budget"
+
+
 def _chat(system: str, user: str, response_format: dict) -> str:
     """Perform one bounded request, without redirects, retries or paid fallback."""
     global _calls
@@ -116,7 +121,7 @@ def _chat(system: str, user: str, response_format: dict) -> str:
         "messages": [{"role": "system", "content": system},
                      {"role": "user", "content": user}],
         "temperature": 0,
-        "max_completion_tokens": 320,
+        "max_completion_tokens": 1024 if _shadow_protocol() else 320,
         "response_format": response_format,
         "stream": False,
     }
@@ -154,12 +159,75 @@ def _chat(system: str, user: str, response_format: dict) -> str:
     if reply.status_code != 200:
         raise GroqProviderRejected("Groq request rejected by provider") from None
     try:
-        text = reply.json()["choices"][0]["message"]["content"]
+        choice = reply.json()["choices"][0]
+        if choice.get("finish_reason") == "length":
+            raise GroqResponseInvalid("Groq completion reached token limit")
+        text = choice["message"]["content"]
     except (ValueError, KeyError, TypeError, IndexError):
         raise GroqResponseInvalid("Groq response did not contain a valid answer") from None
     if not isinstance(text, str) or not text.strip() or len(text) > 6000:
         raise GroqResponseInvalid("Groq returned an invalid answer length")
     return text
+
+
+# Deliberately shallow strict schema: the provider enforces the envelope, and
+# local Pydantic enforces tool-specific argument types, boundaries and names.
+# This avoids generating complicated discriminated unions at provider level.
+_SHADOW_TOOL_NAMES = [
+    "frozen_gameweek_predictions", "model_performance", "experiment_history",
+    "form_summary", "next_meeting", "head_to_head",
+    "compare_opponent_strength",
+]
+_SHADOW_PLAN_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "football_tool_plan",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "calls": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "enum": _SHADOW_TOOL_NAMES},
+                            "arguments_json": {"type": "string"},
+                        },
+                        "required": ["name", "arguments_json"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "required": ["calls"],
+            "additionalProperties": False,
+        },
+    },
+}
+
+
+def _decode_shadow_plan(text: str):
+    from agent.langgraph_v2 import _Plan
+    try:
+        envelope = json.loads(text)
+        if not isinstance(envelope, dict) or set(envelope) != {"calls"}:
+            raise ValueError("Invalid envelope")
+        calls = envelope["calls"]
+        if not isinstance(calls, list) or len(calls) > 3:
+            raise ValueError("Invalid call count")
+        converted = []
+        for call in calls:
+            if not isinstance(call, dict) or set(call) != {"name", "arguments_json"}:
+                raise ValueError("Invalid call shape")
+            if not isinstance(call["arguments_json"], str):
+                raise ValueError("Invalid argument representation")
+            args = json.loads(call["arguments_json"])
+            if not isinstance(args, dict):
+                raise ValueError("Tool arguments must be a dictionary")
+            converted.append({"name": call["name"], "arguments": args})
+        return _Plan.model_validate({"calls": converted})
+    except (ValueError, TypeError, KeyError):
+        raise GroqPlannerContractInvalid("Groq shadow tool plan invalid") from None
 
 
 def groq_planner(question: str) -> list[dict]:
@@ -181,11 +249,21 @@ def groq_planner(question: str) -> list[dict]:
         "Do not execute tools, answer the question, change results or invent evidence. "
         "Respond with JSON only."
     )
-    text = _chat(system, question, {"type": "json_object"})
-    try:
-        parsed = _Plan.model_validate_json(text)
-    except ValueError:
-        raise GroqPlannerContractInvalid("Groq planner output failed tool contract") from None
+    if _shadow_protocol():
+        system += (
+            " STRICT SHADOW FORMAT: each call has exactly 'name' and "
+            "'arguments_json'. arguments_json is a STRING containing a JSON "
+            "object, not an object. For no-argument tools use '{}'. "
+            "Example: {\"calls\":[{\"name\":\"form_summary\","
+            "\"arguments_json\":\"{\\\"team\\\":\\\"Arsenal\\\",\\\"games\\\":10}\"}]}. "
+        )
+        parsed = _decode_shadow_plan(_chat(system, question, _SHADOW_PLAN_FORMAT))
+    else:
+        text = _chat(system, question, {"type": "json_object"})
+        try:
+            parsed = _Plan.model_validate_json(text)
+        except ValueError:
+            raise GroqPlannerContractInvalid("Groq planner output failed tool contract") from None
     return [call.model_dump() for call in parsed.calls]
 
 

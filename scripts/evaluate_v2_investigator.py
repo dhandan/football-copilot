@@ -87,7 +87,15 @@ def evaluate(live_groq: bool = False) -> dict:
         if live_groq:
             planner = groq_v2.groq_planner
         else:
-            planner = lambda prompt, req=req: _oracle_planner(prompt, req)
+            # The guided control knows the expected evidence. The real
+            # Groq planner NEVER receives these plans or the scoring key.
+            follow_req = (requirements(parse_scope(
+                followup, parse_scope(question))) if followup else [])
+            def planner(prompt, req=req, follow_req=follow_req):
+                selected = (follow_req if
+                            "User question: 'And what about" in prompt
+                            else req)
+                return _oracle_planner(prompt, selected)
         agent = Investigator(planner)
         started = time.perf_counter()
         first = agent.ask(question, thread_id=name)

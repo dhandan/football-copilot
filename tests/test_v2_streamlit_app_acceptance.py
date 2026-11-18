@@ -60,6 +60,22 @@ class PrivateV2StreamlitAcceptance(unittest.TestCase):
         self.assertEqual(len(self.app.exception), 0, list(self.app.exception))
         self.assertEqual(self.app.session_state["v2_private_messages"], [])
 
+    def test_only_latest_answer_offers_followup_buttons(self):
+        self.app.button(key="sample_Recent form").click().run()
+        self.assertEqual(len(self.app.exception), 0, list(self.app.exception))
+        first = self.app.session_state["v2_private_messages"][-1]["followups"]
+        self.assertEqual(len([b for b in self.app.button
+                              if b.label in first]), len(first))
+        self.app.button(key="sample_Five-match trend").click().run()
+        self.assertEqual(len(self.app.exception), 0, list(self.app.exception))
+        latest = self.app.session_state["v2_private_messages"][-1]["followups"]
+        buttons = [b.label for b in self.app.button]
+        self.assertTrue(all(q not in buttons for q in first))
+        self.assertEqual(sum(q in buttons for q in latest), len(latest))
+
+    def test_example_questions_never_start_with_unresolved_references(self):
+        self.assertFalse(any(b.label == "Follow-up" for b in self.app.button))
+
     def test_unsupported_question_is_explained_not_hidden(self):
         self.app.chat_input[0].set_value("Why was H07 rejected?").run()
         self.assertEqual(len(self.app.exception), 0, list(self.app.exception))

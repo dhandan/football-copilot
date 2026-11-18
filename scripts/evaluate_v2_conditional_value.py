@@ -27,21 +27,20 @@ class Case:
     teams: tuple[str, str]
     games: int
     focus: str
-    expect_context: bool
 
 
 CASES = (
-    # Negative control: the verified seven-match totals are tied, so no extra
-    # opponent evidence is justified. Do not manufacture a difference.
+    # The verified seven-match totals may differ in a PR merge checkout.
+    # Compute gap eligibility from each checkout rather than hardcoding it.
     Case("arsenal_liverpool_defence",
          "Why did Arsenal concede fewer goals than Liverpool over their last seven matches?",
-         ("Arsenal", "Liverpool"), 7, "defence", False),
+         ("Arsenal", "Liverpool"), 7, "defence"),
     Case("brighton_brentford_attack",
          "Why did Brighton score more than Brentford over their last seven matches?",
-         ("Brighton", "Brentford"), 7, "attack", True),
+         ("Brighton", "Brentford"), 7, "attack"),
     Case("chelsea_tottenham_defence",
          "Why did Chelsea and Tottenham have different defensive records over their last eight games?",
-         ("Chelsea", "Tottenham"), 8, "defence", True),
+         ("Chelsea", "Tottenham"), 8, "defence"),
 )
 # Expected context eligibility is independently cross-checked with the actual
 # source values; fixed expectations must not be adjusted to force a pass.
@@ -80,7 +79,7 @@ def form_only(question: str):
     return scope, evidence, render_evidence(scope, evidence, [] if complete else calls)
 
 
-def score_context(case: Case, scope, baseline, result, expected):
+def score_context(case: Case, scope, baseline, result, expected, expected_context):
     baseline_evidence = baseline
     baseline_only = {e["tool"] for e in baseline_evidence if "result" in e}
     evidence = result["evidence"]
@@ -103,10 +102,11 @@ def score_context(case: Case, scope, baseline, result, expected):
     first_pass_complete = {e["arguments"]["team"] for e in evidence
                            if e["tool"] == "form_summary" and "result" in e}
     return {
+        "expected_context": expected_context,
         "pass": (baseline_only == {"form_summary"}
                  and first_pass_complete == set(case.teams)
-                 and actual_expected == case.expect_context
-                 and extra == case.expect_context
+                 and actual_expected == expected_context
+                 and extra == expected_context
                  and grounded and no_causal_claim),
         "extra_context": extra,
         "baseline_tools": len(baseline_evidence),
@@ -130,9 +130,18 @@ def run(live_groq=False):
         if (scope.teams, scope.games, scope.focus, scope.investigate_why) != (
                 case.teams, case.games, case.focus, True):
             raise ValueError("Independent benchmark scope differs: " + case.name)
+        # Independent reference: a context check is justified only if the
+        # completed source rows show unequal totals on the relevant metric.
+        metric = "GoalsFor" if case.focus == "attack" else "GoalsAgainst"
+        first, second = [item["result"]["data"][0] for item in baseline]
+        expected_context = (
+            int(first["Played"]) == case.games
+            and int(second["Played"]) == case.games
+            and int(first[metric]) != int(second[metric])
+        )
         expected = conditional_opposition_evidence(scope, baseline)
-        if (expected is not None) != case.expect_context:
-            raise ValueError("Source-reconciled expectation mismatch: " + case.name)
+        if (expected is not None) != expected_context:
+            raise ValueError("Conditional gate disagrees with source values: " + case.name)
         initial_calls = requirements(scope)
         if live_groq:
             from agent.groq_v2 import groq_planner
@@ -141,10 +150,11 @@ def run(live_groq=False):
             planner = GuidedPlanner(initial_calls, expected)
         investigator = Investigator(planner)
         result = investigator.ask(case.question, thread_id=case.name)
-        evaluation = score_context(case, scope, baseline, result, expected)
+        evaluation = score_context(case, scope, baseline, result, expected, expected_context)
         results.append(evaluation)
         print(f"CONDITIONAL_VALUE {case.name} "
               f"{'PASS' if evaluation['pass'] else 'FAIL'} "
+              f"expected_context={expected_context} "
               f"extra_context={evaluation['extra_context']} "
               f"extra_tools={evaluation['extra_tools']} "
               f"groq_requests={planner.requests if live_groq else 0} "

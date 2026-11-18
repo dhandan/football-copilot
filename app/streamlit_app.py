@@ -3316,6 +3316,11 @@ with st.sidebar:
         "### Experimental agent"
     )
 
+    use_product_v2 = st.toggle(
+        "V2 facts-first chat",
+        value=True,
+        help="Verified Premier League comparisons first. Existing prediction and historical tools remain available. Switch off to restore the original Qwen chat.",
+    )
     use_langgraph_v2 = st.toggle(
         "Use LangGraph V2",
         value=False,
@@ -3323,7 +3328,10 @@ with st.sidebar:
              "Switch off for the established Football Copilot.",
     )
 
-    if use_langgraph_v2:
+    if use_product_v2:
+        st.success("Active mode: Football Copilot V2 facts-first")
+        st.caption("Verified Python results first; unsupported and prediction questions use the established tools.")
+    elif use_langgraph_v2:
         st.success("Active mode: LangGraph V2 (experimental)")
         st.caption("Simple two-team recent-form questions use deterministic Python/DuckDB routing. "
                    "Other supported questions may invoke local Qwen.")
@@ -3337,7 +3345,7 @@ with st.sidebar:
 
     st.write(
         f"**Model:** "
-        f"{'Qwen planner where needed; no LLM for recognised form comparisons' if use_langgraph_v2 else MODEL}"
+        f"{'Verified Python tools + established fallback' if use_product_v2 else 'Qwen planner where needed' if use_langgraph_v2 else MODEL}"
     )
 
 
@@ -3369,6 +3377,7 @@ with st.sidebar:
 
         st.session_state.conversation = []
         st.session_state.pop("langgraph_v2_conversation", None)
+        st.session_state.pop("product_v2_conversation", None)
 
 
         st.session_state.debug_info = []
@@ -3692,8 +3701,36 @@ if prompt:
 
             try:
 
-                print(f"[football-route] {'V2' if use_langgraph_v2 else 'ORIGINAL_QWEN4B'} | question={prompt[:100]!r}", flush=True)
-                if use_langgraph_v2:
+                # Preserve every existing prediction and experiment route.
+                # The opt-in original chat toggle is a one-click rollback.
+                original_topic = bool(re.search(
+                    r"\\b(?:predict\\w*|forecast\\w*|model\\s*2|40/60|champion|"
+                    r"gameweek|GW\\s*\\d+|probabilit\\w*|odds|H07|league table|"
+                    r"standings|next fixture|next match)\\b",
+                    prompt, re.I
+                ))
+                if use_product_v2 and not original_topic:
+                    from agent.product_conversation_v2 import ProductConversation
+                    if "product_v2_conversation" not in st.session_state:
+                        st.session_state.product_v2_conversation = ProductConversation()
+                    result = st.session_state.product_v2_conversation.ask(
+                        prompt, thread_id="production_v2"
+                    )
+                    if result.get("route") == "deterministic_investigation" and result.get("complete"):
+                        answer, ui_results = result["answer"], []
+                        debug_info = [{
+                            "routing": "product_v2_verified",
+                            "tool": item["tool"],
+                            "arguments": item["arguments"],
+                        } for item in result.get("evidence", []) if "result" in item]
+                    elif result.get("route") == "verified_data_rejected":
+                        answer, ui_results, debug_info = result["answer"], [], []
+                    else:
+                        answer, ui_results, debug_info = run_agent(
+                            st.session_state.llm_messages, prompt,
+                            st.session_state.conversation,
+                        )
+                elif use_langgraph_v2 and not use_product_v2:
                     from agent.langgraph_v2 import Conversation, local_synthesizer
                     if "langgraph_v2_conversation" not in st.session_state:
                         st.session_state.langgraph_v2_conversation = Conversation(

@@ -55,6 +55,54 @@ class ProductConversationTests(unittest.TestCase):
         self.assertTrue(b["complete"])
         self.assertNotIn("| Arsenal |", b["answer"])
 
+    def test_product_surfaces_clickable_followups_without_groq(self):
+        out = self.chat.ask(
+            "Compare Brighton and Brentford's last seven matches",
+            thread_id="suggestions")
+        self.assertTrue(out["complete"], out["trace"])
+        self.assertEqual(len(out["followups"]), 2)
+        self.assertTrue(all("Brighton" in q and "Brentford" in q
+                            for q in out["followups"]))
+        next_out = self.chat.ask(out["followups"][0],
+                                 thread_id="suggestions")
+        self.assertEqual(next_out["route"], "deterministic_investigation")
+        self.assertTrue(next_out["complete"], next_out["trace"])
+        self.assertEqual(next_out["planner_requests"], 0)
+
+    def test_followup_selection_reuses_conversation_scope(self):
+        first = self.chat.ask(
+            "Compare Brighton and Brentford's last seven matches",
+            thread_id="followup-venue")
+        query = first["followups"][1]
+        out = self.chat.ask(query, thread_id="followup-venue")
+        self.assertTrue(out["complete"], out["trace"])
+        self.assertIn("Home", out["answer"])
+        self.assertIn("Away", out["answer"])
+        self.assertEqual(out["planner_requests"], 0)
+
+    def test_one_team_trend_followup_uses_verified_evidence(self):
+        first = self.chat.ask(
+            "Has Arsenal's defence improved in its most recent five matches "
+            "compared with the previous five?", thread_id="team-trend")
+        self.assertTrue(first["complete"])
+        self.assertEqual(len(first["followups"]), 1)
+        later = self.chat.ask(first["followups"][0],
+                              thread_id="team-trend")
+        self.assertTrue(later["complete"], later["trace"])
+        self.assertIn("goals scored", later["answer"])
+        self.assertEqual(later["planner_requests"], 0)
+
+    def test_supported_why_followup_has_conditional_context(self):
+        first = self.chat.ask(
+            "Compare Brighton and Brentford's last seven matches",
+            thread_id="why-chain")
+        self.assertTrue(first["complete"])
+        why = self.chat.ask("Why is that?", thread_id="why-chain")
+        self.assertEqual(why["route"], "deterministic_investigation")
+        self.assertTrue(why["complete"], why["trace"])
+        self.assertIn("Interpretation limit", why["answer"])
+        self.assertEqual(why["planner_requests"], 0)
+
     def test_unsupported_legacy_without_groq_explains_limitation(self):
         out = self.chat.ask("Why was H07 rejected?", thread_id="legacy")
         self.assertEqual(out["route"], "unsupported")

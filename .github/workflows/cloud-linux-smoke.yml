@@ -1,69 +1,28 @@
 name: Cloud Linux smoke test (issue 9)
 
+# Always check changes to the isolated research branch, including new test files.
+# Never load Groq credentials for this workflow.
 on:
   push:
-    branches: [feature/issue9-cloud-readiness-audit]
-    paths:
-      - ".github/workflows/cloud-linux-smoke.yml"
-      - "requirements-cloud.txt"
-      - "scripts/audit_cloud_readiness.py"
-      - "tests/test_cloud_readiness_audit.py"
-      - "agent/groq_v2.py"
-      - "agent/langgraph_v2.py"
-      - "agent/investigator_v2.py"
-      - "app/v2_investigator_lab.py"
-      - "scripts/evaluate_v2_investigator.py"
-      - "tests/test_v2_investigator_benchmark.py"
-      - "tests/test_v2_investigator.py"
-      - "agent/defensive_explanation.py"
-      - "agent/football_tools.py"
-      - "tests/test_v2_defensive_why.py"
-      - "app/v2_groq_preview.py"
-      - ".devcontainer/devcontainer.json"
-      - ".devcontainer/start-preview.sh"
-      - "docs/PRIVATE_V2_GROQ_BROWSER_PREVIEW.md"
-      - "app/streamlit_app.py"
-      - "tests/test_groq_v2.py"
-      - "scripts/evaluate_v2_conversations.py"
-      - "scripts/evaluate_v2_groq_shadow.py"
-      - "tests/test_v2_groq_shadow.py"
-      - "docs/V2_GROQ_EXPERIMENT_2026_11_09.md"
+    branches:
+      - feature/issue9-cloud-readiness-audit
   pull_request:
-    branches: [main]
-    paths:
-      - ".github/workflows/cloud-linux-smoke.yml"
-      - "requirements-cloud.txt"
-      - "scripts/audit_cloud_readiness.py"
-      - "tests/test_cloud_readiness_audit.py"
-      - "agent/groq_v2.py"
-      - "agent/langgraph_v2.py"
-      - "agent/investigator_v2.py"
-      - "app/v2_investigator_lab.py"
-      - "scripts/evaluate_v2_investigator.py"
-      - "tests/test_v2_investigator_benchmark.py"
-      - "tests/test_v2_investigator.py"
-      - "agent/defensive_explanation.py"
-      - "agent/football_tools.py"
-      - "tests/test_v2_defensive_why.py"
-      - "app/v2_groq_preview.py"
-      - ".devcontainer/devcontainer.json"
-      - ".devcontainer/start-preview.sh"
-      - "docs/PRIVATE_V2_GROQ_BROWSER_PREVIEW.md"
-      - "app/streamlit_app.py"
-      - "tests/test_groq_v2.py"
-      - "scripts/evaluate_v2_conversations.py"
-      - "scripts/evaluate_v2_groq_shadow.py"
-      - "tests/test_v2_groq_shadow.py"
-      - "docs/V2_GROQ_EXPERIMENT_2026_11_09.md"
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: offline-regression-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   linux-smoke:
     if: github.ref == 'refs/heads/feature/issue9-cloud-readiness-audit' || github.head_ref == 'feature/issue9-cloud-readiness-audit'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout without persisted credentials
         uses: actions/checkout@v4
@@ -80,7 +39,12 @@ jobs:
       - name: Run offline unit regression
         env:
           FOOTBALL_V2_FACTS_FIRST: '0'
+          FOOTBALL_GROQ_ENABLED: '0'
         run: python -m unittest discover -s tests -v
+      - name: Audit deterministic investigator answers
+        run: python -m scripts.audit_v2_investigator_answers
+      - name: Compare investigator with deterministic compiler (no Groq)
+        run: python -m scripts.compare_v2_investigator
       - name: Check private preview syntax and devcontainer config
         run: |
           python -m py_compile app/v2_groq_preview.py app/v2_investigator_lab.py scripts/evaluate_v2_groq_shadow.py scripts/evaluate_v2_investigator.py

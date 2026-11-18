@@ -161,7 +161,7 @@ def validated_proposals(raw, needed: list[dict]) -> list[dict]:
     return result
 
 
-def _execute(call: dict, tools: dict, require_venues: bool = False, focus: str = 'defence') -> dict:
+def _execute(call: dict, tools: dict, require_venues: bool = False, focus: str = 'defence', require_trend: bool = False) -> dict:
     name, args = call["name"], call["arguments"]
     try:
         if name == "form_summary" and tools[name] is v2.form_summary:
@@ -177,6 +177,19 @@ def _execute(call: dict, tools: dict, require_venues: bool = False, focus: str =
             int(result["data"][0].get("Played", 0)) < args["games"]
         ):
             raise ValueError("Insufficient completed match coverage")
+        if name == "form_summary" and require_trend:
+            row = result["data"][0]
+            measure = "Scored" if focus == "attack" else "Conceded"
+            keys = (f"{measure}Recent5", f"{measure}Previous5",
+                    "PointsRecent5", "PointsPrevious5")
+            if int(row["Played"]) != 10 or not all(k in row for k in keys):
+                raise ValueError("Missing complete two-window trend evidence")
+            recent, previous, points_a, points_b = (int(row[k]) for k in keys)
+            overall = "GoalsFor" if focus == "attack" else "GoalsAgainst"
+            if (min(recent, previous, points_a, points_b) < 0
+                    or recent + previous != int(row[overall])
+                    or points_a + points_b != int(row["Points"])):
+                raise ValueError("Inconsistent two-window trend evidence")
         if name == "form_summary" and require_venues:
             row = result["data"][0]
             split = row.get("VenueSplit")
@@ -659,7 +672,8 @@ class Investigator:
                 if key in tried:
                     continue
                 tried.add(key)
-                item = _execute(call, self.tools, require_venues=scope.venues, focus=scope.focus)
+                item = _execute(call, self.tools, require_venues=scope.venues,
+                                focus=scope.focus, require_trend=scope.trend)
                 evidence.append(item)
                 trace.append(f"executed_{item['tool']}" if "result" in item
                              else f"unavailable_{item['tool']}")

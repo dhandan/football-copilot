@@ -128,6 +128,28 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
                     expected = f"**Opposition verdict:** {leader} faced opponents"
                 if expected not in answer:
                     problems.append("missing_or_wrong_opposition_verdict")
+    # The direct answer must reflect verified figures, not merely restate a table.
+    if len(forms) == 2 and not any(item.get("error") for item in evidence):
+        fa, fb = forms
+        a, b = fa["result"]["data"][0], fb["result"]["data"][0]
+        ta, tb = fa["arguments"]["team"], fb["arguments"]["team"]
+        if a["Played"] == b["Played"]:
+            if int(a["GoalsAgainst"]) == int(b["GoalsAgainst"]):
+                lead = f"{ta} and {tb} conceded the same number of goals"
+            else:
+                winner = ta if int(a["GoalsAgainst"]) < int(b["GoalsAgainst"]) else tb
+                lead = f"{winner} had the better goals-conceded record"
+            if not answer.startswith("### Answer\\n" + lead):
+                problems.append("missing_or_wrong_lead")
+            if scope.opposition:
+                items = by_tool.get("compare_opponent_strength", [])
+                if items:
+                    data = items[0]["result"]["data"]
+                    pa = data.get(ta, {}).get("mean_opponent_prior_ppg")
+                    pb = data.get(tb, {}).get("mean_opponent_prior_ppg")
+                    if pa is not None and pb is not None and abs(float(pa)-float(pb)) < 0.10:
+                        if "not proof of materially tougher opposition" not in answer:
+                            problems.append("small_opponent_gap_overstated_or_missing")
     if forms and "*Form source:" not in answer:
         problems.append("missing_form_attribution")
     if any(item.get("error") for item in evidence):

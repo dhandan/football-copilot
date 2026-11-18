@@ -17,7 +17,7 @@ from agent.product_conversation_v2 import ProductConversation
 def split_answer_for_display(answer: str) -> tuple[str, str | None]:
     """Show the verified conclusion first; keep its source tables accessible."""
     marker = "### Verified football evidence"
-    if not answer.startswith("### Answer\\n") or marker not in answer:
+    if not answer.startswith("### Answer\n") or marker not in answer:
         return answer, None
     before, after = answer.split(marker, 1)
     if not before.strip() or not after.strip():

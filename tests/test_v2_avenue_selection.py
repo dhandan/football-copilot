@@ -69,9 +69,9 @@ class AvenueSelectionTests(unittest.TestCase):
             if isinstance(item, Exception):
                 raise item
             return item
-        with patch("agent.groq_v2.groq_ready", return_value=True), \\
-             patch("scripts.evaluate_v2_avenue_choice.select_live",
-                   side_effect=fake_select):
+        with (patch("agent.groq_v2.groq_ready", return_value=True),
+              patch("scripts.evaluate_v2_avenue_choice.select_live",
+                    side_effect=fake_select)):
             scores, total = run(live_groq=True)
         self.assertEqual(total, 6)
         self.assertEqual(scores["baseline"], 6)

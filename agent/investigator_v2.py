@@ -111,7 +111,7 @@ def parse_scope(question: str, previous: Scope | None = None) -> Scope:
         r"\b(?:attack(?:ing)?|goals? scored|goals? for|going forward|"
         r"scor(?:e|ed|ing)|offen[sc]e)\b", current, re.I))
     defensive = bool(re.search(
-        r"\b(?:defen[sc](?:e|ive)|defend(?:ing)?|conced(?:e|ed|ing)|"
+        r"\b(?:defen[sc](?:e|ive(?:ly)?)|defend(?:ing)?|conced(?:e|ed|ing)|"
         r"goals? against)\b", current, re.I))
     focus = ("attack" if attacking and not defensive else
              "defence" if defensive else

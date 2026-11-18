@@ -185,6 +185,63 @@ class GroqV2SafetyTests(unittest.TestCase):
             with self.assertRaises(groq_v2.GroqUnavailable):
                 groq_v2.groq_planner("Delete results")
 
+    def test_shadow_schema_and_budget_are_opt_in_only(self):
+        with patch.dict(os.environ, {"FOOTBALL_GROQ_SHADOW_PROTOCOL": "strict_budget"}):
+            with patch("requests.post", return_value=response({
+                "calls": [{"name": "model_performance", "arguments_json": "{}"}]
+            })) as post:
+                actual = groq_v2.groq_planner("How has 40/60 performed?")
+            self.assertEqual(actual, [{"name": "model_performance", "arguments": {}}])
+            payload = post.call_args.kwargs["json"]
+            self.assertEqual(payload["max_completion_tokens"], 1024)
+            self.assertEqual(payload["response_format"]["type"], "json_schema")
+            self.assertTrue(payload["response_format"]["json_schema"]["strict"])
+            self.assertEqual(
+                set(payload["response_format"]["json_schema"]["schema"]["properties"]["calls"]
+                    ["items"]["properties"]), {"name", "arguments_json"}
+            )
+        with patch("requests.post", return_value=response({
+            "calls": [{"name": "model_performance", "arguments": {}}]
+        })) as post:
+            self.assertEqual(groq_v2.groq_planner("How has 40/60 performed?"),
+                             [{"name": "model_performance", "arguments": {}}])
+            self.assertEqual(post.call_args.kwargs["json"]["max_completion_tokens"], 320)
+            self.assertEqual(post.call_args.kwargs["json"]["response_format"]["type"],
+                             "json_object")
+
+    def test_shadow_rejects_untrusted_argument_json_and_unknown_tools(self):
+        cases = (
+            {"calls": [{"name": "model_performance", "arguments_json": "[]"}]},
+            {"calls": [{"name": "delete_predictions", "arguments_json": "{}"}]},
+            {"calls": [{"name": "form_summary",
+                        "arguments_json": '{"team":"Arsenal","games":0}'}]},
+            {"calls": [{"name": "form_summary",
+                        "arguments_json": '{"team":"Arsenal","games":10,"mode":"write"}'}]},
+            {"calls": [{"name": "form_summary", "arguments_json": "{malformed}"}]},
+            {"calls": [{"name": "model_performance", "arguments_json": "{}",
+                        "unapproved": "parameter"}]},
+            {"calls": [{"name": "model_performance", "arguments_json": "{}"}] * 4},
+        )
+        with patch.dict(os.environ, {"FOOTBALL_GROQ_SHADOW_PROTOCOL": "strict_budget"}):
+            for candidate in cases:
+                with self.subTest(candidate=candidate):
+                    with patch("requests.post", return_value=response(candidate)):
+                        with self.assertRaises(groq_v2.GroqPlannerContractInvalid):
+                            groq_v2.groq_planner("Plan tools")
+
+    def test_shadow_flags_length_limited_completion_without_exposing_content(self):
+        reply = Mock()
+        reply.status_code = 200
+        reply.json.return_value = {
+            "choices": [{"finish_reason": "length",
+                         "message": {"content": "PRIVATE_TRUNCATED_TEXT"}}]
+        }
+        with patch.dict(os.environ, {"FOOTBALL_GROQ_SHADOW_PROTOCOL": "strict_budget"}):
+            with patch("requests.post", return_value=reply):
+                with self.assertRaises(groq_v2.GroqResponseInvalid) as caught:
+                    groq_v2.groq_planner("Compare Liverpool and Arsenal")
+        self.assertNotIn("PRIVATE_TRUNCATED_TEXT", str(caught.exception))
+
     def test_provider_selection_requires_explicit_opt_in(self):
         from agent.langgraph_v2 import experimental_provider,local_planner,local_synthesizer
         p,s=experimental_provider()

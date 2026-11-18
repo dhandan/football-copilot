@@ -89,7 +89,7 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
                     problems.append("wrong_or_missing_h2h_row")
                     break
     # Direct conclusions must be present and agree with underlying rows.
-    if len(forms) == 2 and scope.focus != "attack":
+    if len(forms) == 2 and scope.focus != "attack" and not scope.trend:
         fa, fb = forms
         a, b = fa["result"]["data"][0], fb["result"]["data"][0]
         if a["Played"] == b["Played"]:

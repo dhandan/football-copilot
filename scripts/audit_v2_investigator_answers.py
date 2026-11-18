@@ -87,6 +87,47 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
                 if expected not in answer:
                     problems.append("wrong_or_missing_h2h_row")
                     break
+    # Direct conclusions must be present and agree with underlying rows.
+    if len(forms) == 2:
+        fa, fb = forms
+        a, b = fa["result"]["data"][0], fb["result"]["data"][0]
+        if a["Played"] == b["Played"]:
+            if a["GoalsAgainst"] == b["GoalsAgainst"]:
+                expected = "**Overall verdict:** The teams conceded equally"
+            else:
+                leader = (fa["arguments"]["team"] if a["GoalsAgainst"] < b["GoalsAgainst"]
+                          else fb["arguments"]["team"])
+                expected = f"**Overall verdict:** {leader} conceded fewer goals"
+            if expected not in answer:
+                problems.append("missing_or_wrong_overall_verdict")
+        if scope.venues:
+            for venue in ("Home", "Away"):
+                va, vb = a["VenueSplit"][venue], b["VenueSplit"][venue]
+                left = int(va["GoalsAgainst"]) * int(vb["Played"])
+                right = int(vb["GoalsAgainst"]) * int(va["Played"])
+                if left == right:
+                    expected = f"**{venue} verdict:** Both teams conceded at the same rate"
+                else:
+                    leader = (fa["arguments"]["team"] if left < right
+                              else fb["arguments"]["team"])
+                    expected = f"**{venue} verdict:** {leader} conceded at a lower rate"
+                if expected not in answer:
+                    problems.append("missing_or_wrong_venue_verdict:" + venue)
+    if scope.opposition and len(forms) == 2:
+        items = by_tool.get("compare_opponent_strength", [])
+        if len(items) == 1:
+            team_a, team_b = scope.teams
+            data = items[0]["result"]["data"]
+            pa = data.get(team_a, {}).get("mean_opponent_prior_ppg")
+            pb = data.get(team_b, {}).get("mean_opponent_prior_ppg")
+            if pa is not None and pb is not None:
+                if float(pa) == float(pb):
+                    expected = "**Opposition verdict:** The measured opponents had equal"
+                else:
+                    leader = team_a if float(pa) > float(pb) else team_b
+                    expected = f"**Opposition verdict:** {leader} faced opponents"
+                if expected not in answer:
+                    problems.append("missing_or_wrong_opposition_verdict")
     if forms and "*Form source:" not in answer:
         problems.append("missing_form_attribution")
     if any(item.get("error") for item in evidence):

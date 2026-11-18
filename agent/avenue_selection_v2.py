@@ -38,6 +38,12 @@ CASES = (
                "For Aston Villa and Newcastle over their last six games, "
                "did one side face a tougher set of opponents?",
                "opposition"),
+    AvenueCase("arsenal_chelsea_no_extra",
+               "Compare Arsenal and Chelsea's points over their last six matches.",
+               "none"),
+    AvenueCase("brentford_brighton_no_extra",
+               "Summarise Brentford and Brighton's goals scored in their last seven games.",
+               "none"),
 )
 
 CHOICES = ("venue", "opposition", "none")

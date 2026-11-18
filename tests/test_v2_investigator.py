@@ -140,6 +140,34 @@ class InvestigatorTests(unittest.TestCase):
         self.assertIn("historical Premier League", result["answer"])
         self.assertIn("2025-05-11", result["answer"])
 
+    def test_real_repo_two_round_investigation_uses_verified_results(self):
+        """Integration: real current-season form and pre-match opponent proxy."""
+        seen = []
+        def planner(prompt):
+            seen.append(prompt)
+            if len(seen) == 1:
+                return [
+                    {"name": "form_summary",
+                     "arguments": {"team": "Arsenal", "games": 10}},
+                    {"name": "form_summary",
+                     "arguments": {"team": "Liverpool", "games": 10}},
+                ]
+            return [{"name": "compare_opponent_strength",
+                     "arguments": {"team1": "Arsenal",
+                                   "team2": "Liverpool", "games": 10}}]
+        agent = Investigator(planner)
+        result = agent.ask(
+            "Did Arsenal and Liverpool have different defensive records "
+            "because of the opponents they faced over their last 10 matches?",
+            thread_id="real-data-smoke"
+        )
+        self.assertEqual(result["rounds"], 2)
+        self.assertTrue(result["complete"], result["trace"])
+        self.assertEqual(len(result["evidence"]), 3)
+        self.assertIn("Pre-match opponent form", result["answer"])
+        self.assertIn("descriptive, not causal", result["answer"].lower())
+        self.assertIn("source:", result["answer"].lower())
+
     def test_two_round_and_six_call_bounds(self):
         self.assertEqual(MAX_ROUNDS, 2)
         self.assertEqual(MAX_TOOLS, 6)

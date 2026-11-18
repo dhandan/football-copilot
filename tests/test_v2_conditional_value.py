@@ -17,15 +17,21 @@ class ConditionalValueTests(unittest.TestCase):
                 self.assertEqual(scope.games, case.games)
                 self.assertTrue(all("result" in e for e in baseline))
                 candidate = conditional_opposition_evidence(scope, baseline)
-                self.assertEqual(candidate is not None, case.expect_context)
+                metric = "GoalsFor" if case.focus == "attack" else "GoalsAgainst"
+                a, b = [e["result"]["data"][0] for e in baseline]
+                independent_gap = int(a[metric]) != int(b[metric])
+                self.assertEqual(candidate is not None, independent_gap)
                 self.assertIn("Verified football evidence", answer)
 
     def test_equal_defensive_totals_are_negative_control(self):
+        from copy import deepcopy
         case = CASES[0]
         scope, baseline, _ = form_only(case.question)
-        self.assertFalse(case.expect_context)
-        self.assertIsNone(conditional_opposition_evidence(scope, baseline))
-        a, b = [item["result"]["data"][0]["GoalsAgainst"] for item in baseline]
+        tied = deepcopy(baseline)
+        tied[1]["result"]["data"][0]["GoalsAgainst"] = (
+            tied[0]["result"]["data"][0]["GoalsAgainst"])
+        self.assertIsNone(conditional_opposition_evidence(scope, tied))
+        a, b = [item["result"]["data"][0]["GoalsAgainst"] for item in tied]
         self.assertEqual(a, b)
 
     def test_form_only_does_not_claim_opponent_context(self):
@@ -41,7 +47,7 @@ class ConditionalValueTests(unittest.TestCase):
         fake = {"evidence": baseline, "complete": True, "gaps": [],
                 "answer": "It was entirely because of the opposition.",
                 "provider_blocked": False}
-        result = score_context(case, scope, baseline, fake, candidate)
+        result = score_context(case, scope, baseline, fake, candidate, True)
         self.assertFalse(result["pass"])
         self.assertFalse(result["causal_guardrail"])
 
@@ -53,7 +59,7 @@ class ConditionalValueTests(unittest.TestCase):
                 "answer": base_answer +
                           "\n\nCannot establish why and cannot prove causation.",
                 "provider_blocked": False}
-        scored = score_context(case, scope, baseline, fake, candidate)
+        scored = score_context(case, scope, baseline, fake, candidate, candidate is not None)
         self.assertFalse(scored["pass"])
         self.assertFalse(scored["extra_context"])
 

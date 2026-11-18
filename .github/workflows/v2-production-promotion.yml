@@ -1,0 +1,38 @@
+name: V2 production promotion smoke
+
+on:
+  push:
+    branches:
+      - release/v2-facts-first-production
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install release runtime
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Check dependencies
+        run: python -m pip check
+      - name: Syntax-check both app entrypoints
+        run: python -m py_compile app/streamlit_app.py app/v2_groq_preview.py agent/product_conversation_v2.py agent/investigator_v2.py
+      - name: Run project regressions and production route smoke
+        env:
+          FOOTBALL_GROQ_ENABLED: '0'
+          FOOTBALL_V2_FACTS_FIRST: '0'
+        run: python -m unittest discover -s tests -v
+      - name: Validate retained project assets
+        run: python scripts/validate_project.py

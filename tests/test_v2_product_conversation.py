@@ -50,10 +50,15 @@ class ProductConversationTests(unittest.TestCase):
         lead = out["answer"].split("### Verified football evidence")[0]
         self.assertIn("Home: Arsenal scored at a higher rate", lead)
         self.assertIn("Away: Liverpool scored at a higher rate", lead)
-        self.assertIn("2.25", lead)
-        self.assertIn("0.83", lead)
-        self.assertIn("1.17", lead)
-        self.assertIn("1.75", lead)
+        # The PR merge checkout can contain a different committed fixture
+        # snapshot. Rates must match whichever real rows were executed.
+        rows = {e["arguments"]["team"]: e["result"]["data"][0]
+                for e in out["evidence"] if e["tool"] == "form_summary"}
+        for venue in ("Home", "Away"):
+            for team in ("Arsenal", "Liverpool"):
+                split = rows[team]["VenueSplit"][venue]
+                expected = int(split["GoalsFor"]) / int(split["Played"])
+                self.assertIn(f"{team} {expected:.2f}", lead)
         self.assertEqual(out["planner_requests"], 0)
 
     def test_why_uses_two_rounds_only_if_verified_gap(self):

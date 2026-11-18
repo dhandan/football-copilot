@@ -475,8 +475,31 @@ def _answer_lead(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str | 
         text = (f"{lead} across their last {scope.games} matches. "
                 f"{a} earned {pa} points and {b} earned {pb}.")
         if scope.venues:
-            text += (" The venue-specific attacking comparison is shown "
-                     "below where goals-scored splits are verified.")
+            # Compare venue-specific rates, not raw goals (fixture counts differ).
+            # Only headline splits that reconcile with the overall totals.
+            for venue in ("Home", "Away"):
+                try:
+                    va, vb = ra["VenueSplit"][venue], rb["VenueSplit"][venue]
+                    na, nb = int(va["Played"]), int(vb["Played"])
+                    xa, xb = int(va["GoalsFor"]), int(vb["GoalsFor"])
+                    valid = (ra.get("VenueKnown") == ra["Played"]
+                             and rb.get("VenueKnown") == rb["Played"]
+                             and sum(int(ra["VenueSplit"][v]["GoalsFor"])
+                                     for v in ("Home", "Away")) == fa
+                             and sum(int(rb["VenueSplit"][v]["GoalsFor"])
+                                     for v in ("Home", "Away")) == fb)
+                    if min(na, nb) <= 0 or not valid:
+                        continue
+                    left, right = xa * nb, xb * na
+                    verdict = ("both teams scored at the same rate"
+                               if left == right else
+                               f"{a if left > right else b} scored at a higher rate")
+                    text += (f" {venue}: {verdict} "
+                             f"({a} {xa/na:.2f}, {b} {xb/nb:.2f} goals per match).")
+                except (KeyError, TypeError, ValueError, ZeroDivisionError):
+                    continue
+            text += (" Venue samples differ, so compare rates rather than "
+                     "total goals; these are descriptive results.")
         if scope.opposition and isinstance(opponents, dict):
             oa, ob = opponents.get(a, {}), opponents.get(b, {})
             prior_a = oa.get("mean_opponent_prior_ppg")

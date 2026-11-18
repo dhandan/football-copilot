@@ -43,6 +43,7 @@ class Scope:
     h2h: bool
     opposition: bool
     venues: bool
+    focus: str = "defence"
 
 
 def _teams(question: str) -> tuple[str, ...]:
@@ -71,8 +72,14 @@ def _teams(question: str) -> tuple[str, ...]:
 
 
 def parse_scope(question: str, previous: Scope | None = None) -> Scope:
-    teams = _teams(question)
-    match = _WINDOW.search(question)
+    # Explicit subject switches discard the old named teams before parsing.
+    current = question
+    if re.search(r"\b(?:forget|ignore|instead of|switch from)\b", question, re.I):
+        switches = list(re.finditer(r"\b(?:compare|show|analyse|analyze)\b", question, re.I))
+        if switches and _teams(question[switches[-1].start():]):
+            current = question[switches[-1].start():]
+    teams = _teams(current)
+    match = _WINDOW.search(current)
     games = None
     if match:
         token = match.group(1).lower()
@@ -88,9 +95,19 @@ def parse_scope(question: str, previous: Scope | None = None) -> Scope:
             teams = previous.teams
         if games is None and teams == previous.teams:
             games = previous.games
-    return Scope(teams, games, bool(_H2H.search(question)),
-                 bool(_OPPOSITION.search(question)),
-                 bool(re.search(r"\b(?:home|away)\b", question, re.I)))
+    attacking = bool(re.search(
+        r"\b(?:attack(?:ing)?|goals? scored|goals? for|going forward|"
+        r"scor(?:e|ed|ing)|offen[sc]e)\b", current, re.I))
+    defensive = bool(re.search(
+        r"\b(?:defen[sc](?:e|ive)|defend(?:ing)?|conced(?:e|ed|ing)|"
+        r"goals? against)\b", current, re.I))
+    focus = ("attack" if attacking and not defensive else
+             "defence" if defensive else
+             previous.focus if previous and not _teams(current) and _REFERENTIAL.search(question)
+             else "defence")
+    return Scope(teams, games, bool(_H2H.search(current)),
+                 bool(_OPPOSITION.search(current)),
+                 bool(re.search(r"\b(?:home|away)\b", current, re.I)), focus)
 
 
 def requirements(scope: Scope) -> list[dict]:
@@ -200,6 +217,44 @@ def _defensive_conclusions(scope: Scope, evidence: list[dict]) -> list[str]:
             opponent = item["result"].get("data", {})
     a, b = scope.teams
     lines = []
+    if scope.focus == "attack":
+        if a not in forms or b not in forms:
+            return lines
+        ra, rb = forms[a], forms[b]
+        if int(ra["Played"]) != int(rb["Played"]):
+            return ["**Attacking verdict:** Unequal match windows; comparison unavailable."]
+        gf_a, gf_b = int(ra["GoalsFor"]), int(rb["GoalsFor"])
+        pt_a, pt_b = int(ra["Points"]), int(rb["Points"])
+        if gf_a == gf_b:
+            lines.append("**Attacking verdict:** Both teams scored the same number of goals.")
+        else:
+            winner = a if gf_a > gf_b else b
+            lines.append(f"**Attacking verdict:** {winner} scored more goals "
+                         f"({gf_a} versus {gf_b}).")
+        if pt_a == pt_b:
+            lines.append("**Points verdict:** Both teams earned the same number of points.")
+        else:
+            winner = a if pt_a > pt_b else b
+            lines.append(f"**Points verdict:** {winner} earned more points "
+                         f"({pt_a} versus {pt_b}).")
+        if scope.venues:
+            for venue in ("Home", "Away"):
+                try:
+                    va, vb = ra["VenueSplit"][venue], rb["VenueSplit"][venue]
+                    na, nb = int(va["Played"]), int(vb["Played"])
+                    fa, fb = int(va["GoalsFor"]), int(vb["GoalsFor"])
+                    if na <= 0 or nb <= 0:
+                        raise ValueError("No rated venue matches")
+                    winner = (a if fa * nb > fb * na else
+                              b if fa * nb < fb * na else None)
+                    desc = (f"{winner} scored at a higher rate" if winner
+                            else "Both teams scored at the same rate")
+                    lines.append(f"**{venue} attacking verdict:** {desc} "
+                                 f"({fa/na:.2f} versus {fb/nb:.2f} per match).")
+                except (KeyError, TypeError, ValueError):
+                    lines.append(f"**{venue} attacking verdict:** Goals-scored "
+                                 "venue evidence unavailable; no conclusion.")
+        return lines
     if a in forms and b in forms:
         ra, rb = forms[a], forms[b]
         if int(ra["Played"]) == int(rb["Played"]):
@@ -302,6 +357,18 @@ def _answer_lead(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str | 
     ra, rb = forms[a], forms[b]
     if int(ra["Played"]) != int(rb["Played"]):
         return None
+    if scope.focus == "attack":
+        fa, fb = int(ra["GoalsFor"]), int(rb["GoalsFor"])
+        pa, pb = int(ra["Points"]), int(rb["Points"])
+        lead = (f"{a} and {b} scored {fa} goals each" if fa == fb else
+                f"{a if fa > fb else b} scored more goals "
+                f"({fa} versus {fb})")
+        text = (f"{lead} across their last {scope.games} matches. "
+                f"{a} earned {pa} points and {b} earned {pb}.")
+        if scope.venues:
+            text += (" The venue-specific attacking comparison is shown "
+                     "below where goals-scored splits are verified.")
+        return text
     ga, gb = int(ra["GoalsAgainst"]), int(rb["GoalsAgainst"])
     if ga == gb:
         text = (f"{a} and {b} conceded the same number of goals "
@@ -370,7 +437,7 @@ def render_evidence(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str
                 f"{float(row['PointsPerGame']):.2f} | {int(row['GoalsFor'])} | "
                 f"{int(row['GoalsAgainst'])} |"
             )
-        if len(forms) == 2:
+        if len(forms) == 2 and scope.focus != "attack":
             (ta, a, _), (tb, b, _) = forms
             if int(a["Played"]) == int(b["Played"]):
                 diff = abs(int(a["GoalsAgainst"]) - int(b["GoalsAgainst"]))
@@ -390,9 +457,14 @@ def render_evidence(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str
                     venue_row = row["VenueSplit"].get(venue, {})
                     if venue_row.get("Played"):
                         n = int(venue_row["Played"])
-                        ga = int(venue_row["GoalsAgainst"])
-                        lines.append(f"\n{team}, {venue.lower()}: {ga} goals "
-                                     f"conceded in {n} matches ({ga/n:.2f} per match).")
+                        metric = "GoalsFor" if scope.focus == "attack" else "GoalsAgainst"
+                        if metric not in venue_row:
+                            lines.append(f"\\n{team}, {venue.lower()}: verified {metric} unavailable.")
+                            continue
+                        goals = int(venue_row[metric])
+                        direction = "scored" if scope.focus == "attack" else "conceded"
+                        lines.append(f"\\n{team}, {venue.lower()}: {goals} goals "
+                                     f"{direction} in {n} matches ({goals/n:.2f} per match).")
         sources = "; ".join(dict.fromkeys(source for _, _, source in forms))
         lines.append(f"\n*Form source: {sources}. Completed results only.*")
     for item in evidence:

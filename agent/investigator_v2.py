@@ -44,6 +44,7 @@ class Scope:
     opposition: bool
     venues: bool
     focus: str = "defence"
+    trend: bool = False
 
 
 def _teams(question: str) -> tuple[str, ...]:
@@ -79,6 +80,14 @@ def parse_scope(question: str, previous: Scope | None = None) -> Scope:
         if switches and _teams(question[switches[-1].start():]):
             current = question[switches[-1].start():]
     teams = _teams(current)
+    # A recent-five versus preceding-five comparison needs TEN match records.
+    # Do not treat "last five" alone as a trend request.
+    trend = bool(re.search(
+        r"\b(?:five before|previous five|preceding five|prior five|"
+        r"five matches before|five games before|"
+        r"compared (?:with|to) (?:the )?(?:five|previous five)|"
+        r"(?:last|recent|latest) five .{0,70}(?:previous|preceding|before|prior) five)\b",
+        current, re.I))
     match = _WINDOW.search(current)
     games = None
     if match:
@@ -90,6 +99,8 @@ def parse_scope(question: str, previous: Scope | None = None) -> Scope:
             games = int(token)
     # Explicit new entities always take precedence. Never silently merge teams
     # from an unrelated previous question.
+    if trend:
+        games = 10
     if previous and _REFERENTIAL.search(question):
         if not teams:
             teams = previous.teams
@@ -107,7 +118,7 @@ def parse_scope(question: str, previous: Scope | None = None) -> Scope:
              else "defence")
     return Scope(teams, games, bool(_H2H.search(current)),
                  bool(_OPPOSITION.search(current)),
-                 bool(re.search(r"\b(?:home|away)\b", current, re.I)), focus)
+                 bool(re.search(r"\b(?:home|away)\b", current, re.I)), focus, trend)
 
 
 def requirements(scope: Scope) -> list[dict]:
@@ -339,9 +350,52 @@ def _defensive_conclusions(scope: Scope, evidence: list[dict]) -> list[str]:
     return lines
 
 
+def _trend_facts(scope: Scope, evidence: list[dict]) -> list[str]:
+    """Compare two adjacent five-match windows from 10 completed results."""
+    if not scope.trend:
+        return []
+    rows = {e["arguments"]["team"]: e["result"]["data"][0]
+            for e in evidence if e.get("tool") == "form_summary" and "result" in e}
+    recent_key, previous_key = (("ScoredRecent5", "ScoredPrevious5")
+                                if scope.focus == "attack" else
+                                ("ConcededRecent5", "ConcededPrevious5"))
+    lines = []
+    for team in scope.teams:
+        row = rows.get(team)
+        if not row or int(row.get("Played", 0)) != 10:
+            continue
+        if not all(k in row for k in (recent_key, previous_key,
+                                      "PointsRecent5", "PointsPrevious5")):
+            continue
+        recent, previous = int(row[recent_key]), int(row[previous_key])
+        recent_pts = int(row["PointsRecent5"])
+        previous_pts = int(row["PointsPrevious5"])
+        if min(recent, previous, recent_pts, previous_pts) < 0:
+            continue
+        # Reconcile window totals against the overall verified form row.
+        overall = "GoalsFor" if scope.focus == "attack" else "GoalsAgainst"
+        if recent + previous != int(row[overall]) or recent_pts + previous_pts != int(row["Points"]):
+            continue
+        direction = ("unchanged" if recent == previous else
+                     "improved" if (recent > previous if scope.focus == "attack"
+                                    else recent < previous) else "worsened")
+        metric = "goals scored" if scope.focus == "attack" else "goals conceded"
+        lines.append(f"**{team} five-match trend:** {direction.capitalize()} on {metric}: "
+                     f"{recent} in the most recent five versus {previous} in the "
+                     f"preceding five. Points: {recent_pts} versus {previous_pts}. "
+                     "Descriptive only; not proof of a persistent trend.")
+    return lines
+
+
 def _answer_lead(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str | None:
     """Concise, deterministic lead. No unsupported causal or tactical inference."""
-    if gaps or len(scope.teams) != 2:
+    if gaps:
+        return None
+    if scope.trend:
+        trend_lines = _trend_facts(scope, evidence)
+        return " ".join(line.replace("**", "") for line in trend_lines) if (
+            len(trend_lines) == len(scope.teams)) else None
+    if len(scope.teams) != 2:
         return None
     forms = {}
     opponents = None
@@ -509,7 +563,14 @@ def render_evidence(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str
             lines.append("\n*Opponent PPG is an observational pre-match proxy, "
                          "not a validated defensive adjustment or causal finding. "
                          f"Source: {result.get('source', 'read-only opponent tool')}.*")
-    conclusions = _defensive_conclusions(scope, evidence)
+    if scope.trend:
+        trend_lines = _trend_facts(scope, evidence)
+        if trend_lines:
+            lines += ["", "### Two-window form investigation", *trend_lines]
+        if len(trend_lines) != len(scope.teams):
+            lines.append("\\n**Trend evidence incomplete:** cannot verify all "
+                         "recent-five and preceding-five comparisons.")
+    conclusions = [] if scope.trend else _defensive_conclusions(scope, evidence)
     if conclusions:
         lines += ["", "### What the evidence shows", *conclusions]
     if gaps:

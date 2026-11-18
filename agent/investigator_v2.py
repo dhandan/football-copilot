@@ -150,7 +150,7 @@ def validated_proposals(raw, needed: list[dict]) -> list[dict]:
     return result
 
 
-def _execute(call: dict, tools: dict, require_venues: bool = False) -> dict:
+def _execute(call: dict, tools: dict, require_venues: bool = False, focus: str = 'defence') -> dict:
     name, args = call["name"], call["arguments"]
     try:
         if name == "form_summary" and tools[name] is v2.form_summary:
@@ -178,12 +178,13 @@ def _execute(call: dict, tools: dict, require_venues: bool = False) -> dict:
             try:
                 home, away = (split[venue] for venue in ("Home", "Away"))
                 home_n, away_n = int(home["Played"]), int(away["Played"])
-                home_ga, away_ga = int(home["GoalsAgainst"]), int(away["GoalsAgainst"])
+                metric = "GoalsFor" if focus == "attack" else "GoalsAgainst"
+                home_ga, away_ga = int(home[metric]), int(away[metric])
             except (KeyError, TypeError, ValueError) as exc:
                 raise ValueError("Missing venue measurements") from exc
             if (home_n <= 0 or away_n <= 0 or home_n + away_n != played
                     or home_ga < 0 or away_ga < 0
-                    or home_ga + away_ga != int(row["GoalsAgainst"])):
+                    or home_ga + away_ga != int(row[metric])):
                 raise ValueError("Insufficient or inconsistent venue evidence")
         if name == "compare_opponent_strength":
             rows = result.get("data", {})
@@ -437,6 +438,18 @@ def render_evidence(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str
                 f"{float(row['PointsPerGame']):.2f} | {int(row['GoalsFor'])} | "
                 f"{int(row['GoalsAgainst'])} |"
             )
+        if len(forms) == 2 and scope.focus == "attack":
+            (ta, a, _), (tb, b, _) = forms
+            if a["Played"] == b["Played"]:
+                gf_a, gf_b = int(a["GoalsFor"]), int(b["GoalsFor"])
+                pt_a, pt_b = int(a["Points"]), int(b["Points"])
+                if gf_a != gf_b:
+                    winner = ta if gf_a > gf_b else tb
+                    lines.append(f"\\n**{winner} scored {abs(gf_a-gf_b)} more goals** "
+                                 "in the measured window.")
+                else:
+                    lines.append("\\nBoth teams scored the same number of goals.")
+                lines.append(f"\\nPoints earned: {ta} {pt_a}, {tb} {pt_b}.")
         if len(forms) == 2 and scope.focus != "attack":
             (ta, a, _), (tb, b, _) = forms
             if int(a["Played"]) == int(b["Played"]):
@@ -459,11 +472,11 @@ def render_evidence(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str
                         n = int(venue_row["Played"])
                         metric = "GoalsFor" if scope.focus == "attack" else "GoalsAgainst"
                         if metric not in venue_row:
-                            lines.append(f"\\n{team}, {venue.lower()}: verified {metric} unavailable.")
+                            lines.append(f"\n{team}, {venue.lower()}: verified {metric} unavailable.")
                             continue
                         goals = int(venue_row[metric])
                         direction = "scored" if scope.focus == "attack" else "conceded"
-                        lines.append(f"\\n{team}, {venue.lower()}: {goals} goals "
+                        lines.append(f"\n{team}, {venue.lower()}: {goals} goals "
                                      f"{direction} in {n} matches ({goals/n:.2f} per match).")
         sources = "; ".join(dict.fromkeys(source for _, _, source in forms))
         lines.append(f"\n*Form source: {sources}. Completed results only.*")
@@ -585,7 +598,7 @@ class Investigator:
                 if key in tried:
                     continue
                 tried.add(key)
-                item = _execute(call, self.tools, require_venues=scope.venues)
+                item = _execute(call, self.tools, require_venues=scope.venues, focus=scope.focus)
                 evidence.append(item)
                 trace.append(f"executed_{item['tool']}" if "result" in item
                              else f"unavailable_{item['tool']}")

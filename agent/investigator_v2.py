@@ -45,12 +45,19 @@ class Scope:
 
 
 def _teams(question: str) -> tuple[str, ...]:
-    seen = []
+    # Preserve the speaker's team order rather than the catalogue's sort
+    # order. Prefer longer aliases when they overlap at the same position.
+    mentions = []
     for label in v2._available_team_names():
-        if re.search(r"(?<!\w)" + re.escape(label) + r"(?!\w)", question, re.I):
+        for match in re.finditer(
+            r"(?<!\w)" + re.escape(label) + r"(?!\w)", question, re.I
+        ):
             canonical = v2.TEAM_ALIASES.get(label.lower(), label)
-            if canonical not in seen:
-                seen.append(canonical)
+            mentions.append((match.start(), -len(label), canonical))
+    seen = []
+    for _, _, team in sorted(mentions):
+        if team not in seen:
+            seen.append(team)
     return tuple(seen)
 
 
@@ -303,7 +310,8 @@ class Investigator:
                 evidence.append(item)
                 trace.append(f"executed_{item['tool']}" if "result" in item
                              else f"unavailable_{item['tool']}")
-        complete_keys = {call_key(e) for e in evidence if "result" in e}
+        complete_keys = {(e["tool"], tuple(sorted(e["arguments"].items())))
+                         for e in evidence if "result" in e}
         gaps = [c for c in needed if call_key(c) not in complete_keys]
         trace.append("complete" if not gaps else "partial_evidence")
         return {"answer": render_evidence(scope, evidence, gaps),

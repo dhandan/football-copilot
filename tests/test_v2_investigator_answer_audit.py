@@ -76,7 +76,7 @@ class AnswerAuditTests(unittest.TestCase):
 
     def test_answer_starts_with_direct_conclusion(self):
         self.assertTrue(self.result["answer"].startswith(
-            "### Answer\\nArsenal and Liverpool conceded the same number of goals"))
+            "### Answer\nArsenal and Liverpool conceded the same number of goals"))
         
     def test_missing_direct_answer_is_rejected(self):
         answer = self.result["answer"].replace("### Answer", "### Data")

@@ -105,6 +105,8 @@ def grounded_and_complete(candidate: str, facts: str, case: str, question: str):
 
 
 def run():
+    # Experiment-only switch: default app path remains unchanged.
+    os.environ["FOOTBALL_GROQ_SHADOW_PROTOCOL"] = "strict_budget"
     if not groq_v2.groq_ready():
         print("GROQ_SHADOW NOT_EXECUTED missing private key and/or user-attested Free/ZDR controls")
         return 2

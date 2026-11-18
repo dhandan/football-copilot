@@ -72,6 +72,47 @@ def suggested_followups(scope) -> list[str]:
     ]
 
 
+def general_comparison_lead(question: str, scope, evidence: list[dict]) -> str | None:
+    """Answer open compare-form questions across points, scoring and defending.
+
+    Specific goal/defensive/venue/opponent/H2H questions retain their existing
+    specialist answer. Every stated number comes from the two verified rows.
+    """
+    import re
+    if (len(scope.teams) != 2 or scope.games is None or scope.trend
+            or scope.h2h or scope.opposition or scope.venues
+            or scope.investigate_why
+            or not re.search(r"\\b(?:compare|comparison)\\b", question, re.I)
+            or re.search(
+                r"\\b(?:defen[sc](?:e|ive)|defend|conced|attack|scor|"
+                r"goals?|home|away|opponent|points?|ppg)\\b", question, re.I)):
+        return None
+    rows = {e["arguments"]["team"]: e["result"]["data"][0]
+            for e in evidence if e.get("tool") == "form_summary"
+            and "result" in e}
+    a, b = scope.teams
+    if set(rows) != {a, b}:
+        return None
+    ra, rb = rows[a], rows[b]
+    if int(ra["Played"]) != scope.games or int(rb["Played"]) != scope.games:
+        return None
+    pa, pb = int(ra["Points"]), int(rb["Points"])
+    fa, fb = int(ra["GoalsFor"]), int(rb["GoalsFor"])
+    ga, gb = int(ra["GoalsAgainst"]), int(rb["GoalsAgainst"])
+    points = (f"{a} and {b} earned {pa} points each" if pa == pb else
+              f"{a if pa > pb else b} earned more points "
+              f"({a} {pa}, {b} {pb})")
+    attack = (f"both scored {fa} goals" if fa == fb else
+              f"{a if fa > fb else b} scored more goals "
+              f"({fa} versus {fb})")
+    defence = (f"both conceded {ga}" if ga == gb else
+               f"{a if ga < gb else b} conceded fewer "
+               f"({ga} versus {gb})")
+    return (f"Over their last {scope.games} matches, {points}; "
+            f"{attack}; and {defence}. "
+            "This compares observed results, not underlying causes.")
+
+
 class ProductConversation:
     """A single session with deterministic investigation and legacy fallback."""
 
@@ -108,6 +149,13 @@ class ProductConversation:
                     "route": "verified_data_rejected",
                     "planner_requests": 0,
                 }
+            if result["complete"]:
+                general = general_comparison_lead(question, scope, evidence)
+                if general:
+                    marker = "### Verified football evidence"
+                    if result["answer"].startswith("### Answer\\n") and marker in result["answer"]:
+                        result["answer"] = ("### Answer\\n" + general + "\\n\\n" + marker
+                                            + result["answer"].split(marker, 1)[1])
             return {**result, "route": "deterministic_investigation",
                     "planner_requests": 0,
                     "followups": suggested_followups(scope) if result["complete"] else []}

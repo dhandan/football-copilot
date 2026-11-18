@@ -3378,6 +3378,7 @@ with st.sidebar:
         st.session_state.conversation = []
         st.session_state.pop("langgraph_v2_conversation", None)
         st.session_state.pop("product_v2_conversation", None)
+        st.session_state.pop("v2_queued_question", None)
 
 
         st.session_state.debug_info = []
@@ -3574,13 +3575,23 @@ st.caption(
 )
 
 
+def render_product_v2_answer(answer):
+    """Conclusions first; retain the complete verified evidence on demand."""
+    marker = "### Verified football evidence"
+    if answer.startswith("### Answer\\n") and marker in answer:
+        lead, evidence = answer.split(marker, 1)
+        st.markdown(lead.strip())
+        with st.expander("Verified statistics and sources", expanded=False):
+            st.markdown(marker + evidence)
+    else:
+        st.markdown(answer)
+
+
 # ==================================================
 # RE-RENDER CONVERSATION
 # ==================================================
 
-for turn in (
-    st.session_state.conversation
-):
+for idx, turn in enumerate(st.session_state.conversation):
 
     if (
         turn[
@@ -3613,11 +3624,20 @@ for turn in (
             "assistant"
         ):
 
-            st.markdown(
-                turn[
-                    "content"
-                ]
-            )
+            if turn.get("v2_verified"):
+                render_product_v2_answer(turn["content"])
+                if (idx == len(st.session_state.conversation) - 1
+                        and turn.get("followups")):
+                    st.caption("Ask a follow-up")
+                    columns = st.columns(len(turn["followups"]))
+                    for n, suggestion in enumerate(turn["followups"]):
+                        if columns[n].button(
+                                suggestion, key=f"product_followup_{idx}_{n}",
+                                use_container_width=True):
+                            st.session_state.v2_queued_question = suggestion
+                            st.rerun()
+            else:
+                st.markdown(turn["content"])
 
 
             for result in turn.get(
@@ -3634,10 +3654,10 @@ for turn in (
 # CHAT INPUT
 # ==================================================
 
-prompt = st.chat_input(
+prompt = (st.chat_input(
     "Ask a Premier League analytics "
     "or prediction question..."
-)
+) or st.session_state.pop("v2_queued_question", None))
 
 
 # ==================================================
@@ -3700,6 +3720,8 @@ if prompt:
         ):
 
             try:
+                v2_verified = False
+                v2_followups = []
 
                 # Preserve every existing prediction and experiment route.
                 # The opt-in original chat toggle is a one-click rollback.
@@ -3718,6 +3740,8 @@ if prompt:
                     )
                     if result.get("route") == "deterministic_investigation" and result.get("complete"):
                         answer, ui_results = result["answer"], []
+                        v2_verified = True
+                        v2_followups = result.get("followups", [])
                         debug_info = [{
                             "routing": "product_v2_verified",
                             "tool": item["tool"],
@@ -3764,9 +3788,10 @@ if prompt:
                 )
 
 
-                st.markdown(
-                    answer
-                )
+                if v2_verified:
+                    render_product_v2_answer(answer)
+                else:
+                    st.markdown(answer)
 
 
                 for result in (
@@ -3789,6 +3814,8 @@ if prompt:
 
                         "ui_results":
                             ui_results,
+                        "v2_verified": v2_verified,
+                        "followups": v2_followups,
                     }
                 )
 

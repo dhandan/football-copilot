@@ -3324,9 +3324,17 @@ with st.sidebar:
     )
 
     if use_langgraph_v2:
+        from agent.groq_v2 import groq_enabled, groq_ready
         st.success("Active mode: LangGraph V2 (experimental)")
-        st.caption("Simple two-team recent-form questions use deterministic Python/DuckDB routing. "
-                   "Other supported questions may invoke local Qwen.")
+        if groq_enabled() and groq_ready():
+            st.caption("GroqCloud experimental provider selected for permitted V2 LLM requests. "
+                       "This app cannot independently verify provider billing or data-retention settings.")
+        elif groq_enabled():
+            st.warning("Groq experimental mode is not ready. No remote inference will be sent. "
+                       "Confirm Free plan, provider Zero Data Retention and private API key first.")
+        else:
+            st.caption("Simple team-form questions use deterministic Python/DuckDB routing. "
+                       "Other supported questions may invoke local Qwen.")
     else:
         st.warning("Active mode: Original Copilot (Qwen 4B; CPU inference may be slow)")
 
@@ -3337,13 +3345,13 @@ with st.sidebar:
 
     st.write(
         f"**Model:** "
-        f"{'Qwen planner where needed; no LLM for recognised form comparisons' if use_langgraph_v2 else MODEL}"
+        f"{('GroqCloud experimental (enabled only with verified Free/ZDR settings)' if groq_enabled() else 'Qwen planner where needed; deterministic comparisons') if use_langgraph_v2 else MODEL}"
     )
 
 
     st.write(
         "**Runtime:** "
-        "Ollama"
+        + ("GroqCloud opt-in (read-only evidence)" if use_langgraph_v2 and groq_enabled() else "Ollama")
     )
 
 
@@ -3694,10 +3702,11 @@ if prompt:
 
                 print(f"[football-route] {'V2' if use_langgraph_v2 else 'ORIGINAL_QWEN4B'} | question={prompt[:100]!r}", flush=True)
                 if use_langgraph_v2:
-                    from agent.langgraph_v2 import Conversation, local_synthesizer
+                    from agent.langgraph_v2 import Conversation, experimental_provider
                     if "langgraph_v2_conversation" not in st.session_state:
+                        planner, synthesizer = experimental_provider()
                         st.session_state.langgraph_v2_conversation = Conversation(
-                            synthesizer=local_synthesizer,
+                            planner=planner, synthesizer=synthesizer,
                         )
                     result = st.session_state.langgraph_v2_conversation.ask(
                         prompt, thread_id="streamlit_v2"

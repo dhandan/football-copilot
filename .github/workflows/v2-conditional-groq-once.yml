@@ -1,0 +1,56 @@
+name: V2 conditional Groq one-off evidence comparison
+
+# One-off experiment. Only changing THIS workflow file triggers this run.
+# No schedule, no pull_request, no production deployment and no paid fallback.
+on:
+  push:
+    branches:
+      - feature/issue9-cloud-readiness-audit
+    paths:
+      - .github/workflows/v2-conditional-groq-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-conditional-groq-once
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    if: github.repository == 'dhandan/football-copilot' && github.ref == 'refs/heads/feature/issue9-cloud-readiness-audit'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      FOOTBALL_GROQ_ENABLED: '1'
+      FOOTBALL_GROQ_FREE_PLAN_CONFIRMED: '1'
+      FOOTBALL_GROQ_ZDR_CONFIRMED: '1'
+      FOOTBALL_GROQ_MODEL: 'openai/gpt-oss-20b'
+      FOOTBALL_AGENT_DEBUG: '0'
+      FOOTBALL_V2_FACTS_FIRST: '0'
+    steps:
+      - name: Checkout experimental branch without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install existing minimal dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Check provider gate (user-attested, never log secret)
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python - <<'PY'
+          from agent.groq_v2 import groq_ready
+          if not groq_ready():
+              raise SystemExit("NO-GO: Groq key or Free/ZDR opt-in unavailable")
+          print("GROQ_PREFLIGHT PASS user-attested-controls-not-account-verified")
+          PY
+      - name: Compare form-only versus autonomous Groq conditional investigation
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python -m scripts.evaluate_v2_conditional_value --live-groq

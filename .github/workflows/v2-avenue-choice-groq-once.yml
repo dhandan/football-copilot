@@ -1,0 +1,54 @@
+name: V2 autonomous evidence avenue selection - one-off
+
+# Runs once when this file is first committed to the experimental branch.
+# No pull request triggers, no regular schedule, no production or paid fallback.
+on:
+  push:
+    branches: [feature/issue9-cloud-readiness-audit]
+    paths: [.github/workflows/v2-avenue-choice-groq-once.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-avenue-choice-groq-once
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    if: github.repository == 'dhandan/football-copilot' && github.ref == 'refs/heads/feature/issue9-cloud-readiness-audit'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      FOOTBALL_GROQ_ENABLED: '1'
+      FOOTBALL_GROQ_FREE_PLAN_CONFIRMED: '1'
+      FOOTBALL_GROQ_ZDR_CONFIRMED: '1'
+      FOOTBALL_GROQ_MODEL: 'openai/gpt-oss-20b'
+      FOOTBALL_AGENT_DEBUG: '0'
+      FOOTBALL_V2_FACTS_FIRST: '0'
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install minimal dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Verify opted-in free/ZDR/key gate without printing secrets
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python - <<'PY'
+          from agent.groq_v2 import groq_ready
+          if not groq_ready():
+              raise SystemExit("NO-GO: Groq Free/ZDR/key controls unavailable")
+          print("GROQ_PREFLIGHT PASS attested_only_not_account_verified")
+          PY
+      - name: Compare Groq against deterministic choice baseline
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python -m scripts.evaluate_v2_avenue_choice --live-groq

@@ -254,6 +254,199 @@ class AgentGraphTests(unittest.TestCase):
                              {games})
             self.assertIn("Arsenal have been defensively stronger", answer["answer"])
 
+    def test_two_part_defensive_question_answers_away_scope(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+
+        def fake_form(team, games):
+            arsenal = team == "Arsenal"
+            return {"season": "2026/27, 2025/26", "source": "verified results",
+                    "data": [{"Played": games, "Won": 4, "Drawn": 2,
+                              "Lost": games - 6, "Points": 14, "PointsPerGame": 1.4,
+                              "GoalsFor": 12, "GoalsAgainst": 6 if arsenal else 10,
+                              "VenueKnown": games,
+                              "VenueSplit": {
+                                  "Home": {"Played": 6 if arsenal else 4,
+                                           "GoalsAgainst": 2 if arsenal else 4},
+                                  "Away": {"Played": 4 if arsenal else 6,
+                                           "GoalsAgainst": 4 if arsenal else 6}}}]}
+
+        def no_planner(_):
+            raise AssertionError("Both known teams and window must be deterministic")
+
+        question = ("Has Arsenal's defence been better than Liverpool's over their "
+                    "last 10 Premier League matches, and does that advantage still "
+                    "hold when we look at away matches only?")
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": fake_form}):
+            answer = Conversation(planner=no_planner).ask(question)["answer"]
+        self.assertIn("Arsenal have been defensively stronger", answer)
+        self.assertIn("Away-only check", answer)
+        self.assertIn("| Away matches | 6 | 4 |", answer)
+        self.assertIn("| Away goals conceded per match | 1.00 | 1.00 |", answer)
+        self.assertIn("away goals-conceded rates are level", answer)
+        self.assertNotIn("The overall advantage also holds away", answer)
+
+    def test_away_only_comparison_never_infers_missing_venues(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+
+        def incomplete_form(team, games):
+            return {"season": "2026/27", "source": "verified results",
+                    "data": [{"Played": games, "Won": 4, "Drawn": 2,
+                              "Lost": games - 6, "Points": 14, "PointsPerGame": 1.4,
+                              "GoalsFor": 12, "GoalsAgainst": 6 if team == "Arsenal" else 10,
+                              "VenueKnown": games - 1,
+                              "VenueSplit": {"Away": {"Played": 5, "GoalsAgainst": 2}}}]}
+
+        question = ("Compare Arsenal and Liverpool over their last 10 matches. "
+                    "Does Arsenal's defensive advantage hold away?")
+        with patch.dict("agent.langgraph_v2.ALLOWED", {"form_summary": incomplete_form}):
+            answer = Conversation(planner=lambda _: []).ask(question)["answer"]
+        self.assertIn("Away-only comparison:", answer)
+        self.assertIn("lack verified home/away labels", answer)
+        self.assertNotIn("Away goals conceded per match", answer)
+
+    def test_opponent_strength_followup_retains_context_without_groq(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+
+        calls = []
+        def fake_form(team, games):
+            calls.append((team, games))
+            conceded = 6 if team == "Arsenal" else 10
+            return {"season": "2026/27, 2025/26", "source": "verified results",
+                    "data": [{"Played": games, "Won": 5, "Drawn": 2,
+                              "Lost": games - 7, "Points": 17,
+                              "PointsPerGame": 1.7, "GoalsFor": 15,
+                              "GoalsAgainst": conceded}]}
+
+        def no_planner(_):
+            raise AssertionError("This grounded contextual fallback must not call Groq")
+
+        chat = Conversation(planner=no_planner)
+        first = ("Has Arsenal's defence been better than Liverpool's over their "
+                 "last 10 Premier League matches, and does that advantage still "
+                 "hold when we look at away matches only?")
+        followup = ("Does that mean Arsenal are genuinely better defensively, "
+                    "or could the difference be explained by the strength "
+                    "of the opponents they've faced?")
+        def rated(team1, team2, games):
+            return {"source": "verified pre-match fixture data",
+                    "method": "preceding five completed matches",
+                    "data": {
+                        "Liverpool": {"rated": 9, "played": 10,
+                            "mean_opponent_prior_ppg": 1.2,
+                            "mean_opponent_prior_gf_pg": 1.3,
+                            "goals_conceded_rated": 9,
+                            "observed_to_prior_goals_ratio": 0.77},
+                        "Arsenal": {"rated": 10, "played": 10,
+                            "mean_opponent_prior_ppg": 1.5,
+                            "mean_opponent_prior_gf_pg": 1.6,
+                            "goals_conceded_rated": 6,
+                            "observed_to_prior_goals_ratio": 0.38}}}
+        with patch.dict("agent.langgraph_v2.ALLOWED",
+                        {"form_summary": fake_form,
+                         "compare_opponent_strength": rated}):
+            chat.ask(first, thread_id="opp-followup")
+            result = chat.ask(followup, thread_id="opp-followup")
+
+        self.assertEqual(result["trace"][0], "deterministic_opponent_scope_route")
+        self.assertEqual({e["arguments"]["team"] for e in result["evidence"]
+                          if e["tool"] == "form_summary"}, {"Liverpool", "Arsenal"})
+        self.assertEqual({e["arguments"]["games"] for e in result["evidence"]}, {10})
+        self.assertEqual([e["tool"] for e in result["evidence"]][-1], "compare_opponent_strength")
+        self.assertIn("Fixture difficulty: opponents' form before each match", result["answer"])
+        self.assertIn("0.30 more pre-match points per match", result["answer"])
+        self.assertIn("not** a validated", result["answer"])
+        self.assertNotIn("No supported evidence tool selected", result["answer"])
+
+
+    def test_small_opponent_ppg_gap_is_not_overstated(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+
+        def fake_form(team, games):
+            return {"season": "2026/27, 2025/26", "source": "verified",
+                    "data": [{"Played": 10, "Won": 5, "Drawn": 2, "Lost": 3,
+                              "Points": 17, "PointsPerGame": 1.7,
+                              "GoalsFor": 12,
+                              "GoalsAgainst": 10 if team == "Liverpool" else 6}]}
+
+        def rated(team1, team2, games):
+            def row(ppg, rated_count, conceded):
+                return {"rated": rated_count, "played": 10,
+                        "mean_opponent_prior_ppg": ppg,
+                        "mean_opponent_prior_gf_pg": 1.5,
+                        "goals_conceded_rated": conceded,
+                        "observed_to_prior_goals_ratio": 0.5}
+            return {"source": "verified", "method": "pre-match data",
+                    "data": {"Liverpool": row(1.50, 10, 10),
+                             "Arsenal": row(1.47, 9, 6)}}
+
+        chat = Conversation(planner=lambda _: self.fail("Must use deterministic route"))
+        with patch.dict("agent.langgraph_v2.ALLOWED",
+                        {"form_summary": fake_form,
+                         "compare_opponent_strength": rated}):
+            chat.ask("Compare Liverpool and Arsenal over their last 10 matches",
+                     thread_id="small-gap")
+            result = chat.ask(
+                "Could Arsenal's better defence be explained by the strength "
+                "of the opponents they've faced?", thread_id="small-gap")
+        self.assertIn("differ by only 0.03", result["answer"])
+        self.assertIn("not evidence of a meaningfully harder schedule", result["answer"])
+        self.assertIn("**Coverage caveat:**", result["answer"])
+        self.assertIn("9/10", result["answer"])
+        self.assertNotIn("Liverpool** faced opponents with higher", result["answer"])
+
+    def test_explicit_h07_question_switches_topic_after_defensive_why(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+
+        calls = []
+        def planner(prompt):
+            calls.append(prompt)
+            if "Why was H07 rejected?" in prompt:
+                return [{"name": "experiment_history",
+                         "arguments": {"experiment": "H07"}}]
+            raise AssertionError("All team-form turns should take deterministic route")
+
+        chat = Conversation(planner=planner)
+        chat.ask("Compare Liverpool and Arsenal over their last 10 matches",
+                 thread_id="real-user-sequence")
+        chat.ask("Who has been defensively better over those 10 matches?",
+                 thread_id="real-user-sequence")
+        chat.ask("Why is that?", thread_id="real-user-sequence")
+        result = chat.ask("Why was H07 rejected?",
+                          thread_id="real-user-sequence")
+        self.assertEqual([e["tool"] for e in result["evidence"]],
+                         ["experiment_history"])
+        self.assertEqual(result["evidence"][0]["arguments"]["experiment"], "H07")
+        self.assertEqual(len(calls), 1, "H07 must call the experimental planner")
+        self.assertIn("planned 1 tool(s)", result["trace"])
+        self.assertNotIn("deterministic_form_route", result["trace"])
+        self.assertIn("H07 parked", result["answer"])
+        self.assertIn("did not outperform the frozen Model 2", result["answer"])
+        self.assertIn("Both probability error scores were higher (worse)", result["answer"])
+        self.assertIn("docs/experiments/H07_PLAYER_INTELLIGENCE.md", result["answer"])
+        self.assertNotIn("Liverpool vs Arsenal", result["answer"])
+
+    def test_short_why_still_inherits_defensive_comparison(self):
+        from unittest.mock import patch
+        from agent.langgraph_v2 import Conversation
+        def unavailable(_):
+            raise AssertionError("No LLM should plan referential why")
+        chat = Conversation(planner=unavailable)
+        chat.ask("Compare Liverpool and Arsenal over their last 10 matches",
+                 thread_id="short-why")
+        chat.ask("Who has been defensively better over those 10 matches?",
+                 thread_id="short-why")
+        result = chat.ask("Why is that?", thread_id="short-why")
+        self.assertEqual([e["tool"] for e in result["evidence"]],
+                         ["form_summary", "form_summary"])
+        self.assertEqual({e["arguments"]["games"] for e in result["evidence"]},
+                         {10})
+        self.assertIn("descriptive patterns", result["answer"])
+
     def test_next_meeting_context_uses_schedule_not_forecasts(self):
         from unittest.mock import patch
         from agent.langgraph_v2 import Conversation

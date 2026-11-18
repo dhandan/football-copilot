@@ -62,6 +62,45 @@ SCENARIOS = [
           P("frozen_gameweek_predictions", gameweek=8)],
          ("form_pair", "missing_fixture")),
     ]),
+    ("compound_defensive_away_comparison", [
+        ("Has Arsenal's defence been better than Liverpool's over their last 10 "
+         "Premier League matches, and does that advantage still hold when we "
+         "look at away matches only?",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)],
+         ("form_pair", "defence", "away_scope")),
+    ]),
+    ("opponent_strength_context_followup", [
+        ("Compare Liverpool and Arsenal over their last 10 matches",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)], ("form_pair",)),
+        ("Does that mean Arsenal are genuinely better defensively, "
+         "or could the difference be explained by the strength of the "
+         "opponents they've faced?",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10),
+          P("compare_opponent_strength", team1="Liverpool",
+            team2="Arsenal", games=10)],
+         ("form_pair", "opponent_scope")),
+    ]),
+    ("defensive_why_direct", [
+        ("Why is Arsenal defensively stronger than Liverpool over their last 10 matches?",
+         [P("form_summary", team="Arsenal", games=10),
+          P("form_summary", team="Liverpool", games=10)], ("form_pair", "why_defence")),
+    ]),
+    ("defensive_why_followup", [
+        ("Compare Liverpool and Arsenal over their last 10 matches",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)], ("form_pair",)),
+        ("Who has been defensively better over those 10 matches?",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)], ("form_pair", "defence")),
+        ("Why is that?",
+         [P("form_summary", team="Liverpool", games=10),
+          P("form_summary", team="Arsenal", games=10)], ("form_pair", "why_defence")),
+        ("Why was H07 rejected?",
+         [P("experiment_history", experiment="H07")], ("h07", "topic_switch")),
+    ]),
     ("out_of_scope", [
         ("Can you tell me today's weather in London?", [], ("unsupported",)),
     ]),
@@ -70,7 +109,18 @@ SCENARIOS = [
     ]),
 ]
 
-def evaluate(live=False):
+def evaluate(live=False, provider="local"):
+    if provider not in ("local", "groq"):
+        raise ValueError("Unsupported V2 evaluation provider")
+    if provider == "groq":
+        if not live:
+            raise ValueError("Use --live --groq for the opt-in Groq evaluation")
+        from agent.groq_v2 import groq_ready, groq_planner, groq_synthesizer
+        if not groq_ready():
+            raise ValueError("Groq Free/ZDR/key confirmation missing; evaluation blocked")
+        selected_planner, selected_synthesizer = groq_planner, groq_synthesizer
+    else:
+        selected_planner, selected_synthesizer = local_planner, local_synthesizer
     total = sum(len(turns) for _, turns in SCENARIOS)
     passed = 0
     durations = []
@@ -87,7 +137,7 @@ def evaluate(live=False):
         def timed_planner(question):
             started = time.perf_counter()
             try:
-                return local_planner(question)
+                return selected_planner(question)
             finally:
                 stage["planning"] += time.perf_counter() - started
 
@@ -95,7 +145,7 @@ def evaluate(live=False):
             started = time.perf_counter()
             stage["synthesis_calls"] += 1
             try:
-                return local_synthesizer(question, facts)
+                return selected_synthesizer(question, facts)
             finally:
                 stage["synthesis"] += time.perf_counter() - started
 
@@ -143,6 +193,28 @@ def evaluate(live=False):
                             ok &= expected_winner in answer
                             ok &= str(abs(a - b)) in answer or a == b
                             ok &= "Goals conceded" in answer
+                if "opponent_scope" in checks:
+                    ok &= "deterministic_opponent_scope_route" in result["trace"]
+                    ok &= any(e["tool"] == "compare_opponent_strength" for e in result["evidence"])
+                    ok &= ("Fixture difficulty: opponents' form before each match" in answer
+                           or "Insufficient comparable pre-match opponent history" in answer)
+                    ok &= "intrinsically better" in answer or "No opponent-adjusted" in answer
+                if "away_scope" in checks:
+                    # Whether venue coverage is complete or not, the away part
+                    # must be explicitly addressed and must not be fabricated.
+                    ok &= "Away-only" in answer
+                    ok &= ("Away goals conceded per match" in answer
+                           or "not available reliably" in answer.lower()
+                           or "Insufficient away" in answer)
+                    ok &= "same last" in answer or "requested window" in answer
+                if "why_defence" in checks:
+                    ok &= "**Why the defensive records differ (observed results):**" in answer
+                    ok &= "descriptive patterns" in answer
+                    ok &= "Match results alone cannot establish tactics" in answer
+                    ok &= "clean sheet" in answer and "two or more" in answer
+                    ok &= "most recent five matches" in answer
+                    ok &= all(e["result"]["data"][0].get("ConcededRecent5") is not None
+                              for e in result["evidence"] if e["tool"] == "form_summary")
                 if "matching_fixture" in checks or "missing_fixture" in checks:
                     frozen = next((e["result"] for e in result["evidence"]
                                    if e["tool"] == "frozen_gameweek_predictions"), {})
@@ -168,6 +240,12 @@ def evaluate(live=False):
                     ok &= "frozen forecasts (10 fixtures)" not in answer.lower()
                     ok &= frozen.get("source", "") in answer
                     ok &= "not an explanation of recent form" in answer.lower() or "No fixture forecast is inferred" in answer
+                if "topic_switch" in checks:
+                    ok &= "H07 parked" in answer
+                    ok &= "docs/experiments/H07_PLAYER_INTELLIGENCE.md" in answer
+                    ok &= "Liverpool vs Arsenal" not in answer
+                    ok &= "deterministic_form_route" not in result["trace"]
+                    ok &= "planned 1 tool(s)" in result["trace"]
                 if "unsupported" in checks:
                     ok &= not result["evidence"]
                 if "rejected" in checks:
@@ -198,11 +276,13 @@ def evaluate(live=False):
                   f"synthesis={synthesis_outcome} trace={trace}", flush=True)
     print(f"LATENCY: mean={sum(durations)/len(durations):.2f}s max={max(durations):.2f}s", flush=True)
     print(f"RESULT: {passed}/{total} passed "
-          f"({'live Qwen' if live else 'offline'})", flush=True)
+          f"({'live '+provider if live else 'offline'})", flush=True)
     return passed == total
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--live", action="store_true")
+    parser.add_argument("--groq", action="store_true",
+                        help="Use opt-in Groq planner/synthesis; requires Free/ZDR/key attestations")
     args = parser.parse_args()
-    raise SystemExit(0 if evaluate(args.live) else 1)
+    raise SystemExit(0 if evaluate(args.live, provider="groq" if args.groq else "local") else 1)

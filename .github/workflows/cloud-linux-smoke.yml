@@ -11,6 +11,9 @@ on:
       - "agent/groq_v2.py"
       - "agent/langgraph_v2.py"
       - "agent/investigator_v2.py"
+      - "app/v2_investigator_lab.py"
+      - "scripts/evaluate_v2_investigator.py"
+      - "tests/test_v2_investigator_benchmark.py"
       - "tests/test_v2_investigator.py"
       - "agent/defensive_explanation.py"
       - "agent/football_tools.py"
@@ -35,6 +38,9 @@ on:
       - "agent/groq_v2.py"
       - "agent/langgraph_v2.py"
       - "agent/investigator_v2.py"
+      - "app/v2_investigator_lab.py"
+      - "scripts/evaluate_v2_investigator.py"
+      - "tests/test_v2_investigator_benchmark.py"
       - "tests/test_v2_investigator.py"
       - "agent/defensive_explanation.py"
       - "agent/football_tools.py"
@@ -77,7 +83,7 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Check private preview syntax and devcontainer config
         run: |
-          python -m py_compile app/v2_groq_preview.py scripts/evaluate_v2_groq_shadow.py
+          python -m py_compile app/v2_groq_preview.py app/v2_investigator_lab.py scripts/evaluate_v2_groq_shadow.py scripts/evaluate_v2_investigator.py
           python - <<'PY'
           import json
           from pathlib import Path
@@ -87,6 +93,8 @@ jobs:
           assert config["containerEnv"]["FOOTBALL_GROQ_MODEL"] == "openai/gpt-oss-20b"
           print("Private preview config and Python syntax OK")
           PY
+      - name: Run real-data V2 investigator guided control (not Groq)
+        run: python -m scripts.evaluate_v2_investigator
       - name: Run full V2 offline conversation acceptance
         env:
           FOOTBALL_V2_FACTS_FIRST: '0'

@@ -48,11 +48,19 @@ def _teams(question: str) -> tuple[str, ...]:
     # Preserve the speaker's team order rather than the catalogue's sort
     # order. Prefer longer aliases when they overlap at the same position.
     mentions = []
-    for label in v2._available_team_names():
+    catalog = v2._available_team_names()
+    # A user says Nottingham Forest; historical data commonly abbreviates
+    # this as Nott'm Forest. Resolve to the name actually in the dataset.
+    alternate = {"Nottingham Forest": "Nott'm Forest",
+                 "Manchester City": "Man City",
+                 "Manchester United": "Man United",
+                 "Tottenham Hotspur": "Tottenham"}
+    for label in list(catalog) + list(alternate):
         for match in re.finditer(
             r"(?<!\w)" + re.escape(label) + r"(?!\w)", question, re.I
         ):
-            canonical = v2.TEAM_ALIASES.get(label.lower(), label)
+            canonical = alternate.get(label,
+                                      v2.TEAM_ALIASES.get(label.lower(), label))
             mentions.append((match.start(), -len(label), canonical))
     seen = []
     for _, _, team in sorted(mentions):

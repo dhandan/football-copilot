@@ -283,6 +283,69 @@ def _defensive_conclusions(scope: Scope, evidence: list[dict]) -> list[str]:
     return lines
 
 
+def _answer_lead(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str | None:
+    """Concise, deterministic lead. No unsupported causal or tactical inference."""
+    if gaps or len(scope.teams) != 2:
+        return None
+    forms = {}
+    opponents = None
+    for item in evidence:
+        if "result" not in item:
+            continue
+        if item["tool"] == "form_summary":
+            forms[item["arguments"]["team"]] = item["result"]["data"][0]
+        elif item["tool"] == "compare_opponent_strength":
+            opponents = item["result"].get("data", {})
+    a, b = scope.teams
+    if a not in forms or b not in forms:
+        return None
+    ra, rb = forms[a], forms[b]
+    if int(ra["Played"]) != int(rb["Played"]):
+        return None
+    ga, gb = int(ra["GoalsAgainst"]), int(rb["GoalsAgainst"])
+    if ga == gb:
+        text = (f"{a} and {b} conceded the same number of goals "
+                f"({ga} each) in their last {scope.games} matches.")
+        overall = None
+    else:
+        overall = a if ga < gb else b
+        text = (f"{overall} had the better goals-conceded record in their "
+                f"last {scope.games} matches: {a} conceded {ga}, "
+                f"compared with {gb} for {b}.")
+    if scope.venues:
+        for venue in ("Home", "Away"):
+            try:
+                va, vb = ra["VenueSplit"][venue], rb["VenueSplit"][venue]
+                na, nb = int(va["Played"]), int(vb["Played"])
+                ga_v, gb_v = int(va["GoalsAgainst"]), int(vb["GoalsAgainst"])
+                if min(na, nb) <= 0:
+                    continue
+                left, right = ga_v * nb, gb_v * na
+                verdict = ("the teams were level on concession rate"
+                           if left == right else
+                           f"{a if left < right else b} had the lower concession rate")
+                text += (f" {venue} matches: {verdict} "
+                         f"({ga_v/na:.2f} versus {gb_v/nb:.2f} per match).")
+            except (KeyError, TypeError, ValueError):
+                pass
+    if scope.opposition and isinstance(opponents, dict):
+        oa, ob = opponents.get(a, {}), opponents.get(b, {})
+        pa, pb = oa.get("mean_opponent_prior_ppg"), ob.get("mean_opponent_prior_ppg")
+        if pa is not None and pb is not None:
+            difference = abs(float(pa) - float(pb))
+            rated_a, rated_b = oa.get("rated", 0), ob.get("rated", 0)
+            played_a, played_b = oa.get("played", 0), ob.get("played", 0)
+            text += (f" Opponents' average prior PPG was {float(pa):.2f} "
+                     f"versus {float(pb):.2f} (difference {difference:.2f}; "
+                     f"rated coverage {rated_a}/{played_a} versus "
+                     f"{rated_b}/{played_b}).")
+            if difference < 0.10:
+                text += (" This is a small numerical difference on this proxy, "
+                         "not proof of materially tougher opposition.")
+            text += " It does not explain the defensive gap causally."
+    return text
+
+
 def render_evidence(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str:
     """Only deterministic tool values become factual claims."""
     lines = ["### Verified football evidence"]
@@ -374,7 +437,9 @@ def render_evidence(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str
             lines.append(f"\n**Unavailable:** {item['tool']} — {item['error']}.")
     if not evidence:
         lines.append("\nNo verified football evidence obtained.")
-    return "\n".join(lines)
+    details = "\n".join(lines)
+    lead = _answer_lead(scope, evidence, gaps)
+    return ("### Answer\n" + lead + "\n\n" + details) if lead else details
 
 
 class Investigator:

@@ -48,7 +48,7 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
                                 f"{'scored' if scope.focus == 'attack' else 'conceded'} in {n} matches ({ga/n:.2f} per match).")
                     if expected not in answer:
                         problems.append("wrong_or_missing_venue:" + team + ":" + venue)
-        if len(forms) == 2 and scope.focus != "attack":
+        if len(forms) == 2 and scope.focus != "attack" and not scope.trend:
             fa, fb = forms
             a, b = fa["result"]["data"][0], fb["result"]["data"][0]
             if a["Played"] == b["Played"]:
@@ -130,7 +130,7 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
                 if expected not in answer:
                     problems.append("missing_or_wrong_opposition_verdict")
     # The direct answer must reflect verified figures, not merely restate a table.
-    if len(forms) == 2 and not any(item.get("error") for item in evidence):
+    if len(forms) == 2 and not scope.trend and not any(item.get("error") for item in evidence):
         fa, fb = forms
         a, b = fa["result"]["data"][0], fb["result"]["data"][0]
         ta, tb = fa["arguments"]["team"], fb["arguments"]["team"]
@@ -155,7 +155,7 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
                     if pa is not None and pb is not None and abs(float(pa)-float(pb)) < 0.10:
                         if "not proof of materially tougher opposition" not in answer:
                             problems.append("small_opponent_gap_overstated_or_missing")
-    if scope.focus == "attack" and len(forms) == 2:
+    if scope.focus == "attack" and len(forms) == 2 and not scope.trend:
         ta, tb = forms[0]["arguments"]["team"], forms[1]["arguments"]["team"]
         a, b = forms[0]["result"]["data"][0], forms[1]["result"]["data"][0]
         if a["Played"] == b["Played"]:

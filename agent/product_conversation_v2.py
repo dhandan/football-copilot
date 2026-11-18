@@ -39,6 +39,39 @@ class _CompiledPlanner:
         return self.first
 
 
+def suggested_followups(scope) -> list[str]:
+    """Two grounded next questions based only on the previous verified scope.
+
+    These are suggestions, never hidden background tool calls.  A fresh query
+    still goes through the normal deterministic parser and evidence audit.
+    """
+    if not scope or not scope.teams or scope.games is None:
+        return []
+    if not 1 <= scope.games <= 30:
+        return []
+    if len(scope.teams) == 2:
+        a, b = scope.teams
+        prefix = f"Compare {a} and {b}"
+        if scope.focus == "attack":
+            choices = [
+                f"{prefix}'s defending over their last {scope.games} matches.",
+                f"How does their home versus away scoring compare over their last {scope.games} matches?",
+            ]
+        else:
+            choices = [
+                f"{prefix}'s goals scored over their last {scope.games} matches.",
+                f"How do their home versus away defensive records compare over their last {scope.games} matches?",
+            ]
+        return choices
+    team = scope.teams[0]
+    if scope.trend:
+        return [f"How has {team}'s attacking record changed over its most recent five matches compared with the previous five?"]
+    return [
+        f"Has {team}'s defence improved over its most recent five matches compared with the previous five?",
+        f"How has {team} scored over its last {scope.games} matches?",
+    ]
+
+
 class ProductConversation:
     """A single session with deterministic investigation and legacy fallback."""
 
@@ -76,7 +109,8 @@ class ProductConversation:
                     "planner_requests": 0,
                 }
             return {**result, "route": "deterministic_investigation",
-                    "planner_requests": 0}
+                    "planner_requests": 0,
+                    "followups": suggested_followups(scope) if result["complete"] else []}
         if self.legacy is None:
             return {
                 "answer": ("That question isn't currently supported by the "

@@ -234,6 +234,32 @@ def _defensive_conclusions(scope: Scope, evidence: list[dict]) -> list[str]:
                     lines.append(f"**{venue} verdict:** {better} conceded at a lower "
                                  f"rate ({ga_a/na:.2f} versus {ga_b/nb:.2f} "
                                  "goals per match).")
+    if scope.venues and a in forms and b in forms:
+        ra, rb = forms[a], forms[b]
+        if int(ra["Played"]) == int(rb["Played"]):
+            total_a, total_b = int(ra["GoalsAgainst"]), int(rb["GoalsAgainst"])
+            if total_a != total_b:
+                overall = a if total_a < total_b else b
+                for venue in ("Home", "Away"):
+                    try:
+                        va, vb = ra["VenueSplit"][venue], rb["VenueSplit"][venue]
+                        na, nb = int(va["Played"]), int(vb["Played"])
+                        ga, gb = int(va["GoalsAgainst"]), int(vb["GoalsAgainst"])
+                        if na <= 0 or nb <= 0:
+                            continue
+                        lhs, rhs = ga * nb, gb * na
+                        if lhs == rhs:
+                            lines.append(f"**{venue} versus overall:** The venue rates "
+                                         "are tied, despite the overall difference.")
+                        else:
+                            venue_leader = a if lhs < rhs else b
+                            comparison = ("The overall advantage also holds"
+                                          if overall == venue_leader
+                                          else "The overall advantage reverses")
+                            lines.append(f"**{venue} versus overall:** {comparison} "
+                                         f"for {venue.lower()} concession rate.")
+                    except (KeyError, TypeError, ValueError):
+                        continue
     if scope.opposition:
         if not isinstance(opponent, dict):
             lines.append("**Opposition verdict:** Verified opponent-strength evidence unavailable.")
@@ -250,7 +276,7 @@ def _defensive_conclusions(scope: Scope, evidence: list[dict]) -> list[str]:
                 else:
                     tougher = a if pa > pb else b
                     lines.append(f"**Opposition verdict:** {tougher} faced opponents "
-                                 f"with marginally higher average prior PPG "
+                                 f"with higher average prior PPG "
                                  f"({pa:.2f} versus {pb:.2f}; difference "
                                  f"{abs(pa-pb):.2f}). This proxy does not establish "
                                  "that the defensive difference was caused by opposition.")

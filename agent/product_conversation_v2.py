@@ -82,10 +82,10 @@ def general_comparison_lead(question: str, scope, evidence: list[dict]) -> str |
     if (len(scope.teams) != 2 or scope.games is None or scope.trend
             or scope.h2h or scope.opposition or scope.venues
             or scope.investigate_why
-            or not re.search(r"\\b(?:compare|comparison)\\b", question, re.I)
+            or not re.search(r"\b(?:compare|comparison)\b", question, re.I)
             or re.search(
-                r"\\b(?:defen[sc](?:e|ive)|defend|conced|attack|scor|"
-                r"goals?|home|away|opponent|points?|ppg)\\b", question, re.I)):
+                r"\b(?:defen[sc](?:e|ive)|defend|conced|attack|scor|"
+                r"goals?|home|away|opponent|points?|ppg)\b", question, re.I)):
         return None
     rows = {e["arguments"]["team"]: e["result"]["data"][0]
             for e in evidence if e.get("tool") == "form_summary"
@@ -153,8 +153,8 @@ class ProductConversation:
                 general = general_comparison_lead(question, scope, evidence)
                 if general:
                     marker = "### Verified football evidence"
-                    if result["answer"].startswith("### Answer\\n") and marker in result["answer"]:
-                        result["answer"] = ("### Answer\\n" + general + "\\n\\n" + marker
+                    if result["answer"].startswith("### Answer\n") and marker in result["answer"]:
+                        result["answer"] = ("### Answer\n" + general + "\n\n" + marker
                                             + result["answer"].split(marker, 1)[1])
             return {**result, "route": "deterministic_investigation",
                     "planner_requests": 0,

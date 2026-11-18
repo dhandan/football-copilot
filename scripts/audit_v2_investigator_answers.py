@@ -169,6 +169,33 @@ def audit_answer(answer: str, scope, evidence: list[dict]) -> list[str]:
             expected_points = f"Points earned: {ta} {int(a['Points'])}, {tb} {int(b['Points'])}."
             if expected_points not in answer:
                 problems.append("missing_points_comparison")
+    if scope.trend:
+        for team in scope.teams:
+            matching = [e for e in forms if e["arguments"]["team"] == team]
+            if len(matching) != 1:
+                problems.append("missing_trend_team:" + team)
+                continue
+            row = matching[0]["result"]["data"][0]
+            measure = "Scored" if scope.focus == "attack" else "Conceded"
+            keys = (f"{measure}Recent5", f"{measure}Previous5",
+                    "PointsRecent5", "PointsPrevious5")
+            if not all(k in row for k in keys):
+                problems.append("missing_trend_metrics:" + team)
+                continue
+            recent, previous, points_a, points_b = (int(row[k]) for k in keys)
+            direction = ("Unchanged" if recent == previous else
+                         "Improved" if (recent > previous if scope.focus == "attack"
+                                        else recent < previous) else "Worsened")
+            metric = "goals scored" if scope.focus == "attack" else "goals conceded"
+            expected_trend = (f"**{team} five-match trend:** {direction} on {metric}: "
+                              f"{recent} in the most recent five versus {previous} in "
+                              f"the preceding five. Points: {points_a} versus {points_b}.")
+            if expected_trend not in answer:
+                problems.append("missing_or_wrong_trend:" + team)
+            if not answer.startswith("### Answer\\n") or (
+                    f"{team} five-match trend:" not in answer.split(
+                        "### Verified football evidence")[0]):
+                problems.append("missing_trend_lead:" + team)
     if forms and "*Form source:" not in answer:
         problems.append("missing_form_attribution")
     if any(item.get("error") for item in evidence):

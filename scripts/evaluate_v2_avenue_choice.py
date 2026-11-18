@@ -27,12 +27,19 @@ def run(live_groq=False):
         assert len(first) == 2
         baseline = select_keyword(case.question)
         counts["baseline"] += baseline == case.expected
+        failure_type = None
         if live_groq:
-            selected = select_live(case.question, scope, first)
-            counts["groq"] += selected == case.expected
-            data = investigate(case.question, selected)
-            if selected != "none" and data["extra"] is None:
-                raise ValueError("Selected avenue lacks verified evidence")
+            try:
+                selected = select_live(case.question, scope, first)
+                data = investigate(case.question, selected)
+                if selected != "none" and data["extra"] is None:
+                    raise ValueError("Selected avenue lacks verified evidence")
+                counts["groq"] += selected == case.expected
+            except Exception as exc:
+                # One attempt per case. Record only the exception class,
+                # never provider messages, response text, prompts or secrets.
+                selected = None
+                failure_type = type(exc).__name__
         else:
             selected = None
         # Validate each expected avenue against real evidence independently.
@@ -43,7 +50,8 @@ def run(live_groq=False):
               f"baseline={'PASS' if baseline == case.expected else 'FAIL'} "
               f"groq={'PASS' if selected == case.expected else 'FAIL' if live_groq else 'NOT_RUN'} "
               f"expected={case.expected} "
-              f"selected={selected or 'not_run'} "
+              f"selected={selected or 'unavailable' if live_groq else 'not_run'} "
+              f"failure_type={failure_type or 'none'} "
               f"elapsed_s={time.perf_counter()-start:.3f}", flush=True)
     n = len(CASES)
     print(f"AVENUE_SUMMARY baseline={counts['baseline']}/{n} "

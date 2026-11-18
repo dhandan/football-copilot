@@ -69,6 +69,55 @@ class LiveFailureRegressions(unittest.TestCase):
         self.assertEqual(second.focus, "attack")
         self.assertTrue(second.venues)
 
+    def test_actual_result_snapshots_support_away_attack_followup(self):
+        """End-to-end, real repository match data; no Groq/network calls."""
+        from agent.football_tools import form_summary
+        question = ("Over their last seven Premier League matches, "
+                    "which team has been better going forward, Brighton or "
+                    "Brentford? Compare goals scored and points earned.")
+        agent = Investigator(
+            lambda prompt: [
+                {"name": "form_summary", "arguments": {"team": team, "games": 7}}
+                for team in ("Brighton", "Brentford")
+            ])
+        first = agent.ask(question, thread_id="real-away-attack")
+        self.assertTrue(first["complete"], first["trace"])
+        followup = agent.ask(
+            "Does that attacking advantage still hold when comparing "
+            "their away matches only?", thread_id="real-away-attack"
+        )
+        self.assertTrue(followup["complete"], followup["trace"])
+        self.assertIn("**Away attacking verdict:**", followup["answer"])
+        self.assertIn("goals scored", followup["answer"])
+        self.assertNotIn("Unresolved evidence:", followup["answer"])
+        scope = agent.context["real-away-attack"]
+        self.assertEqual(scope.focus, "attack")
+        self.assertEqual(scope.games, 7)
+        for team in scope.teams:
+            row = form_summary(team, 7, season="2026/27")["data"][0]
+            self.assertEqual(row["VenueKnown"], row["Played"])
+            self.assertEqual(
+                sum(row["VenueSplit"][venue]["GoalsFor"]
+                    for venue in ("Home", "Away")), row["GoalsFor"])
+            self.assertEqual(
+                sum(row["VenueSplit"][venue]["GoalsAgainst"]
+                    for venue in ("Home", "Away")), row["GoalsAgainst"])
+        self.assertEqual(audit_answer(followup["answer"], scope,
+                                      followup["evidence"]), [])
+
+    def test_no_literal_backslash_n_in_attack_answer(self):
+        q = "Compare Brighton and Brentford goals scored over last seven games"
+        def form_summary(team, games):
+            return {"source": "test", "data": [{
+                "Played": games, "Points": 10, "PointsPerGame": 10/games,
+                "GoalsFor": 12, "GoalsAgainst": 7}]}
+        scope = parse_scope(q)
+        agent = Investigator(lambda _: requirements(scope),
+                             tools={"form_summary": form_summary})
+        result = agent.ask(q)
+        self.assertTrue(result["complete"])
+        self.assertNotIn(chr(92) + "n", result["answer"])
+
     def test_attack_away_missing_scored_goals_does_not_pass(self):
         first = "Compare Brighton and Brentford goals scored over last seven games"
         def form_summary(team, games):

@@ -56,6 +56,8 @@ if "v2_private_conversation" not in st.session_state:
     st.session_state.v2_private_conversation = ProductConversation(legacy=legacy)
 if "v2_private_messages" not in st.session_state:
     st.session_state.v2_private_messages = []
+if "v2_queued_question" not in st.session_state:
+    st.session_state.v2_queued_question = None
 
 st.markdown("##### Try a real question")
 examples = [
@@ -76,6 +78,14 @@ for item in st.session_state.v2_private_messages:
         st.markdown(item["content"])
         if item["role"] == "assistant":
             st.caption(item["status"])
+            if item.get("followups"):
+                st.caption("Ask a follow-up")
+                columns = st.columns(len(item["followups"]))
+                for i, suggestion in enumerate(item["followups"]):
+                    if columns[i].button(suggestion, key=f"followup_{len(st.session_state.v2_private_messages)}_{st.session_state.v2_private_messages.index(item)}_{i}",
+                                         use_container_width=True):
+                        st.session_state.v2_queued_question = suggestion
+                        st.rerun()
             with st.expander("How this answer was produced", expanded=False):
                 st.write("Read-only tools:", ", ".join(item["tools"]) if item["tools"] else "None")
                 st.write("Execution trace:", ", ".join(item["trace"]))
@@ -83,7 +93,8 @@ for item in st.session_state.v2_private_messages:
                     st.write("Evidence sources:", "; ".join(item["sources"]))
 
 typed = st.chat_input("Ask about completed results, form, GW8 or model evaluations")
-question = typed or sample
+question = typed or st.session_state.v2_queued_question or sample
+st.session_state.v2_queued_question = None
 if question:
     st.session_state.v2_private_messages.append({"role": "user", "content": question})
     with st.spinner("Checking verified football data..."):
@@ -115,6 +126,7 @@ if question:
                 "tools": [e["tool"] for e in evidence],
                 "sources": sources,
                 "trace": trace,
+                "followups": result.get("followups", []) if result.get("complete") else [],
                 "status": f"{outcome} · {calls} Groq request(s) this turn",
             }
         except Exception:

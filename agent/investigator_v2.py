@@ -185,6 +185,78 @@ def _execute(call: dict, tools: dict, require_venues: bool = False) -> dict:
                 "error": "Tool failed: " + type(exc).__name__}
 
 
+def _defensive_conclusions(scope: Scope, evidence: list[dict]) -> list[str]:
+    """Derived comparisons only; never ask an LLM to infer missing facts."""
+    if len(scope.teams) != 2:
+        return []
+    forms = {}
+    opponent = None
+    for item in evidence:
+        if "result" not in item:
+            continue
+        if item["tool"] == "form_summary":
+            forms[item["arguments"]["team"]] = item["result"]["data"][0]
+        elif item["tool"] == "compare_opponent_strength":
+            opponent = item["result"].get("data", {})
+    a, b = scope.teams
+    lines = []
+    if a in forms and b in forms:
+        ra, rb = forms[a], forms[b]
+        if int(ra["Played"]) == int(rb["Played"]):
+            ga_a, ga_b = int(ra["GoalsAgainst"]), int(rb["GoalsAgainst"])
+            if ga_a == ga_b:
+                lines.append("**Overall verdict:** The teams conceded equally across the measured matches.")
+            else:
+                better = a if ga_a < ga_b else b
+                lines.append(f"**Overall verdict:** {better} conceded fewer goals "
+                             f"({ga_a} versus {ga_b}); this is a descriptive result.")
+        if scope.venues:
+            for venue in ("Home", "Away"):
+                try:
+                    va = ra["VenueSplit"][venue]
+                    vb = rb["VenueSplit"][venue]
+                    na, nb = int(va["Played"]), int(vb["Played"])
+                    ga_a, ga_b = int(va["GoalsAgainst"]), int(vb["GoalsAgainst"])
+                    if not (na > 0 and nb > 0 and
+                            ra.get("VenueKnown") == ra["Played"] and
+                            rb.get("VenueKnown") == rb["Played"]):
+                        raise ValueError("Incomplete venue breakdown")
+                except (KeyError, TypeError, ValueError):
+                    lines.append(f"**{venue} verdict:** Insufficient verified venue evidence.")
+                    continue
+                # Compare exact rational rates, not rounded display figures.
+                left, right = ga_a * nb, ga_b * na
+                if left == right:
+                    lines.append(f"**{venue} verdict:** Both teams conceded at the same "
+                                 f"rate ({ga_a/na:.2f} per match).")
+                else:
+                    better = a if left < right else b
+                    lines.append(f"**{venue} verdict:** {better} conceded at a lower "
+                                 f"rate ({ga_a/na:.2f} versus {ga_b/nb:.2f} "
+                                 "goals per match).")
+    if scope.opposition:
+        if not isinstance(opponent, dict):
+            lines.append("**Opposition verdict:** Verified opponent-strength evidence unavailable.")
+        else:
+            aa, bb = opponent.get(a, {}), opponent.get(b, {})
+            pa, pb = aa.get("mean_opponent_prior_ppg"), bb.get("mean_opponent_prior_ppg")
+            if pa is None or pb is None:
+                lines.append("**Opposition verdict:** Insufficient rated opponent evidence.")
+            else:
+                pa, pb = float(pa), float(pb)
+                if pa == pb:
+                    lines.append("**Opposition verdict:** The measured opponents had "
+                                 "equal average prior PPG.")
+                else:
+                    tougher = a if pa > pb else b
+                    lines.append(f"**Opposition verdict:** {tougher} faced opponents "
+                                 f"with marginally higher average prior PPG "
+                                 f"({pa:.2f} versus {pb:.2f}; difference "
+                                 f"{abs(pa-pb):.2f}). This proxy does not establish "
+                                 "that the defensive difference was caused by opposition.")
+    return lines
+
+
 def render_evidence(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str:
     """Only deterministic tool values become factual claims."""
     lines = ["### Verified football evidence"]
@@ -263,6 +335,9 @@ def render_evidence(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str
             lines.append("\n*Opponent PPG is an observational pre-match proxy, "
                          "not a validated defensive adjustment or causal finding. "
                          f"Source: {result.get('source', 'read-only opponent tool')}.*")
+    conclusions = _defensive_conclusions(scope, evidence)
+    if conclusions:
+        lines += ["", "### What the evidence shows", *conclusions]
     if gaps:
         lines.append("\n**Unresolved evidence:** " + ", ".join(
             f"{c['name']} ({', '.join(str(v) for v in c['arguments'].values())})"

@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from agent import langgraph_v2 as v2
+from agent.groq_v2 import GroqRateLimited
 
 MAX_ROUNDS = 2
 MAX_TOOLS = 6
@@ -132,7 +133,7 @@ def validated_proposals(raw, needed: list[dict]) -> list[dict]:
     return result
 
 
-def _execute(call: dict, tools: dict) -> dict:
+def _execute(call: dict, tools: dict, require_venues: bool = False) -> dict:
     name, args = call["name"], call["arguments"]
     try:
         if name == "form_summary" and tools[name] is v2.form_summary:
@@ -148,6 +149,25 @@ def _execute(call: dict, tools: dict) -> dict:
             int(result["data"][0].get("Played", 0)) < args["games"]
         ):
             raise ValueError("Insufficient completed match coverage")
+        if name == "form_summary" and require_venues:
+            row = result["data"][0]
+            split = row.get("VenueSplit")
+            played = int(row["Played"])
+            if (row.get("VenueKnown") != played
+                    or not isinstance(split, dict)
+                    or any(not isinstance(split.get(venue), dict)
+                           for venue in ("Home", "Away"))):
+                raise ValueError("Incomplete home/away evidence")
+            try:
+                home, away = (split[venue] for venue in ("Home", "Away"))
+                home_n, away_n = int(home["Played"]), int(away["Played"])
+                home_ga, away_ga = int(home["GoalsAgainst"]), int(away["GoalsAgainst"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("Missing venue measurements") from exc
+            if (home_n <= 0 or away_n <= 0 or home_n + away_n != played
+                    or home_ga < 0 or away_ga < 0
+                    or home_ga + away_ga != int(row["GoalsAgainst"])):
+                raise ValueError("Insufficient or inconsistent venue evidence")
         if name == "compare_opponent_strength":
             rows = result.get("data", {})
             if not isinstance(rows, dict) or any(
@@ -283,6 +303,7 @@ class Investigator:
                     "complete": False, "rounds": 0}
         self.context[thread_id] = scope
         tried, evidence, trace, rounds = set(), [], [], 0
+        provider_blocked = False
         for round_idx in range(MAX_ROUNDS):
             missing = [c for c in needed if call_key(c) not in tried]
             if not missing or len(tried) >= MAX_TOOLS:
@@ -310,6 +331,10 @@ class Investigator:
             )
             try:
                 proposals = validated_proposals(self.planner(instruction), missing)
+            except GroqRateLimited:
+                trace.append("provider_blocked:GroqRateLimited")
+                provider_blocked = True
+                break
             except (ValueError, TypeError, TimeoutError) as exc:
                 proposals = []
                 trace.append("planner_rejected:" + type(exc).__name__)
@@ -322,7 +347,7 @@ class Investigator:
                 if key in tried:
                     continue
                 tried.add(key)
-                item = _execute(call, self.tools)
+                item = _execute(call, self.tools, require_venues=scope.venues)
                 evidence.append(item)
                 trace.append(f"executed_{item['tool']}" if "result" in item
                              else f"unavailable_{item['tool']}")
@@ -330,6 +355,12 @@ class Investigator:
                          for e in evidence if "result" in e}
         gaps = [c for c in needed if call_key(c) not in complete_keys]
         trace.append("complete" if not gaps else "partial_evidence")
-        return {"answer": render_evidence(scope, evidence, gaps),
+        answer = render_evidence(scope, evidence, gaps)
+        if provider_blocked:
+            answer += ("\n\n**Provider rate limit:** Groq blocked further planning. "
+                       "This is an availability failure, not evidence of incorrect "
+                       "model reasoning; missing evidence remains unresolved.")
+        return {"answer": answer,
                 "evidence": evidence, "gaps": gaps, "trace": trace,
-                "complete": not gaps, "rounds": rounds}
+                "complete": not gaps, "rounds": rounds,
+                "provider_blocked": provider_blocked}

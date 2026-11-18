@@ -20,13 +20,21 @@ class ConditionalValueTests(unittest.TestCase):
                 self.assertEqual(candidate is not None, case.expect_context)
                 self.assertIn("Verified football evidence", answer)
 
+    def test_equal_defensive_totals_are_negative_control(self):
+        case = CASES[0]
+        scope, baseline, _ = form_only(case.question)
+        self.assertFalse(case.expect_context)
+        self.assertIsNone(conditional_opposition_evidence(scope, baseline))
+        a, b = [item["result"]["data"][0]["GoalsAgainst"] for item in baseline]
+        self.assertEqual(a, b)
+
     def test_form_only_does_not_claim_opponent_context(self):
         scope, evidence, answer = form_only(CASES[0].question)
         self.assertEqual(len(evidence), 2)
         self.assertNotIn("Pre-match opponent form", answer)
 
     def test_extra_data_without_causal_guardrail_is_not_a_pass(self):
-        case = CASES[0]
+        case = CASES[1]
         scope, baseline, _ = form_only(case.question)
         candidate = conditional_opposition_evidence(scope, baseline)
         self.assertIsNotNone(candidate)

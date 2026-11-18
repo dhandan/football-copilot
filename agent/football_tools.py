@@ -151,6 +151,12 @@ def _current_season_form(team: str, games: int):
         defensive_breakdown.update({
             "ConcededRecent5": sum(m[2] for m in matches[:5]),
             "ConcededPrevious5": sum(m[2] for m in matches[5:10]),
+            "ScoredRecent5": sum(m[1] for m in matches[:5]),
+            "ScoredPrevious5": sum(m[1] for m in matches[5:10]),
+            "PointsRecent5": sum(3 if m[1] > m[2] else 1 if m[1] == m[2] else 0
+                                 for m in matches[:5]),
+            "PointsPrevious5": sum(3 if m[1] > m[2] else 1 if m[1] == m[2] else 0
+                                   for m in matches[5:10]),
         })
     return {"type": "form_summary", "season": ", ".join(seasons),
             "source": "verified 2026/27 gameweek results snapshots and 2025/26 DuckDB team_match_stats",

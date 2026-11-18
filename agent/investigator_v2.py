@@ -19,7 +19,7 @@ MAX_ROUNDS = 2
 MAX_TOOLS = 6
 SAFE_TOOLS = frozenset(("form_summary", "head_to_head", "compare_opponent_strength"))
 _WINDOW = re.compile(
-    r"\b(?:last|past|previous|those|these)\s+(\d+|five|ten)"
+    r"\b(?:last|past|previous|those|these)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)"
     r"(?:\s+(?:Premier League|league|PL))?(?:\s+(?:matches|games))?\b", re.I
 )
 _H2H = re.compile(r"\b(?:head[- ]to[- ]head|h2h)\b", re.I)
@@ -60,7 +60,9 @@ def parse_scope(question: str, previous: Scope | None = None) -> Scope:
     games = None
     if match:
         token = match.group(1).lower()
-        games = {"five": 5, "ten": 10}.get(token)
+        games = {"one": 1, "two": 2, "three": 3, "four": 4,
+                 "five": 5, "six": 6, "seven": 7, "eight": 8,
+                 "nine": 9, "ten": 10}.get(token)
         if games is None:
             games = int(token)
     # Explicit new entities always take precedence. Never silently merge teams

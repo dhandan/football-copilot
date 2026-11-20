@@ -5,7 +5,7 @@ import pandas as pd
 
 from scripts.freeze_gw11_adaptive import build
 from scripts.score_gw11_four_way import validate_and_score, MODELS
-from tests.test_gw11_adaptive_freeze import samples
+from test_gw11_adaptive_freeze import samples
 
 
 class GW11ScoringTests(unittest.TestCase):

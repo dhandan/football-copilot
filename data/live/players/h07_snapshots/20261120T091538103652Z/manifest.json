@@ -1,0 +1,17 @@
+{
+  "CapturedUTC": "2026-11-20T09:15:38.103652+00:00",
+  "Gameweek": 11,
+  "Policy": "single manual weekly Friday snapshot",
+  "T24EligibleCount": 10,
+  "ModelSHA256": "f598026ff233886d0c853945c9b8df18aab5ddc1bad509e111809d0d77283739",
+  "FPLRetrievedUTC": "2026-11-20T09:15:38.399133+00:00",
+  "OddsRetrievedUTC": "2026-11-20T09:15:38.929349+00:00",
+  "FixtureIdSource": "Fantasy Premier League; existing evaluator uses different IDs",
+  "HistoricMatchesUsed": 2000,
+  "CurrentSeasonMatchesUsed": 100,
+  "H07": "observational only; no injury/replacement goal adjustments",
+  "Market": "UK h2h pre-match odds at Friday capture, not guaranteed opening",
+  "PrimaryForecastVersion": "Model2_OpeningMarket_40_60_v1.0",
+  "BenchmarkForecastVersion": "Model2_v1.0",
+  "PromotionStatus": "Provisional"
+}

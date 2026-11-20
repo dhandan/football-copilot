@@ -35,6 +35,16 @@ class GW11ScoringTests(unittest.TestCase):
         self.assertTrue(summary["Accuracy"].eq(1.0).all())
         self.assertTrue(summary["LogLoss"].between(0,2).all())
         self.assertTrue(summary["MulticlassBrier"].between(0,2).all())
+        for field in ("PredictedDraws","ActualDraws","MeanDrawProbability",
+                      "DrawBrier","DrawLogLoss","DrawCalibrationGap",
+                      "ConfidenceECE_3Bins","MarketDisagreements",
+                      "ColdStartFixtures","ColdStartAccuracy",
+                      "MarketDisagreementAccuracy"):
+            self.assertIn(field, summary.columns)
+        self.assertTrue(summary["ActualDraws"].eq(0).all())
+        self.assertTrue(summary["PredictedDraws"].eq(0).all())
+        self.assertTrue(summary["DrawCalibrationGap"].between(0,1).all())
+        self.assertTrue(summary["ConfidenceECE_3Bins"].between(0,1).all())
 
     def test_refuses_inconsistent_final_result(self):
         self.results.loc[0,"ActualResultCode"]="D"

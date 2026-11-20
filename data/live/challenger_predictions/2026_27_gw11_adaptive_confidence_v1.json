@@ -1,0 +1,15 @@
+{
+  "version": "AdaptiveMarketConfidence_v1.0",
+  "gameweek": 11,
+  "status": "ProspectiveChallenger",
+  "frozen_utc": "2026-11-20T09:15:39.608686+00:00",
+  "prediction_captured_utc": "2026-11-20 09:15:38.103652+00:00",
+  "original_registration": "2026-10-23T09:43:21.823146+00:00",
+  "rule": "market_weight=clip(0.60-0.60*(max_market_probability-0.50),0.20,0.90)",
+  "model_source": "data/live/predictions/2026_27_gw11_predictions.csv",
+  "market_source": "data/live/market/2026_27_gw11_opening_market_official_20261120_091538.csv",
+  "model_sha256": "d9ec61f026908069da13e6714efb7b330257a4e2ca631744254889e35c11fbc4",
+  "market_sha256": "9b7f9b25b4e0ef5bc24b65a452b572a9936613a33b228d20bd73c88e028c6806",
+  "fixtures": 10,
+  "note": "Registered adaptive formula unchanged; not promoted."
+}

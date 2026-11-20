@@ -1,0 +1,89 @@
+name: GW11 four-way prospective forecast freeze
+
+on:
+  push:
+    branches: [feature/gw11-2026-27-freeze]
+    paths:
+      - 'scripts/freeze_gw11_adaptive.py'
+      - 'scripts/score_gw11_four_way.py'
+      - 'scripts/run_gameweek_once.py'
+      - 'tests/test_gw11_*.py'
+      - '.github/workflows/gw11-freeze.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gw11-official-freeze
+  cancel-in-progress: true
+
+jobs:
+  forecast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install prediction runtime
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Validate registered adaptive formula and scoring
+        run: |
+          python -m unittest discover -s tests -p 'test_gw11_*.py' -v
+          python scripts/validate_project.py
+      - name: Check pre-match odds API access
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          if [ -z "$ODDS_API_KEY" ]; then
+            echo "::error::ODDS_API_KEY is not configured in GitHub Actions secrets. No official snapshot has been produced."
+            exit 1
+          fi
+          echo "GW11 market source credential available (value not displayed)."
+      - name: Freeze 10/10 Model 2, market, and fixed 40/60 snapshots
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python scripts/run_gameweek_once.py --gameweek 11
+      - name: Freeze registered adaptive challenger unchanged
+        run: python scripts/freeze_gw11_adaptive.py --gameweek 11
+      - name: Verify immutable four-way release before publishing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+          root = Path("data/live")
+          p = "2026_27_gw11"
+          model = pd.read_csv(root/"predictions"/f"{p}_predictions.csv")
+          fixed = pd.read_csv(root/"challenger_predictions"/f"{p}_market_shadow_predictions.csv")
+          adaptive = pd.read_csv(root/"challenger_predictions"/f"{p}_adaptive_confidence_v1.csv")
+          files = list((root/"market").glob(f"{p}_opening_market_official_*.csv"))
+          assert len(files)==1, "Expected one immutable official market capture"
+          market = pd.read_csv(files[0])
+          keys = ["FixtureDate", "FixtureTime", "HomeTeam", "AwayTeam"]
+          for d in (model, fixed, market, adaptive):
+              assert len(d)==10 and not d.duplicated(keys).any()
+              assert set(tuple(x) for x in d[keys].to_numpy()) == set(tuple(x) for x in model[keys].to_numpy())
+          assert model["T24Eligible"].astype(str).str.lower().eq("true").all()
+          assert model["ForecastRole"].eq("Benchmark").all()
+          assert fixed["ForecastRole"].eq("ProvisionalChampion").all()
+          assert fixed["ModelWeight"].eq(.4).all() and fixed["MarketWeight"].eq(.6).all()
+          assert adaptive["ForecastRole"].eq("ProspectiveChallenger").all()
+          print("GW11 RELEASE CHECK PASS: 10/10 FPL and market, T-24, all four locked approaches")
+          PY
+      - name: Commit write-once pre-match snapshots to forecast branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/live/predictions/2026_27_gw11_predictions.csv
+          git add data/live/market/2026_27_gw11_opening_market_official_*.csv
+          git add data/live/challenger_predictions/2026_27_gw11_market_shadow_predictions.csv
+          git add data/live/challenger_predictions/2026_27_gw11_adaptive_confidence_v1.csv
+          git add data/live/challenger_predictions/2026_27_gw11_adaptive_confidence_v1.json
+          git add data/live/players/h07_snapshots/
+          git diff --cached --quiet && { echo "::error::No GW11 snapshots staged"; exit 1; }
+          git commit -m "Freeze official pre-match GW11 four-way forecasts (T-24)"
+          git push origin HEAD:feature/gw11-2026-27-freeze

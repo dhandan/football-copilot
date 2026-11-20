@@ -249,6 +249,15 @@ def main():
     bootstrap,fixtures_json,fpl_source=fpl_data(args.dry_run)
     fpl_retrieved=pd.Timestamp.now(tz='UTC') if not args.dry_run else None
     fixtures=get_fixtures(bootstrap,fixtures_json,args.gameweek)
+    # GW11 is a clean prospective test: every fixture must be at least 24h away
+    # at capture. Do not silently repeat the GW10 late-freeze exception.
+    if args.gameweek == 11 and not args.dry_run:
+        earliest_hours = (fixtures['KickoffUTC'].min()-captured).total_seconds()/3600
+        if earliest_hours < 24:
+            raise RuntimeError(
+                f'GW11 T-24 freeze window missed ({earliest_hours:.2f}h remaining); '
+                'no official predictions written. Keep prospective integrity.'
+            )
     if not args.dry_run and captured.date().isoformat()!= '2026-10-16' and args.gameweek==7:
         raise RuntimeError('GW7 official run is reserved for Friday 16 October 2026 UTC; use --dry-run today')
     if (fixtures['KickoffUTC'] <= captured).any(): raise RuntimeError('Some fixture kickoffs have passed')

@@ -1,0 +1,88 @@
+name: GW11 prospective post-match evaluation
+
+on:
+  schedule:
+    # All GW11 fixtures finish by Monday 23 Nov; allow a day for FPL updates.
+    - cron: '15 9 24 11 *'
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gw11-postmatch-results
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install runtime
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Validate four-way evaluation and all pre-registered diagnostics
+        run: |
+          python -m unittest discover -s tests -p 'test_gw11_*.py' -v
+          python scripts/validate_project.py
+
+  evaluate:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Confirm November 2026 window
+        id: date
+        run: |
+          today=$(date -u +%F)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$today" != "2026-11-24" ]; then
+            echo "::notice::Outside GW11 evaluation date; skip safely"
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.date.outputs.proceed == 'true'
+        with:
+          persist-credentials: true
+          ref: main
+      - uses: actions/setup-python@v5
+        if: steps.date.outputs.proceed == 'true'
+        with:
+          python-version: '3.13'
+      - name: Install runtime
+        if: steps.date.outputs.proceed == 'true'
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Verify GW11 prospective snapshot exists
+        if: steps.date.outputs.proceed == 'true'
+        run: |
+          test -f data/live/predictions/2026_27_gw11_predictions.csv
+          test -f data/live/challenger_predictions/2026_27_gw11_market_shadow_predictions.csv
+          test -f data/live/challenger_predictions/2026_27_gw11_adaptive_confidence_v1.csv
+          test ! -f data/live/evaluations/2026_27_gw11_four_way_summary.csv
+      - name: Fetch verified final FPL results
+        if: steps.date.outputs.proceed == 'true'
+        run: python scripts/fetch_gameweek_results.py --gameweek 11
+      - name: Score registered four-way forecasts
+        if: steps.date.outputs.proceed == 'true'
+        run: python scripts/score_gw11_four_way.py --gameweek 11
+      - name: Archive write-once results and comparison in main
+        if: steps.date.outputs.proceed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/live/results/2026_27_gw11_results.csv
+          git add data/live/evaluations/2026_27_gw11_four_way_fixture_scores.csv
+          git add data/live/evaluations/2026_27_gw11_four_way_summary.csv
+          git diff --cached --quiet && { echo "::error::No GW11 evaluation data staged"; exit 1; }
+          git commit -m "Score locked GW11 four-way forecasts using verified final results"
+          git pull --rebase origin main
+          git push origin HEAD:main

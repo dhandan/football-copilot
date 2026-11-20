@@ -78,12 +78,73 @@ def validate_and_score(frozen, adaptive, results):
         d["Correct"]=correct
         d["LogLoss"]=loss
         d["MulticlassBrier"]=brier
+        # Pre-registered diagnostic strata, derived only AFTER final results.
+        # These fields do not alter any frozen forecast probability.
+        market_pick = np.array(["H","D","A"])[
+            frozen[["MarketHomeProbability","MarketDrawProbability",
+                    "MarketAwayProbability"]].to_numpy(dtype=float).argmax(axis=1)]
+        d["DisagreesWithMarket"] = d["PredictedResultCode"].ne(market_pick).astype(int)
+        d["ColdStartUsed"] = (frozen["ColdStartUsed"].astype(str).str.lower()
+                              .isin(("true","1","yes")).to_numpy()
+                              if "ColdStartUsed" in frozen else False)
+        d["ActualIsDraw"] = (actual == OUTCOMES["D"]).astype(int)
+        draw_prob = probabilities[:, OUTCOMES["D"]]
+        d["BinaryDrawBrier"] = np.square(draw_prob - d["ActualIsDraw"].to_numpy())
+        d["BinaryDrawLogLoss"] = -(d["ActualIsDraw"].to_numpy()*np.log(np.maximum(draw_prob,1e-15))
+                              + (1-d["ActualIsDraw"].to_numpy())*np.log(np.maximum(1-draw_prob,1e-15)))
+        d["HighestProbability"] = probabilities.max(axis=1)
+        d["ConfidenceBucket"] = pd.cut(
+            d["HighestProbability"], bins=[0,.4,.6,1.000001],
+            labels=["low <=40%","medium 40-60%","high >60%"],
+            include_lowest=True)
+        if name=="Model2_v1.0":
+            if {"MostLikelyScore","ExpectedHomeGoals","ExpectedAwayGoals"}.issubset(frozen):
+                got=(results.set_index(KEYS).loc[pd.MultiIndex.from_frame(frozen[KEYS])])
+                actual_scores=(got["ActualHomeGoals"].astype(int).astype(str) + "-" +
+                               got["ActualAwayGoals"].astype(int).astype(str)).to_numpy()
+                d["ExactScoreCorrect"] = (frozen["MostLikelyScore"].astype(str).to_numpy()==actual_scores).astype(int)
+                d["HomeGoalMAE"] = np.abs(frozen["ExpectedHomeGoals"].to_numpy(dtype=float)-got["ActualHomeGoals"].to_numpy(dtype=float))
+                d["AwayGoalMAE"] = np.abs(frozen["ExpectedAwayGoals"].to_numpy(dtype=float)-got["ActualAwayGoals"].to_numpy(dtype=float))
         frames.append(d)
     scores=pd.concat(frames,ignore_index=True)
     grouped=scores.groupby("Approach",sort=False).agg(
         Matches=("Correct","size"),Correct=("Correct","sum"),
         Accuracy=("Correct","mean"),LogLoss=("LogLoss","mean"),
-        MulticlassBrier=("MulticlassBrier","mean")).reset_index()
+        MulticlassBrier=("MulticlassBrier","mean"),
+        PredictedDraws=("PredictedResultCode",lambda x: int(x.eq("D").sum())),
+        ActualDraws=("ActualIsDraw","sum"),
+        MeanDrawProbability=("DrawProbability","mean"),
+        DrawBrier=("BinaryDrawBrier","mean"),
+        DrawLogLoss=("BinaryDrawLogLoss","mean"),
+        MarketDisagreements=("DisagreesWithMarket","sum"),
+        ColdStartFixtures=("ColdStartUsed","sum")).reset_index()
+    # Small-sample calibration diagnostics; not a trained calibration model.
+    diagnostics=[]
+    for approach, data in scores.groupby("Approach",sort=False):
+        pred_draw=data["DrawProbability"].to_numpy(dtype=float)
+        actual_draw=data["ActualIsDraw"].to_numpy(dtype=float)
+        positives=pred_draw[actual_draw==1]
+        negatives=pred_draw[actual_draw==0]
+        bins=data.groupby("ConfidenceBucket",observed=True).agg(
+            n=("Correct","size"),accuracy=("Correct","mean"),
+            confidence=("HighestProbability","mean"))
+        ece=float((bins["n"]*abs(bins["confidence"]-bins["accuracy"])).sum()/len(data))
+        disagree=data.loc[data["DisagreesWithMarket"].eq(1)]
+        cold=data.loc[data["ColdStartUsed"].eq(True)]
+        diagnostics.append(dict(Approach=approach,
+            DrawCalibrationGap=abs(float(pred_draw.mean()-actual_draw.mean())),
+            DrawDiscrimination=float(positives.mean()-negatives.mean())
+                if len(positives) and len(negatives) else np.nan,
+            ConfidenceECE_3Bins=ece,
+            MarketDisagreementAccuracy=float(disagree["Correct"].mean()) if len(disagree) else np.nan,
+            ColdStartAccuracy=float(cold["Correct"].mean()) if len(cold) else np.nan,
+            ExactScoreHits=int(data["ExactScoreCorrect"].sum())
+                if "ExactScoreCorrect" in data and approach=="Model2_v1.0" else np.nan,
+            HomeGoalMAE=float(data["HomeGoalMAE"].mean())
+                if "HomeGoalMAE" in data and approach=="Model2_v1.0" else np.nan,
+            AwayGoalMAE=float(data["AwayGoalMAE"].mean())
+                if "AwayGoalMAE" in data and approach=="Model2_v1.0" else np.nan))
+    grouped=grouped.merge(pd.DataFrame(diagnostics),on="Approach",validate="one_to_one")
     grouped.insert(0,"Gameweek",11)
     if len(grouped)!=4 or not grouped["Matches"].eq(10).all():
         raise RuntimeError("Four-way GW11 summary incomplete")

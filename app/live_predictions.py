@@ -119,6 +119,65 @@ def load_csv(
 
 
 # ==================================================
+# VERIFIED PROVISIONAL PRIMARY DISPLAY
+# ==================================================
+
+def display_provisional_primary(predictions, season, gameweek):
+    """Use frozen 40/60 columns for the default live 1X2 display.
+
+    Model 2 remains the scoreline/goal benchmark. Never synthesise a new
+    probability or fall back silently if the 40/60 snapshot is corrupt.
+    """
+    if int(gameweek) < 8 or str(season) != "2026/27":
+        return predictions, False
+    path = PROJECT_ROOT / "data" / "live" / "challenger_predictions" / (
+        f"2026_27_gw{int(gameweek):02d}_market_shadow_predictions.csv"
+    )
+    if not path.exists():
+        raise ValueError(f"Official provisional 40/60 snapshot missing for GW{gameweek}")
+    blend = load_csv(str(path))
+    keys = ["FixtureDate", "FixtureTime", "HomeTeam", "AwayTeam"]
+    cols = ["ShadowHomeProbability", "ShadowDrawProbability",
+            "ShadowAwayProbability", "ShadowPredictedResult"]
+    if (len(predictions) != 10 or len(blend) != 10
+            or any(c not in predictions for c in keys)
+            or any(c not in blend for c in keys + cols)
+            or predictions.duplicated(keys).any() or blend.duplicated(keys).any()):
+        raise ValueError("Incomplete or duplicate provisional champion evidence")
+    if not blend.get("SnapshotType", pd.Series(dtype=str)).eq("OFFICIAL").all():
+        raise ValueError("Unverified 40/60 snapshot, not displayed")
+    if not (blend["ModelWeight"].eq(0.4).all()
+            and blend["MarketWeight"].eq(0.6).all()
+            and blend["ForecastRole"].eq("ProvisionalChampion").all()):
+        raise ValueError("Provisional primary identity or weights mismatch")
+    merged = predictions.merge(blend[keys + cols], on=keys, how="outer",
+                               indicator=True, validate="one_to_one")
+    if len(merged) != 10 or not merged["_merge"].eq("both").all():
+        raise ValueError("Provisional champion fixture mismatch")
+    probs = merged[cols[:3]].apply(pd.to_numeric, errors="coerce")
+    if (probs.isna().any().any() or probs.lt(0).any().any()
+            or not probs.sum(axis=1).between(.999999,1.000001).all()):
+        raise ValueError("Invalid frozen champion probabilities")
+    code = probs.idxmax(axis=1).map({
+        "ShadowHomeProbability": "H",
+        "ShadowDrawProbability": "D",
+        "ShadowAwayProbability": "A",
+    })
+    if not code.eq(merged["ShadowPredictedResult"]).all():
+        raise ValueError("Champion picks disagree with frozen probabilities")
+    output = merged.drop(columns=cols + ["_merge"]).copy()
+    output["Model2PredictedResult"] = output["PredictedResult"]
+    output["PredictedResult"] = [
+        (home if result == "H" else away if result == "A" else "Draw")
+        for home, away, result in zip(output["HomeTeam"],output["AwayTeam"],code)
+    ]
+    for old, new in zip(["HomeWinProbability","DrawProbability","AwayWinProbability"],cols[:3]):
+        output["Model2"+old] = output[old]
+        output[old] = (probs[new] * 100).to_numpy()
+    return output, True
+
+
+# ==================================================
 # FORMAT TIMESTAMP
 # ==================================================
 
@@ -1361,6 +1420,13 @@ def render_active_gameweek(
     )
 
 
+    if "Model2PredictedResult" in predictions:
+        st.success(
+            "Displayed 1X2 probabilities: frozen fixed 40% Model 2 / 60% market "
+            "(provisional primary).  Model 2 remains the benchmark for "
+            "most-likely scorelines and expected goals."
+        )
+
     st.markdown(
         "### Gameweek summary"
     )
@@ -1385,8 +1451,8 @@ def render_active_gameweek(
     summary_table.columns = [
         "Home",
         "Away",
-        "Predicted outcome",
-        "Most likely score",
+        "Predicted outcome (40/60)" if "Model2PredictedResult" in predictions else "Predicted outcome",
+        "Model 2 score (benchmark)" if "Model2PredictedResult" in predictions else "Most likely score",
         "Home %",
         "Draw %",
         "Away %",
@@ -1508,6 +1574,13 @@ def render_live_predictions():
 
 
     else:
+        # The stored provisional primary is the default official GW8+ 1X2
+        # view. The Model 2 scoreline remains a separate benchmark.
+        try:
+            predictions, _ = display_provisional_primary(predictions, season, gameweek)
+        except ValueError as error:
+            st.error(f"Frozen primary cannot be verified: {error}")
+            return
 
         render_active_gameweek(
             predictions,

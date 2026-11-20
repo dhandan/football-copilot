@@ -54,6 +54,8 @@ The purpose is not simply to publish predictions. It is to understand where the 
 
 ## Gameweek journal and operating checklist
 
+- [GW11: official 20 November pre-match freeze, all four model predictions and comparisons; results pending](gameweeks/GW11.md)
+- [GW10: completed four-way evaluation and retrospective](gameweeks/GW10.md)
 - [Mandatory Gameweek release and sprint checklist](gameweeks/OPERATING_CHECKLIST.md)
 - [GW09: official pre-match freeze and evaluation pending](gameweeks/GW09.md)
 - [GW08: completed post-match evaluation and GW9 decision](gameweeks/GW08.md)

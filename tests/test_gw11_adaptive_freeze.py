@@ -49,7 +49,7 @@ class GW11AdaptiveFreezeTests(unittest.TestCase):
 
     def test_reject_duplicates(self):
         model, market = samples()
-        market.loc[1,["HomeTeam","AwayTeam"]] = market.loc[0,["HomeTeam","AwayTeam"]].to_numpy()
+        market.loc[1,["FixtureDate","FixtureTime","HomeTeam","AwayTeam"]] = market.loc[0,["FixtureDate","FixtureTime","HomeTeam","AwayTeam"]].to_numpy()
         with self.assertRaisesRegex(ValueError, "Duplicate"):
             build(model,market,11)
 

@@ -32,6 +32,21 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_gw11_*.py' -v
           python scripts/validate_project.py
+      - name: Fetch and score GW11 completed results (PR dry run, no commits)
+        if: github.event_name == 'pull_request'
+        run: |
+          python scripts/fetch_gameweek_results.py --gameweek 11
+          python scripts/score_gw11_four_way.py --gameweek 11
+      - name: Archive dry-run GW11 scoring evidence
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gw11-verified-four-way-dry-run
+          if-no-files-found: error
+          path: |
+            data/live/results/2026_27_gw11_results.csv
+            data/live/evaluations/2026_27_gw11_four_way_fixture_scores.csv
+            data/live/evaluations/2026_27_gw11_four_way_summary.csv
 
   evaluate:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'

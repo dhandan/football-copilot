@@ -52,6 +52,16 @@ class H03DrawDiscriminationTests(unittest.TestCase):
         self.assertFalse((fixtures["DrawProbability"]<0).any())
         self.assertFalse((fixtures["DrawProbability"]>1).any())
 
+    def test_original_historical_cohort_reproduces_594_of_1100(self):
+        from scripts.h03_historical_diagnostics import diagnostics, SOURCE
+        summary, bins = diagnostics(pd.read_csv(ROOT/SOURCE))
+        fixed = summary.loc[summary["Method"].eq("Fixed40_60")].iloc[0]
+        self.assertEqual(int(fixed["Matches"]), 1100)
+        self.assertEqual(int(fixed["Correct"]), 594)
+        self.assertEqual(int(fixed["ActualDraws"]), 268)
+        self.assertEqual(int(bins["Matches"].sum()), 1100)
+        self.assertEqual(int(bins["ActualDraws"].sum()), 268)
+
     def test_outcomes_not_an_input_to_probability_transform(self):
         df=load_development(ROOT).copy()
         scores_a,_=score(df,"dev")

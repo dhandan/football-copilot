@@ -47,8 +47,7 @@ class H03DrawDiscriminationTests(unittest.TestCase):
         self.assertEqual(len(summary),4)
         self.assertEqual(set(summary.Approach),{"Fixed_40_60",VERSION})
         self.assertTrue(summary.Matches.sort_values().to_list()==[50,50,60,60])
-        for split,group in fixtures.groupby("Split") if "Split" in fixtures else [(None,fixtures)]:
-            self.assertTrue(group["Correct"].isin([0,1]).all())
+        self.assertTrue(fixtures["Correct"].isin([0,1]).all())
         self.assertFalse((fixtures["DrawProbability"]<0).any())
         self.assertFalse((fixtures["DrawProbability"]>1).any())
 

@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -32,67 +32,6 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_gw11_*.py' -v
           python scripts/validate_project.py
-      - name: Diagnose live FPL completion status for all GW11 fixtures
-        if: github.event_name == 'pull_request'
-        run: |
-          python - <<'PY'
-          import requests
-          r=requests.get("https://fantasy.premierleague.com/api/fixtures/",timeout=40)
-          r.raise_for_status()
-          matches=[x for x in r.json() if x.get("event")==11]
-          print("GW11 live FPL fixture status, count=",len(matches),flush=True)
-          for x in matches:
-              print("FixtureId",x.get("id"),"finished",x.get("finished"),
-                    "finished_provisional",x.get("finished_provisional"),
-                    "score",x.get("team_h_score"),"-",x.get("team_a_score"),
-                    "kickoff",x.get("kickoff_time"),flush=True)
-          PY
-      - name: Diagnose independent Football-Data.co.uk score feed
-        if: github.event_name == 'pull_request'
-        run: |
-          python - <<'PY'
-          from io import StringIO
-          import pandas as pd, requests
-          url="https://www.football-data.co.uk/mmz4281/2627/E0.csv"
-          r=requests.get(url, timeout=30)
-          print("Independent feed status",r.status_code,"bytes",len(r.content),flush=True)
-          r.raise_for_status()
-          df=pd.read_csv(StringIO(r.text))
-          print("Feed columns", list(df.columns[:12]),flush=True)
-          df["ParsedDate"]=pd.to_datetime(df["Date"],dayfirst=True,errors="coerce")
-          rows=df[(df["ParsedDate"]>=pd.Timestamp("2026-11-21"))&
-                  (df["ParsedDate"]<=pd.Timestamp("2026-11-23"))]
-          print("Independent results in window",len(rows),flush=True)
-          print(rows[["Date","HomeTeam","AwayTeam","FTHG","FTAG","FTR"]].to_string(index=False),flush=True)
-          PY
-      - name: Fetch and score GW11 completed results (PR dry run, no commits)
-        if: github.event_name == 'pull_request'
-        run: |
-          python scripts/fetch_gameweek_results.py --gameweek 11
-          python scripts/score_gw11_four_way.py --gameweek 11
-      - name: Save verified GW11 scores to this experiment branch
-        if: github.event_name == 'pull_request' && github.head_ref == 'experiment/gw11-verified-results-dry-run'
-        run: |
-          git fetch origin experiment/gw11-verified-results-dry-run
-          git switch -C experiment/gw11-verified-results-dry-run FETCH_HEAD
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/live/results/2026_27_gw11_results.csv
-          git add data/live/evaluations/2026_27_gw11_four_way_fixture_scores.csv
-          git add data/live/evaluations/2026_27_gw11_four_way_summary.csv
-          git diff --cached --quiet && exit 0
-          git commit -m "Record verified GW11 final scores and four-way prospective evaluation"
-          git push origin HEAD:experiment/gw11-verified-results-dry-run
-      - name: Archive dry-run GW11 scoring evidence
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: gw11-verified-four-way-dry-run
-          if-no-files-found: error
-          path: |
-            data/live/results/2026_27_gw11_results.csv
-            data/live/evaluations/2026_27_gw11_four_way_fixture_scores.csv
-            data/live/evaluations/2026_27_gw11_four_way_summary.csv
 
   evaluate:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'

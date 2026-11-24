@@ -1,0 +1,40 @@
+name: H03 draw discrimination research
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/h03_draw_discrimination.py'
+      - 'scripts/h03_historical_diagnostics.py'
+      - 'tests/test_h03_draw_discrimination.py'
+      - '.github/workflows/h03-draw-discrimination.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  h03-offline-evaluation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install tested runtime
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Unit and source-integrity tests
+        run: python -m unittest tests.test_h03_draw_discrimination -v
+      - name: Run H03 independent held-out comparison
+        run: python -m scripts.h03_draw_discrimination --output-dir artifacts/h03
+      - name: Audit 1100-match original draw-discrimination cohort
+        run: python -m scripts.h03_historical_diagnostics --output-dir artifacts/h03
+      - name: Publish research evidence only (never a live model)
+        uses: actions/upload-artifact@v4
+        with:
+          name: h03-retrospective-and-prospective-diagnostics
+          if-no-files-found: error
+          path: artifacts/h03/*.csv

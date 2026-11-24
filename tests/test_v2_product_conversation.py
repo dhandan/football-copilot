@@ -84,15 +84,6 @@ class ProductConversationTests(unittest.TestCase):
         self.chat.ask("How does their home and away scoring compare over those 10 matches?", thread_id=thread)
         question = "Could the strength of their opponents explain the difference in their recent performances?"
         result = self.chat.ask(question, thread_id=thread)
-        if not result["complete"]:
-            from agent.investigator_v2 import parse_scope
-            from scripts.audit_v2_investigator_answers import audit_answer
-            from dataclasses import replace
-            scope = parse_scope(question, self.chat.investigator.context[thread])
-            render_scope = replace(scope, opposition=True)
-            raw = self.chat.investigator.ask(question, thread_id="opponent-diagnostic", )
-            print("OPPONENT_REGRESSION_DIAGNOSTIC", result["trace"], raw.get("trace"),
-                  result.get("evidence"), result.get("answer")[:700], flush=True)
         self.assertEqual(result["route"], "deterministic_investigation", result["trace"])
         self.assertTrue(result["complete"], result["trace"])
         self.assertEqual(result["planner_requests"], 0)

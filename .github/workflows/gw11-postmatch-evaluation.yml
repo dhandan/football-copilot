@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          persist-credentials: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -70,6 +70,17 @@ jobs:
         run: |
           python scripts/fetch_gameweek_results.py --gameweek 11
           python scripts/score_gw11_four_way.py --gameweek 11
+      - name: Save verified GW11 scores to this experiment branch
+        if: github.event_name == 'pull_request' && github.head_ref == 'experiment/gw11-verified-results-dry-run'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/live/results/2026_27_gw11_results.csv
+          git add data/live/evaluations/2026_27_gw11_four_way_fixture_scores.csv
+          git add data/live/evaluations/2026_27_gw11_four_way_summary.csv
+          git diff --cached --quiet && exit 0
+          git commit -m "Record verified GW11 final scores and four-way prospective evaluation"
+          git push origin HEAD:experiment/gw11-verified-results-dry-run
       - name: Archive dry-run GW11 scoring evidence
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4

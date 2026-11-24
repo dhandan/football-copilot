@@ -1,0 +1,11 @@
+ResultTimestamp,Season,Gameweek,FixtureId,FixtureDate,HomeTeam,AwayTeam,APIHomeTeam,APIAwayTeam,Status,ActualHomeGoals,ActualAwayGoals,ActualScore,ActualResult,ActualResultCode,APIWinner,LastUpdated
+2026-11-24T09:29:03+00:00,2026/27,11,108,2026-11-21,Man City,Fulham,Man City,Fulham,FINISHED,1,1,1-1,Draw,D,DRAW,2026-11-21T12:30:00Z
+2026-11-24T09:29:03+00:00,2026/27,11,101,2026-11-21,Aston Villa,Sunderland,Aston Villa,Sunderland,FINISHED,0,0,0-0,Draw,D,DRAW,2026-11-21T15:00:00Z
+2026-11-24T09:29:03+00:00,2026/27,11,102,2026-11-21,Bournemouth,Nott'm Forest,Bournemouth,Nott'm Forest,FINISHED,2,0,2-0,Bournemouth,H,HOME_TEAM,2026-11-21T15:00:00Z
+2026-11-24T09:29:03+00:00,2026/27,11,104,2026-11-21,Chelsea,Leeds,Chelsea,Leeds,FINISHED,1,4,1-4,Leeds,A,AWAY_TEAM,2026-11-21T15:00:00Z
+2026-11-24T09:29:03+00:00,2026/27,11,105,2026-11-21,Coventry City,Crystal Palace,Coventry City,Crystal Palace,FINISHED,3,2,3-2,Coventry City,H,HOME_TEAM,2026-11-21T15:00:00Z
+2026-11-24T09:29:03+00:00,2026/27,11,110,2026-11-21,Tottenham,Ipswich,Spurs,Ipswich Town,FINISHED,2,0,2-0,Tottenham,H,HOME_TEAM,2026-11-21T15:00:00Z
+2026-11-24T09:29:03+00:00,2026/27,11,109,2026-11-21,Newcastle,Arsenal,Newcastle,Arsenal,FINISHED,2,2,2-2,Draw,D,DRAW,2026-11-21T17:30:00Z
+2026-11-24T09:29:03+00:00,2026/27,11,106,2026-11-22,Hull City,Brighton,Hull City,Brighton,FINISHED,2,0,2-0,Hull City,H,HOME_TEAM,2026-11-22T14:00:00Z
+2026-11-24T09:29:03+00:00,2026/27,11,107,2026-11-22,Liverpool,Man United,Liverpool,Man Utd,FINISHED,4,0,4-0,Liverpool,H,HOME_TEAM,2026-11-22T16:30:00Z
+2026-11-24T09:29:03+00:00,2026/27,11,103,2026-11-23,Brentford,Everton,Brentford,Everton,FINISHED,4,0,4-0,Brentford,H,HOME_TEAM,2026-11-23T20:00:00Z

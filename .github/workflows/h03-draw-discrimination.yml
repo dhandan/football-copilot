@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/h03_draw_discrimination.py'
+      - 'scripts/h03_historical_diagnostics.py'
       - 'tests/test_h03_draw_discrimination.py'
       - '.github/workflows/h03-draw-discrimination.yml'
   workflow_dispatch:
@@ -29,6 +30,8 @@ jobs:
         run: python -m unittest tests.test_h03_draw_discrimination -v
       - name: Run H03 independent held-out comparison
         run: python -m scripts.h03_draw_discrimination --output-dir artifacts/h03
+      - name: Audit 1100-match original draw-discrimination cohort
+        run: python -m scripts.h03_historical_diagnostics --output-dir artifacts/h03
       - name: Publish research evidence only (never a live model)
         uses: actions/upload-artifact@v4
         with:

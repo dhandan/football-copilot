@@ -76,6 +76,29 @@ class ProductConversationTests(unittest.TestCase):
         self.assertNotIn("scored more goals", lead)
         self.assertEqual(out["planner_requests"], 0)
 
+    def test_live_opponent_strength_followup_after_venue_attack(self):
+        """Regression for the fourth real user acceptance question."""
+        thread = "live-opponent-strength"
+        self.chat.ask("Compare Arsenal and Liverpool over their last 10 Premier League matches.", thread_id=thread)
+        self.chat.ask("Who has been better defensively over those 10 matches?", thread_id=thread)
+        self.chat.ask("How does their home and away scoring compare over those 10 matches?", thread_id=thread)
+        question = "Could the strength of their opponents explain the difference in their recent performances?"
+        result = self.chat.ask(question, thread_id=thread)
+        if not result["complete"]:
+            from agent.investigator_v2 import parse_scope
+            from scripts.audit_v2_investigator_answers import audit_answer
+            from dataclasses import replace
+            scope = parse_scope(question, self.chat.investigator.context[thread])
+            render_scope = replace(scope, opposition=True)
+            raw = self.chat.investigator.ask(question, thread_id="opponent-diagnostic", )
+            print("OPPONENT_REGRESSION_DIAGNOSTIC", result["trace"], raw.get("trace"),
+                  result.get("evidence"), result.get("answer")[:700], flush=True)
+        self.assertEqual(result["route"], "deterministic_investigation", result["trace"])
+        self.assertTrue(result["complete"], result["trace"])
+        self.assertEqual(result["planner_requests"], 0)
+        self.assertIn("Pre-match opponent form", result["answer"])
+        self.assertIn("not a validated defensive adjustment or causal finding", result["answer"])
+
     def test_two_window_defence_has_a_verified_conclusion(self):
         out = self.chat.ask(
             "Has Arsenal's defence improved in its most recent five matches "

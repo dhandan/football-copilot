@@ -47,6 +47,24 @@ jobs:
                     "score",x.get("team_h_score"),"-",x.get("team_a_score"),
                     "kickoff",x.get("kickoff_time"),flush=True)
           PY
+      - name: Diagnose independent Football-Data.co.uk score feed
+        if: github.event_name == 'pull_request'
+        run: |
+          python - <<'PY'
+          from io import StringIO
+          import pandas as pd, requests
+          url="https://www.football-data.co.uk/mmz4281/2627/E0.csv"
+          r=requests.get(url, timeout=30)
+          print("Independent feed status",r.status_code,"bytes",len(r.content),flush=True)
+          r.raise_for_status()
+          df=pd.read_csv(StringIO(r.text))
+          print("Feed columns", list(df.columns[:12]),flush=True)
+          df["ParsedDate"]=pd.to_datetime(df["Date"],dayfirst=True,errors="coerce")
+          rows=df[(df["ParsedDate"]>=pd.Timestamp("2026-11-21"))&
+                  (df["ParsedDate"]<=pd.Timestamp("2026-11-23"))]
+          print("Independent results in window",len(rows),flush=True)
+          print(rows[["Date","HomeTeam","AwayTeam","FTHG","FTAG","FTR"]].to_string(index=False),flush=True)
+          PY
       - name: Fetch and score GW11 completed results (PR dry run, no commits)
         if: github.event_name == 'pull_request'
         run: |

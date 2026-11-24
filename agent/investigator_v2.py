@@ -505,10 +505,14 @@ def _answer_lead(scope: Scope, evidence: list[dict], gaps: list[dict]) -> str | 
             prior_a = oa.get("mean_opponent_prior_ppg")
             prior_b = ob.get("mean_opponent_prior_ppg")
             if prior_a is not None and prior_b is not None:
+                difference = abs(float(prior_a) - float(prior_b))
                 text += (f" Their opponents' prior PPG averaged "
                          f"{float(prior_a):.2f} versus {float(prior_b):.2f} "
                          f"({a} versus {b}). This is descriptive context, "
                          "not a causal explanation of the scoring difference.")
+                if difference < 0.10:
+                    text += (" This is a small numerical difference on this proxy, "
+                             "not proof of materially tougher opposition.")
         return text
     ga, gb = int(ra["GoalsAgainst"]), int(rb["GoalsAgainst"])
     if ga == gb:

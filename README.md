@@ -1,5 +1,10 @@
 # Football Copilot
 
+## Current release: GW12 2026/27 (27 November 2026)
+
+The [GW12 official pre-match forecasts and release journal](docs/gameweeks/GW12.md) include ten verified before-kickoff fixtures, unchanged Model 2, UK bookmaker market, fixed 40/60 provisional champion and registered adaptive challenger. Freeze completed **10:29 GMT Friday 27 November**, before the earliest fixture at **20:00 GMT**. The user-authorised 24-hour timing exception affects one fixture (9/10 at least 24 hours ahead); all ten captures remain strictly before kickoff. Post-match GW12 evaluation is pending.
+
+
 ![Football Copilot](docs/images/football-copilot-social-preview.jpg)
 
 Football Copilot is a personal AI and analytics experiment I built to deepen my practical understanding of how modern agentic AI applications work end-to-end.

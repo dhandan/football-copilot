@@ -1,0 +1,39 @@
+name: GW12 GitHub Project board capability check
+on:
+  push:
+    branches: [ops/gw12-project-board-sync]
+    paths: ['.github/workflows/gw12-project-board-check.yml']
+permissions:
+  contents: read
+  issues: write
+jobs:
+  project-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check user Project v2 board access and status fields
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          gh project view 2 --owner dhandan --format json > /tmp/project_metadata.json 2>/tmp/project_error.txt
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            echo "PROJECT_BOARD_ACCESS_DENIED (GitHub Actions token, no user PAT)"
+            sed -E 's/(gh[pousr]_[a-zA-Z0-9]{12,})/[REDACTED]/g' /tmp/project_error.txt
+            exit 0
+          fi
+          echo "PROJECT_BOARD_READ_OK"
+          python - <<'PY'
+          import json
+          j=json.load(open('/tmp/project_metadata.json'))
+          print("PROJECT",j.get('title'),"NUMBER",j.get('number'),"ID",j.get('id'))
+          PY
+          gh project item-list 2 --owner dhandan --format json > /tmp/items.json
+          python - <<'PY'
+          import json
+          items=json.load(open('/tmp/items.json')).get('items',[])
+          for x in items:
+              content=x.get('content') or {}
+              if (content.get('number') or 0) in (1,2,3,8,24):
+                  print("BOARD_ITEM", content.get('number'), content.get('title'),"STATUS",x.get('status'),"ID",x.get('id'))
+          PY

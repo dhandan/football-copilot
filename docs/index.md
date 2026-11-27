@@ -1,5 +1,12 @@
 # Football Copilot
 
+## Latest checkpoint: GW12 frozen pre-kickoff (27 November 2026)
+
+- [GW12 complete pre-match journal](gameweeks/GW12.md): 10/10 official FPL fixtures, Model 2 benchmark, genuine UK bookmaker market, fixed 40/60 provisional champion and unchanged adaptive challenger. Frozen Friday 27 November at **10:29 GMT** ahead of the first 20:00 GMT fixture. **T−24 exception: 9/10 eligible**, requested explicitly; no post-kickoff forecasts or outcome contamination.
+- [Immutable GW12 Model 2](../data/live/predictions/2026_27_gw12_predictions.csv) · [GW12 primary fixed 40/60](../data/live/challenger_predictions/2026_27_gw12_market_shadow_predictions.csv) · [GW12 adaptive challenger](../data/live/challenger_predictions/2026_27_gw12_adaptive_confidence_v1.csv). Market and FPL capture lineage is linked in the journal.
+- **Next:** 10/10 final results and scored four-way comparison after GW12, followed by weekly retrospective. H03 v1 remains rejected; no revision to the historical 594/1,100 → 616/1,100 threshold.
+
+
 ## Product roadmap rebalanced (23 October 2026)
 
 **Original purpose:** Build real AI and analytics engineering capability through a working Football Copilot application. The prediction model remains valuable but is no longer the sole focus. All new work must meet a **£0 ongoing cost** constraint, reusing local Qwen/Ollama, Streamlit, DuckDB and open-source code.

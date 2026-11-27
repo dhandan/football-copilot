@@ -1,0 +1,131 @@
+name: GW12 official four-way pre-match freeze
+
+on:
+  push:
+    branches: [feature/gw12-2026-27-freeze]
+    paths:
+      - '.github/workflows/gw12-freeze.yml'
+      - 'scripts/freeze_gw12_adaptive.py'
+      - 'scripts/write_gw12_journal.py'
+      - 'tests/test_gw12_adaptive_freeze.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gw12-official-freeze
+  cancel-in-progress: false
+
+jobs:
+  freeze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          ref: feature/gw12-2026-27-freeze
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install tested prediction runtime
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Reconcile branch and immutable source availability
+        run: |
+          git status --short
+          test ! -e data/live/predictions/2026_27_gw12_predictions.csv
+          test ! -e data/live/challenger_predictions/2026_27_gw12_market_shadow_predictions.csv
+          test ! -e data/live/challenger_predictions/2026_27_gw12_adaptive_confidence_v1.csv
+          test ! -e docs/gameweeks/GW12.md
+          if compgen -G 'data/live/market/2026_27_gw12_opening_market_official_*.csv' >/dev/null; then
+            echo 'Official market snapshot already exists; refusing a second release'
+            exit 1
+          fi
+      - name: Run GW12 tests and all pre-existing registered release guards
+        run: |
+          python -m pip check
+          python -m unittest discover -s tests -p 'test_gw11_*.py' -v
+          python -m unittest tests.test_gw12_adaptive_freeze -v
+          python scripts/validate_project.py
+      - name: Perform fixture and Model 2 dry-run without odds/official writes
+        run: python scripts/run_gameweek_once.py --gameweek 12 --dry-run
+      - name: Check configured odds provider credential without revealing it
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          if [ -z "$ODDS_API_KEY" ]; then
+            echo 'ODDS_API_KEY missing: fail closed, do not substitute any market data'
+            exit 1
+          fi
+          echo 'Odds API credential present (value hidden)'
+      - name: Freeze FPL, Model 2, live UK odds and fixed 40/60 before kickoff
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python scripts/run_gameweek_once.py --gameweek 12
+      - name: Freeze previously registered adaptive challenger
+        run: python scripts/freeze_gw12_adaptive.py --gameweek 12
+      - name: Generate GW12 journal from actual frozen evidence
+        run: python scripts/write_gw12_journal.py
+      - name: Validate all four releases, identity, source integrity and timing
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          import numpy as np
+          from pathlib import Path
+          root=Path('data/live')
+          p='2026_27_gw12'
+          model=pd.read_csv(root/'predictions'/f'{p}_predictions.csv')
+          fixed=pd.read_csv(root/'challenger_predictions'/f'{p}_market_shadow_predictions.csv')
+          adaptive=pd.read_csv(root/'challenger_predictions'/f'{p}_adaptive_confidence_v1.csv')
+          markets=list((root/'market').glob(f'{p}_opening_market_official_*.csv'))
+          assert len(markets)==1
+          market=pd.read_csv(markets[0])
+          keys=['FixtureDate','FixtureTime','HomeTeam','AwayTeam']
+          for d in (model,fixed,adaptive,market):
+              assert len(d)==10 and not d.duplicated(keys).any()
+              assert set(map(tuple,d[keys].to_numpy()))==set(map(tuple,model[keys].to_numpy()))
+          assert model.ForecastRole.eq('Benchmark').all()
+          assert fixed.ForecastRole.eq('ProvisionalChampion').all()
+          assert adaptive.ForecastRole.eq('ProspectiveChallenger').all()
+          assert model.ModelVersion.eq('Model2_v1.0').all()
+          assert fixed.ChallengerVersion.eq('Model2_OpeningMarket_40_60_v1.0').all()
+          assert adaptive.ExperimentVersion.eq('AdaptiveMarketConfidence_v1.0').all()
+          assert fixed.SnapshotType.eq('OFFICIAL').all()
+          assert fixed.ModelWeight.eq(.4).all() and fixed.MarketWeight.eq(.6).all()
+          m=model[['HomeWinProbability','DrawProbability','AwayWinProbability']].to_numpy()/100
+          m/=m.sum(axis=1,keepdims=True)
+          k=fixed[['MarketHomeProbability','MarketDrawProbability','MarketAwayProbability']].to_numpy()
+          z=fixed[['ShadowHomeProbability','ShadowDrawProbability','ShadowAwayProbability']].to_numpy()
+          assert np.isfinite(z).all() and (z>=0).all() and np.allclose(z.sum(axis=1),1,atol=1e-8)
+          assert np.allclose(z,.4*m+.6*k,atol=1e-8)
+          times=pd.to_datetime(model.KickoffUTC,utc=True)
+          model_captured=pd.to_datetime(model.PredictionTimestamp,utc=True)
+          odds_captured=pd.to_datetime(market.SnapshotTimestamp,utc=True)
+          assert (model_captured<times).all() and (odds_captured<pd.to_datetime(market.KickoffUTC,utc=True)).all()
+          assert (model.LeadHours>0).all()
+          assert market.BookmakerCount.ge(1).all()
+          assert (market[['AvgH','AvgD','AvgA']]>1).all().all()
+          assert set(model.FixtureIdSource)=={'FPL'}
+          assert (model['ActualResult'].isna()).all()
+          assert Path('docs/gameweeks/GW12.md').is_file()
+          print('GW12 RELEASE PASS: 10/10 matching official pre-kickoff fixtures, four approaches; T24 waived by request')
+          print('T24 eligibility',int(model.T24Eligible.astype(str).str.lower().eq('true').sum()),'of 10')
+          print('Earliest',times.min(),'lead hours',model.LeadHours.min())
+          PY
+      - name: Commit only official write-once data, audit snapshot and release journal
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/live/predictions/2026_27_gw12_predictions.csv
+          git add data/live/market/2026_27_gw12_opening_market_official_*.csv
+          git add data/live/challenger_predictions/2026_27_gw12_market_shadow_predictions.csv
+          git add data/live/challenger_predictions/2026_27_gw12_adaptive_confidence_v1.csv
+          git add data/live/challenger_predictions/2026_27_gw12_adaptive_confidence_v1.json
+          git add data/live/players/h07_snapshots/
+          git add docs/gameweeks/GW12.md
+          git diff --cached --name-only
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'No GW12 artifacts staged'; exit 1; }
+          git commit -m 'Freeze official GW12 forecasts and journal with T24 exception'
+          git push origin HEAD:feature/gw12-2026-27-freeze

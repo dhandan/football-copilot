@@ -1,0 +1,89 @@
+name: GW12 post-match four-way evaluation
+
+on:
+  schedule:
+    - cron: '15 9 1,2 12 *'
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gw12-verified-postmatch-results
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install runtime
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Validate GW12 evaluator, fixture joins, no-peek and release snapshot
+        run: |
+          python -m unittest discover -s tests -p 'test_gw12_*.py' -v
+          python scripts/validate_project.py
+  evaluate:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check scheduled date and immutable output status
+        id: gate
+        run: |
+          today=$(date -u +%F)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$today" != "2026-12-01" ] && [ "$today" != "2026-12-02" ]; then
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.go == 'true'
+        with:
+          persist-credentials: true
+          ref: main
+      - name: Check whether GW12 is already scored
+        if: steps.gate.outputs.go == 'true'
+        id: files
+        run: |
+          if [ -f data/live/evaluations/2026_27_gw12_four_way_summary.csv ] || [ -f data/live/results/2026_27_gw12_results.csv ]; then
+            echo "write=false" >> "$GITHUB_OUTPUT"
+            echo "GW12 results already archived or partial: leave untouched"
+          else
+            echo "write=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-python@v5
+        if: steps.files.outputs.write == 'true'
+        with:
+          python-version: '3.13'
+      - name: Install runtime
+        if: steps.files.outputs.write == 'true'
+        run: python -m pip install --disable-pip-version-check -r requirements-cloud.txt
+      - name: Fetch exactly 10 FPL final results and validate identities
+        if: steps.files.outputs.write == 'true'
+        run: python scripts/fetch_gameweek_results.py --gameweek 12
+      - name: Score all four pre-registered GW12 model vectors
+        if: steps.files.outputs.write == 'true'
+        run: python scripts/score_gw12_four_way.py --gameweek 12
+      - name: Commit results and scored four-way comparison without changing forecasts
+        if: steps.files.outputs.write == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/live/results/2026_27_gw12_results.csv
+          git add data/live/evaluations/2026_27_gw12_four_way_fixture_scores.csv
+          git add data/live/evaluations/2026_27_gw12_four_way_summary.csv
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'No results staged'; exit 1; }
+          git commit -m 'Score verified GW12 final results against immutable pre-match forecasts'
+          git pull --rebase origin main
+          git push origin HEAD:main
